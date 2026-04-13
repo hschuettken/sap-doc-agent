@@ -12,6 +12,9 @@ dependencies = [
     "openai>=1.0",
 ]
 
+[project.scripts]
+sap-doc-agent = "sap_doc_agent.cli:cli_main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
