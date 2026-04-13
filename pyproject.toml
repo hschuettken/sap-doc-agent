@@ -10,6 +10,8 @@ dependencies = [
     "atlassian-python-api>=3.41",
     "PyGithub>=2.3",
     "openai>=1.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
 ]
 
 [project.scripts]
