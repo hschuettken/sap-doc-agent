@@ -1,0 +1,50 @@
+# SAP Documentation Agent — Configuration
+# Copy to config.yaml and edit for your environment.
+
+sap_systems:
+  # BW/4HANA system (requires ABAP scanner installed)
+  - name: "Horvath BW/4 Demo"
+    type: bw4hana
+    transport: api
+    scan_scope:
+      top_level_providers: []
+      namespace_filter: ["Z*", "Y*"]
+      object_types:
+        - adso
+        - composite
+        - transformation
+        - class
+        - fm
+        - table
+        - data_element
+        - domain
+        - infoobject
+        - process_chain
+        - data_source
+      max_depth: unlimited
+
+doc_platform:
+  type: bookstack
+  url: "http://192.168.0.50:8253"
+  auth:
+    type: api_token
+    token_env: BOOKSTACK_TOKEN
+
+git:
+  type: github
+  url_env: GIT_REPO_URL
+  token_env: GIT_TOKEN
+
+llm:
+  mode: direct
+  provider: openai_compatible
+  base_url_env: LLM_BASE_URL
+  api_key_env: LLM_API_KEY
+  model: qwen2.5:14b
+
+standards:
+  - horvath/doc_standard.yaml
+
+reporting:
+  formats: [html, markdown]
+  sitemap: true
