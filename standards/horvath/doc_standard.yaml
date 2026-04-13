@@ -1,0 +1,45 @@
+name: "Horvath Documentation Standard"
+rules:
+  - id: desc_required
+    name: "Description required"
+    severity: critical
+    check_type: field_required
+    field: description
+    message: "Every object must have a description"
+  - id: desc_min_length
+    name: "Description minimum length"
+    severity: important
+    check_type: min_length
+    field: description
+    min_length: 20
+    message: "Description must be at least 20 characters"
+  - id: owner_required
+    name: "Owner required"
+    severity: important
+    check_type: field_required
+    field: owner
+    message: "Every object must have an assigned owner"
+  - id: package_required
+    name: "Package required"
+    severity: minor
+    check_type: field_required
+    field: package
+    message: "BW objects should be assigned to a package"
+  - id: raw_naming
+    name: "RAW layer naming convention"
+    severity: minor
+    check_type: naming_convention
+    pattern: "01_|RAW_|LT_|RT_|RF_"
+    message: "Raw layer objects should start with 01_, RAW_, LT_, RT_, or RF_"
+  - id: harmonized_naming
+    name: "Harmonized layer naming convention"
+    severity: minor
+    check_type: naming_convention
+    pattern: "02_|HARM_|RV_|FV_|MD_|HV_"
+    message: "Harmonized layer objects should start with 02_, HARM_, RV_, FV_, MD_, or HV_"
+  - id: mart_naming
+    name: "Mart layer naming convention"
+    severity: minor
+    check_type: naming_convention
+    pattern: "03_|MART_"
+    message: "Mart layer objects should start with 03_ or MART_"

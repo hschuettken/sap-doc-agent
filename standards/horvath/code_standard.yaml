@@ -1,0 +1,53 @@
+name: "Horvath Code Quality Standard"
+description: "Rule-based code quality checks for ABAP and HANA SQL"
+abap_rules:
+  - id: no_select_star
+    name: "No SELECT *"
+    severity: important
+    description: "Avoid SELECT * — always specify explicit columns"
+  - id: no_hardcoded_client
+    name: "No hardcoded client"
+    severity: critical
+    description: "Never hardcode client numbers (000, 100, 800, etc.)"
+  - id: require_where_clause
+    name: "WHERE clause required"
+    severity: important
+    description: "SELECT statements on large tables must have a WHERE clause"
+  - id: no_magic_numbers
+    name: "No magic dates"
+    severity: minor
+    description: "Don't hardcode dates — use variables or constants"
+  - id: no_empty_catch
+    name: "No empty CATCH"
+    severity: important
+    description: "CATCH blocks must handle the error, not swallow it"
+  - id: no_nested_select
+    name: "No nested SELECT in LOOP"
+    severity: critical
+    description: "SELECT inside LOOP causes N+1 query problems — use FOR ALL ENTRIES or JOIN"
+sql_rules:
+  - id: no_sql_select_star
+    name: "No SELECT * in views"
+    severity: important
+    description: "Always use explicit column lists in SQL views"
+  - id: union_all_aliases
+    name: "UNION ALL alias required"
+    severity: important
+    description: "Every column in every UNION ALL leg must have an alias"
+  - id: no_hardcoded_dates
+    name: "No hardcoded dates in SQL"
+    severity: minor
+    description: "Don't hardcode date strings — use parameters or calculated dates"
+data_model_rules:
+  - id: layer_assignment
+    name: "Layer assignment required"
+    severity: minor
+    description: "Every object should be assigned to an architecture layer"
+  - id: naming_convention
+    name: "Naming convention compliance"
+    severity: minor
+    description: "Object names must follow the layer-specific prefix convention"
+  - id: description_quality
+    name: "Description quality"
+    severity: minor
+    description: "Descriptions must be meaningful (minimum 10 characters)"
