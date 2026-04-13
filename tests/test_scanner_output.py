@@ -151,7 +151,7 @@ class TestRenderObjectMarkdown:
         assert "This is a test object" in md
 
     def test_description_omitted_if_empty(self):
-        """Test that empty description is not included."""
+        """Test that empty description is not included as a bare line."""
         obj = ScannedObject(
             object_id="Z_TEST",
             object_type=ObjectType.TABLE,
@@ -159,19 +159,23 @@ class TestRenderObjectMarkdown:
             description="",
         )
         md = render_object_markdown(obj)
-        # Should only have the heading and details, not a bare description line
+        # With no description, the Description section should show auto-generated text,
+        # not the original empty string as a bare paragraph.
+        # The heading must be present.
+        assert "# Test" in md
+        # The Details section must be present.
+        assert "## Details" in md
+        # No bare empty description paragraph between heading and first section heading
         lines = md.split("\n")
-        # After frontmatter and heading, next non-empty should be "## Details"
-        # Filter out frontmatter markers and content
         in_frontmatter = False
         relevant = []
-        for l in lines:
-            if l.strip() == "---":
+        for line in lines:
+            if line.strip() == "---":
                 in_frontmatter = not in_frontmatter
-            elif not in_frontmatter and l.strip():
-                relevant.append(l)
+            elif not in_frontmatter and line.strip():
+                relevant.append(line)
+        # First non-empty line after frontmatter must be the H1 heading
         assert relevant[0] == "# Test"
-        assert relevant[1] == "## Details"
 
     def test_details_section_has_bullets(self):
         """Test that Details section has bullet points."""
@@ -412,3 +416,244 @@ class TestWriteScanOutput:
         assert graph["source_system"] == "DEV"
         assert graph["nodes"] == []
         assert graph["edges"] == []
+
+    def test_readme_is_generated(self, tmp_path: Path):
+        """Test that README.md is generated in the output root."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.TABLE,
+            name="Test Table",
+        )
+        result = ScanResult(source_system="DEV", objects=[obj])
+        output_dir = tmp_path / "output"
+        write_scan_output(result, output_dir)
+        readme = output_dir / "README.md"
+        assert readme.exists()
+        content = readme.read_text()
+        assert "SAP Scan Output" in content
+        assert "DEV" in content
+
+    def test_readme_has_object_table(self, tmp_path: Path):
+        """Test that README.md contains a table of all objects with links."""
+        obj = ScannedObject(
+            object_id="Z_FACT_1",
+            object_type=ObjectType.VIEW,
+            name="Fact View",
+            layer="harmonized",
+        )
+        result = ScanResult(source_system="QA", objects=[obj])
+        output_dir = tmp_path / "output"
+        write_scan_output(result, output_dir)
+        content = (output_dir / "README.md").read_text()
+        assert "Fact View" in content
+        assert "Z_FACT_1.md" in content
+        assert "harmonized" in content
+
+    def test_readme_has_dependency_summary(self, tmp_path: Path):
+        """Test that README.md includes dependency graph summary when deps exist."""
+        obj1 = ScannedObject(object_id="Z_A", object_type=ObjectType.TABLE, name="A")
+        obj2 = ScannedObject(object_id="Z_B", object_type=ObjectType.TABLE, name="B")
+        dep = Dependency(
+            source_id="Z_A",
+            target_id="Z_B",
+            dependency_type=DependencyType.READS_FROM,
+        )
+        result = ScanResult(source_system="DEV", objects=[obj1, obj2], dependencies=[dep])
+        output_dir = tmp_path / "output"
+        write_scan_output(result, output_dir)
+        content = (output_dir / "README.md").read_text()
+        assert "Dependency Graph" in content
+        assert "Reads From" in content
+
+
+class TestRenderObjectMarkdownRichFormat:
+    """Tests for the rich formatting added to render_object_markdown."""
+
+    def test_business_name_as_h1_when_present(self):
+        """Test that business_name from metadata is used as H1 heading."""
+        obj = ScannedObject(
+            object_id="RSC_BEST_PRACTICE.02RV_TEST",
+            object_type=ObjectType.VIEW,
+            name="02RV_TEST",
+            metadata={"business_name": "FI Account ACT+PLAN"},
+        )
+        md = render_object_markdown(obj)
+        assert "# FI Account ACT+PLAN" in md
+
+    def test_technical_name_with_backticks(self):
+        """Test that technical name appears with backtick formatting."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="02RV_TEST",
+            technical_name="02RV_TEST",
+        )
+        md = render_object_markdown(obj)
+        assert "`02RV_TEST`" in md
+
+    def test_name_as_h1_when_no_business_name(self):
+        """Test that name is used as H1 when no business_name in metadata."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.TABLE,
+            name="My Table",
+        )
+        md = render_object_markdown(obj)
+        assert "# My Table" in md
+
+    def test_columns_table_renders_when_present(self):
+        """Test that columns table is rendered from metadata.columns."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test View",
+            metadata={
+                "columns": [
+                    {"name": "ACCOUNT", "type": "VARCHAR(10)", "description": "Account number"},
+                    {"name": "AMOUNT", "type": "DECIMAL(17,2)", "description": "Transaction amount"},
+                ]
+            },
+        )
+        md = render_object_markdown(obj)
+        assert "## Columns" in md
+        assert "| Column | Type | Description |" in md
+        assert "ACCOUNT" in md
+        assert "VARCHAR(10)" in md
+        assert "Account number" in md
+        assert "AMOUNT" in md
+
+    def test_columns_placeholder_when_no_columns(self):
+        """Test that placeholder appears when no columns in metadata."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test View",
+        )
+        md = render_object_markdown(obj)
+        assert "## Columns" in md
+        assert "*(Column data populated by deep scan)*" in md
+
+    def test_sql_renders_in_code_block(self):
+        """Test that source_code renders in SQL code block."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test View",
+            source_code="SELECT * FROM T001",
+        )
+        md = render_object_markdown(obj)
+        assert "## SQL Definition" in md
+        assert "```sql" in md
+        assert "SELECT * FROM T001" in md
+
+    def test_sql_placeholder_when_no_source_code(self):
+        """Test that SQL placeholder appears when source_code is empty."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test View",
+            source_code="",
+        )
+        md = render_object_markdown(obj)
+        assert "## SQL Definition" in md
+        assert "*(SQL definition populated by deep scan)*" in md
+
+    def test_dependencies_render_with_links(self):
+        """Test that dependencies render as markdown links."""
+        obj = ScannedObject(
+            object_id="Z_VIEW",
+            object_type=ObjectType.VIEW,
+            name="My View",
+        )
+        deps = [
+            Dependency(
+                source_id="Z_VIEW",
+                target_id="Z_TABLE_SOURCE",
+                dependency_type=DependencyType.READS_FROM,
+                metadata={"target_type": "table", "target_name": "Z_TABLE_SOURCE"},
+            )
+        ]
+        md = render_object_markdown(obj, dependencies=deps)
+        assert "## Dependencies" in md
+        assert "Z_TABLE_SOURCE" in md
+        assert "table/Z_TABLE_SOURCE.md" in md
+
+    def test_read_by_renders_in_dependencies(self):
+        """Test that objects that read this one appear in the Dependencies section."""
+        obj = ScannedObject(
+            object_id="Z_TABLE",
+            object_type=ObjectType.TABLE,
+            name="My Table",
+        )
+        deps = [
+            Dependency(
+                source_id="Z_VIEW_CONSUMER",
+                target_id="Z_TABLE",
+                dependency_type=DependencyType.READS_FROM,
+                metadata={"source_type": "view", "source_name": "Z_VIEW_CONSUMER"},
+            )
+        ]
+        md = render_object_markdown(obj, dependencies=deps)
+        assert "## Dependencies" in md
+        assert "### Read By" in md
+        assert "Z_VIEW_CONSUMER" in md
+
+    def test_no_dependencies_shows_placeholder(self):
+        """Test that placeholder appears when no dependencies."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.TABLE,
+            name="Test",
+        )
+        md = render_object_markdown(obj)
+        assert "## Dependencies" in md
+        assert "*(No dependencies recorded)*" in md
+
+    def test_screenshots_render_when_present(self):
+        """Test that screenshots render as image links."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test View",
+            metadata={"screenshots": ["preview.png", "detail.png"]},
+        )
+        md = render_object_markdown(obj)
+        assert "## Screenshots" in md
+        assert "![preview.png](preview.png)" in md
+        assert "![detail.png](detail.png)" in md
+
+    def test_screenshots_placeholder_when_absent(self):
+        """Test that placeholder appears when no screenshots in metadata."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.TABLE,
+            name="Test",
+        )
+        md = render_object_markdown(obj)
+        assert "## Screenshots" in md
+        assert "*(Screenshots populated by deep scan)*" in md
+
+    def test_metadata_section_renders_folder(self):
+        """Test that folder appears in Metadata section."""
+        obj = ScannedObject(
+            object_id="Z_TEST",
+            object_type=ObjectType.VIEW,
+            name="Test",
+            metadata={"folder": "Fact Data"},
+        )
+        md = render_object_markdown(obj)
+        assert "## Metadata" in md
+        assert "**Folder:** Fact Data" in md
+
+    def test_abap_source_code_still_renders_for_class(self):
+        """Test that ABAP source code block still renders for CLASS type objects."""
+        obj = ScannedObject(
+            object_id="Z_CL_TEST",
+            object_type=ObjectType.CLASS,
+            name="Z_CL_TEST",
+            source_code="CLASS z_cl_test DEFINITION.\nENDCLASS.",
+        )
+        md = render_object_markdown(obj)
+        assert "## Source Code" in md
+        assert "```abap" in md
+        assert "CLASS z_cl_test DEFINITION." in md

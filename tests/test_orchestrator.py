@@ -163,6 +163,6 @@ def test_full_pipeline_merge_deduplicate_write(tmp_path: Path):
     # Dependency remapped: source S2.VIEW_X → winner (S1.VIEW_X or S2.VIEW_X)
     assert len(graph["edges"]) == 1
 
-    # At least one markdown file should exist
+    # Two object markdown files plus README.md in output root
     md_files = list(tmp_path.rglob("*.md"))
-    assert len(md_files) == 2
+    assert len(md_files) == 3  # 2 object files + README.md
