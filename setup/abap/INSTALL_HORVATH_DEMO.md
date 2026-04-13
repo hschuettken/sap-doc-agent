@@ -114,7 +114,7 @@ Or just use `$TMP` for the demo (no transport needed).
 |-----------|----------------------|
 | Transport Backend (P_TRANS) | `P` (API) |
 | Git API URL (P_GITURL) | `https://api.github.com/repos/hschuettken/sap-doc-agent-output` |
-| API Token (P_TOKEN) | `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` |
+| API Token (P_TOKEN) | *(your GitHub PAT — stored in envctl as GITHUB_PAT_GITEA_MIRROR)* |
 | Namespace Filter (P_NSFILTR) | `Z*` (or `*` to scan everything) |
 | AL11 Path (P_ALPATH) | *(leave empty — not using filedrop)* |
 
