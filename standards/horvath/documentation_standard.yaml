@@ -1,0 +1,219 @@
+name: "Horvath SAP Documentation Standard v1.0"
+version: "1.0"
+description: "Best-practice documentation standard for SAP BW/4HANA and Datasphere environments. Developed by Horvath for documentation quality assurance and audit."
+
+document_types:
+  - id: architecture_overview
+    name: "Architecture Overview"
+    description: "High-level system landscape and data flow overview. The single most important document — makes everything else make sense."
+    required_sections:
+      - id: system_landscape
+        name: "System Landscape"
+        description: "All systems involved (source systems, BW, DSP, SAC, external), their roles, and connections"
+        min_content_length: 200
+        should_contain: ["source system", "target", "connection"]
+      - id: data_flow_map
+        name: "Data Flow Map"
+        description: "High-level visualization: source systems → staging → harmonization → mart → consumption → reporting"
+        min_content_length: 100
+        should_contain_visual: true
+      - id: layer_architecture
+        name: "Layer Architecture"
+        description: "Definition of each layer (RAW/HARMONIZED/MART/CONSUMPTION), what goes where, with examples"
+        min_content_length: 200
+        should_contain: ["raw", "harmonized", "mart", "consumption"]
+      - id: space_organization
+        name: "Space / Package Organization"
+        description: "How spaces (DSP) or packages (BW) are structured, naming conventions, ownership"
+        min_content_length: 100
+      - id: integration_points
+        name: "Integration Points"
+        description: "Connections to SAC, external APIs, other SAP systems, third-party tools"
+        min_content_length: 50
+      - id: security_concept
+        name: "Security & Authorization"
+        description: "Authorization concept, role mapping, data access restrictions"
+        min_content_length: 50
+
+  - id: development_guidelines
+    name: "Development Guidelines"
+    description: "Standards for developers working in the SAP BW/DSP environment."
+    required_sections:
+      - id: naming_conventions
+        name: "Naming Conventions"
+        description: "Prefix/suffix rules for all object types, with examples for each"
+        min_content_length: 200
+        should_contain: ["prefix", "example"]
+      - id: coding_standards
+        name: "Coding Standards"
+        description: "ABAP and SQL coding rules (SELECT patterns, error handling, performance)"
+        min_content_length: 200
+      - id: layer_rules
+        name: "Layer Architecture Rules"
+        description: "What belongs in each layer, allowed transformations, persistence strategy"
+        min_content_length: 150
+      - id: transport_process
+        name: "Transport / Deployment Process"
+        description: "How changes move from dev to test to production"
+        min_content_length: 100
+      - id: testing_requirements
+        name: "Testing Requirements"
+        description: "What must be tested before deployment, test data strategy"
+        min_content_length: 100
+      - id: code_review
+        name: "Code Review Checklist"
+        description: "What reviewers check before approving changes"
+        min_content_length: 100
+      - id: reuse_rules
+        name: "Reuse & Shared Objects"
+        description: "When to create shared objects vs. copies, master data governance"
+        min_content_length: 50
+
+  - id: business_requirements
+    name: "Business Requirements Specification (BRS)"
+    description: "Documents the business need that drives a data flow or set of objects."
+    required_sections:
+      - id: business_objective
+        name: "Business Objective"
+        description: "Why does this exist? What business question does it answer?"
+        min_content_length: 100
+      - id: data_scope
+        name: "Data Scope"
+        description: "What data, what timeframe, what granularity, what entities"
+        min_content_length: 100
+        should_contain: ["scope", "granularity"]
+      - id: business_rules
+        name: "Business Rules & Calculations"
+        description: "Formulas, aggregation rules, currency conversion, allocations"
+        min_content_length: 100
+      - id: source_systems
+        name: "Source Systems"
+        description: "Where the data comes from, extraction method, frequency"
+        min_content_length: 50
+      - id: output_consumers
+        name: "Output & Consumers"
+        description: "Who uses this data and how (SAC reports, APIs, exports)"
+        min_content_length: 50
+      - id: acceptance_criteria
+        name: "Acceptance Criteria"
+        description: "How do we know this is correct? Reconciliation rules, test cases"
+        min_content_length: 50
+      - id: signoff
+        name: "Sign-off & Owner"
+        description: "Business owner, approval date, change history"
+        min_content_length: 20
+
+  - id: data_flow
+    name: "Data Flow Documentation"
+    description: "Documents a single data flow or process chain."
+    required_sections:
+      - id: flow_overview
+        name: "Source → Target Overview"
+        description: "Visual or textual overview of the complete data path"
+        min_content_length: 100
+        should_contain_visual: true
+      - id: transformation_logic
+        name: "Transformation Logic"
+        description: "Business-language description of what happens to the data (not just 'see ABAP')"
+        min_content_length: 200
+      - id: filter_criteria
+        name: "Filter / Selection Criteria"
+        description: "What data is included/excluded, date ranges, company codes"
+        min_content_length: 50
+      - id: error_handling
+        name: "Error Handling"
+        description: "What happens on failure, empty source, duplicate records"
+        min_content_length: 50
+      - id: schedule
+        name: "Schedule & Frequency"
+        description: "When and how often, dependencies on other processes"
+        min_content_length: 30
+      - id: dependencies
+        name: "Dependencies"
+        description: "Other flows that must run before/after this one"
+        min_content_length: 30
+
+  - id: object_documentation
+    name: "Object Documentation"
+    description: "Technical documentation for a single object (ADSO, view, table, etc.)."
+    required_sections:
+      - id: business_purpose
+        name: "Business Purpose"
+        description: "One sentence: what question does this object help answer?"
+        min_content_length: 30
+      - id: owner
+        name: "Owner / Responsible Team"
+        description: "Who owns this object and is responsible for its accuracy"
+        min_content_length: 10
+      - id: key_fields
+        name: "Key Fields & Business Meaning"
+        description: "Important fields with their business context, not just technical names"
+        min_content_length: 100
+      - id: data_volume
+        name: "Data Volume & Retention"
+        description: "Expected row count, growth rate, retention/archiving policy"
+        min_content_length: 30
+      - id: layer
+        name: "Layer Assignment"
+        description: "Which architecture layer and why"
+        min_content_length: 20
+      - id: upstream
+        name: "Upstream Dependencies"
+        description: "What feeds this object"
+        min_content_length: 20
+      - id: downstream
+        name: "Downstream Consumers"
+        description: "What reads from this object"
+        min_content_length: 20
+
+  - id: master_data
+    name: "Master Data Documentation"
+    description: "Documentation for master data objects, hierarchies, and attributes."
+    required_sections:
+      - id: hierarchy_structure
+        name: "Hierarchy Structure"
+        description: "Hierarchy levels, their business meaning, how they're maintained"
+        min_content_length: 100
+      - id: attributes
+        name: "Attributes & What They Control"
+        description: "Key attributes, their values, and how they affect reporting/processing"
+        min_content_length: 100
+      - id: maintenance
+        name: "Maintenance Responsibility"
+        description: "Who adds/changes values, approval process, governance"
+        min_content_length: 50
+      - id: cross_system
+        name: "Cross-System Mapping"
+        description: "How this master data maps to other systems (ERP, DSP, SAC)"
+        min_content_length: 50
+
+  - id: operational_runbook
+    name: "Operational Runbook"
+    description: "Day-to-day operations guide for support and monitoring."
+    required_sections:
+      - id: daily_checks
+        name: "Daily / Weekly Checks"
+        description: "What to verify, where to look, expected values"
+        min_content_length: 100
+      - id: known_issues
+        name: "Known Issues & Workarounds"
+        description: "Common problems, their symptoms, and how to fix them"
+        min_content_length: 50
+      - id: escalation
+        name: "Escalation Contacts"
+        description: "Who to call for what, tiered support levels"
+        min_content_length: 30
+      - id: recovery
+        name: "Recovery Procedures"
+        description: "How to restart failed processes, reprocess data, rollback"
+        min_content_length: 100
+
+scoring:
+  section_present: 5
+  section_min_length_met: 3
+  section_contains_keywords: 2
+  section_has_visual: 3
+  penalties:
+    section_missing: -10
+    section_too_short: -3
+    no_visuals_where_expected: -5
