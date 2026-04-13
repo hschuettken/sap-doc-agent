@@ -17,9 +17,20 @@ def test_cli_help(capsys):
 def test_cli_missing_config(capsys):
     import sys
 
-    with patch.object(sys, "argv", ["sap-doc-agent", "--config", "/nonexistent.yaml", "--scan"]):
+    with patch.object(sys, "argv", ["sap-doc-agent", "platform", "--config", "/nonexistent.yaml", "--scan"]):
         with pytest.raises(SystemExit) as exc_info:
             import asyncio
 
             asyncio.run(main())
         assert exc_info.value.code == 1
+
+
+def test_cli_audit_requires_docs():
+    import sys
+
+    with patch.object(sys, "argv", ["sap-doc-agent", "audit"]):
+        with pytest.raises(SystemExit) as exc_info:
+            import asyncio
+
+            asyncio.run(main())
+        assert exc_info.value.code == 2  # argparse error
