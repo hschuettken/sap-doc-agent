@@ -8,11 +8,12 @@
 |-----------|----------|--------|
 | Code repo | Gitea: atlas/sap-doc-agent, GitHub: hschuettken/sap-doc-agent | Private, mirrored |
 | Output repo | Gitea: atlas/sap-doc-agent-output, GitHub: hschuettken/sap-doc-agent-output | Private, mirrored |
-| Web server | 192.168.0.50:8260, sap-docs.local.schuettken.net | Running |
+| Web server | 192.168.0.50:8260, sap-docu.local.schuettken.net | Running |
+| Web UI | https://sap-docu.schuettken.net/ui/dashboard | Password: admin (change it!) |
 | BookStack | 192.168.0.50:8253 (admin@admin.com / password) | Running |
 | Outline | 192.168.0.50:8250 (SMTP magic link auth) | Running |
 | Spec | SPEC.md in code repo | Complete |
-| Tests | 234 passing | Green |
+| Tests | 254 passing | Green |
 
 ## CLI Usage
 
@@ -40,12 +41,12 @@ python -c "import uvicorn; from sap_doc_agent.web.server import create_app; app 
 
 ## URLs (after Cloudflare tunnel)
 
-- Knowledge: https://sap-docs.schuettken.net/
-- Sitemap: https://sap-docs.schuettken.net/sitemap.xml
-- OpenAPI: https://sap-docs.schuettken.net/openapi.json
-- Audit API: POST https://sap-docs.schuettken.net/api/audit
-- Search: GET https://sap-docs.schuettken.net/api/search?q=...
-- Objects: GET https://sap-docs.schuettken.net/api/objects
+- Knowledge: https://sap-docu.schuettken.net/
+- Sitemap: https://sap-docu.schuettken.net/sitemap.xml
+- OpenAPI: https://sap-docu.schuettken.net/openapi.json
+- Audit API: POST https://sap-docu.schuettken.net/api/audit
+- Search: GET https://sap-docu.schuettken.net/api/search?q=...
+- Objects: GET https://sap-docu.schuettken.net/api/objects
 
 ## Credentials
 
@@ -56,7 +57,8 @@ All stored in envctl (192.168.0.50:8201). Key ones:
 
 ## TODO
 
-- [ ] Cloudflare tunnel: sap-docs.schuettken.net
+- [x] Cloudflare tunnel: sap-docu.schuettken.net
+- [ ] Change UI password from default 'admin' (set SAP_DOC_AGENT_UI_PASSWORD_HASH env var)
 - [ ] M365 Copilot: add knowledge URL + OpenAPI
 - [ ] ABAP install on Horvath BW (see setup/abap/INSTALL_HORVATH_DEMO.md)
 - [ ] Deep CDP scan of Horvath DSP (SQL, columns, lineage, screenshots)
