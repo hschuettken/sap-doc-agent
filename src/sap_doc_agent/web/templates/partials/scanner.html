@@ -1,6 +1,51 @@
 {% extends "base.html" %}
 {% block title %}Scanner — SAP Doc Agent{% endblock %}
 {% block page_title %}Scanner{% endblock %}
+
 {% block content %}
-<p class="text-gray-400">Coming soon.</p>
+<!-- Scanner cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+    <div class="card">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-heading text-sm text-[#1a2332]">DSP — CDP Scanner</h3>
+            <span class="dot dot-green"></span>
+        </div>
+        <p class="text-sm text-gray-500 mb-3">Browser-based scanning via Chrome DevTools Protocol</p>
+        <button class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark"
+                hx-post="/api/scanner/start"
+                hx-vals='{"scanner": "cdp"}'
+                hx-swap="none"
+                hx-on::after-request="showToast('CDP scan started', 'success')">
+            Start Scan
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-heading text-sm text-[#1a2332]">DSP — REST API</h3>
+            <span class="dot dot-amber"></span>
+        </div>
+        <p class="text-sm text-gray-500 mb-3">OAuth-based REST API scanner (requires BTP service key)</p>
+        <button class="px-3 py-1.5 border border-gray-300 text-gray-400 rounded text-xs font-medium cursor-not-allowed" disabled>
+            Not Configured
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-heading text-sm text-[#1a2332]">BW/4HANA — ABAP</h3>
+            <span class="dot dot-amber"></span>
+        </div>
+        <p class="text-sm text-gray-500 mb-3">ABAP program scanning (requires SAP GUI installation)</p>
+        <button class="px-3 py-1.5 border border-gray-300 text-gray-400 rounded text-xs font-medium cursor-not-allowed" disabled>
+            Not Installed
+        </button>
+    </div>
+</div>
+
+<!-- Scan log area -->
+<div class="card">
+    <h3 class="font-heading text-sm text-[#1a2332] mb-3">Scan Output</h3>
+    <pre id="scan-log" class="bg-gray-900 text-gray-200 p-4 rounded text-xs font-mono h-64 overflow-y-auto">Waiting for scan to start...</pre>
+</div>
 {% endblock %}

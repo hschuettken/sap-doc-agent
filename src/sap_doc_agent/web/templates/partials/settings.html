@@ -1,12 +1,109 @@
 {% extends "base.html" %}
 {% block title %}Settings — SAP Doc Agent{% endblock %}
 {% block page_title %}Settings{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    {% if config_yaml %}
-    <pre class="text-sm whitespace-pre-wrap font-mono bg-gray-50 rounded p-3">{{ config_yaml }}</pre>
-    {% else %}
-    <p class="text-gray-400">No configuration file loaded.</p>
-    {% endif %}
+<div class="card max-w-4xl">
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 mb-4 overflow-x-auto">
+        <button class="px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap" onclick="showSettingsTab(event, 'config')">Configuration</button>
+        <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap" onclick="showSettingsTab(event, 'password')">Password</button>
+    </div>
+
+    <!-- Config tab -->
+    <div id="settings-config">
+        <p class="text-sm text-gray-500 mb-3">Edit the YAML configuration directly. Changes take effect after saving and restarting the service.</p>
+        <div id="config-editor-container" class="border border-gray-200 rounded overflow-hidden mb-3" style="height:400px"></div>
+        <div id="config-errors" class="text-sm text-red-600 mb-3" style="display:none"></div>
+        <div class="flex gap-2">
+            <button onclick="saveConfig()" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">Save Configuration</button>
+            <button onclick="validateConfig()" class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">Validate</button>
+        </div>
+    </div>
+
+    <!-- Password tab -->
+    <div id="settings-password" style="display:none">
+        <p class="text-sm text-gray-500 mb-3">Change the UI password.</p>
+        <form hx-put="/api/settings/password" hx-swap="none" hx-on::after-request="showToast('Password updated', 'success')">
+            <div class="mb-3">
+                <label class="block text-sm font-medium mb-1">New Password</label>
+                <input type="password" name="password" required
+                       class="w-full max-w-sm px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-petrol">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">Update Password</button>
+        </form>
+    </div>
 </div>
+
+<script>
+let editor;
+document.addEventListener('DOMContentLoaded', function() {
+    editor = CodeMirror(document.getElementById('config-editor-container'), {
+        value: {{ config_yaml | tojson }},
+        mode: 'yaml',
+        theme: 'dracula',
+        lineNumbers: true,
+        lineWrapping: true,
+        tabSize: 2,
+    });
+});
+
+function showSettingsTab(evt, name) {
+    document.getElementById('settings-config').style.display = name === 'config' ? 'block' : 'none';
+    document.getElementById('settings-password').style.display = name === 'password' ? 'block' : 'none';
+    evt.target.parentElement.querySelectorAll('button').forEach(b => {
+        b.className = 'px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap';
+    });
+    evt.target.className = 'px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap';
+}
+
+async function saveConfig() {
+    try {
+        const resp = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({yaml_content: editor.getValue()})
+        });
+        const data = await resp.json();
+        if (data.errors) {
+            document.getElementById('config-errors').textContent = data.errors.join('\n');
+            document.getElementById('config-errors').style.display = 'block';
+            showToast('Validation errors', 'error');
+        } else {
+            document.getElementById('config-errors').style.display = 'none';
+            showToast('Configuration saved', 'success');
+        }
+    } catch (err) {
+        showToast('Save failed: ' + err.message, 'error');
+    }
+}
+
+async function validateConfig() {
+    try {
+        const resp = await fetch('/api/settings/validate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({yaml_content: editor.getValue()})
+        });
+        const data = await resp.json();
+        if (data.valid) {
+            document.getElementById('config-errors').style.display = 'none';
+            showToast('Configuration is valid', 'success');
+        } else {
+            document.getElementById('config-errors').textContent = data.errors.join('\n');
+            document.getElementById('config-errors').style.display = 'block';
+            showToast('Validation errors found', 'error');
+        }
+    } catch (err) {
+        showToast('Validation failed: ' + err.message, 'error');
+    }
+}
+</script>
 {% endblock %}

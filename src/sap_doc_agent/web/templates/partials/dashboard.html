@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — SAP Doc Agent{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+    <!-- Object Count -->
     <div class="card">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Objects Scanned</p>
         <p class="text-3xl font-bold text-[#1a2332]">{{ object_count }}</p>
@@ -12,11 +14,84 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- Quality Score -->
+    <div class="card">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Quality Score</p>
+        <div class="flex items-center gap-3">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" class="gauge-ring" stroke="#E5E5E5"/>
+                <circle cx="32" cy="32" r="28" class="gauge-ring"
+                    stroke="{% if quality_score is defined and quality_score > 70 %}#16A34A{% elif quality_score is defined and quality_score > 40 %}#D97706{% else %}#DC2626{% endif %}"
+                    stroke-dasharray="{{ ((quality_score|default(0)) / 100 * 175.9)|round(1) }} 175.9"
+                    transform="rotate(-90 32 32)"/>
+                <text x="32" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#353434">{{ quality_score|default("—") }}{% if quality_score is defined %}%{% endif %}</text>
+            </svg>
+            <div class="text-sm text-gray-500">
+                {% if quality_score is not defined %}
+                <p>No QA report yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Last Scan -->
+    <div class="card">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Last Scan</p>
+        {% if last_scan is defined and last_scan %}
+        <p class="text-lg font-semibold text-[#1a2332]">{{ last_scan }}</p>
+        {% else %}
+        <p class="text-lg text-gray-400">No scans yet</p>
+        {% endif %}
+    </div>
+
+    <!-- Dependencies -->
     <div class="card">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dependencies</p>
         <p class="text-3xl font-bold text-[#1a2332]">{{ edge_count }}</p>
-        <p class="text-xs text-gray-400 mt-1">edges in graph</p>
+        <p class="text-sm text-gray-500 mt-1">relationships mapped</p>
     </div>
 </div>
-<p class="text-gray-400 text-sm">Use the sidebar to explore objects, quality reports, and dependency graph.</p>
+
+<!-- Quick Actions -->
+<div class="card mb-6">
+    <h3 class="font-heading text-base text-[#1a2332] mb-3">Quick Actions</h3>
+    <div class="flex flex-wrap gap-3">
+        <button class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
+                hx-post="/api/scanner/start"
+                hx-swap="none"
+                hx-on::after-request="showToast('Scan started', 'success')">
+            Run Full Scan
+        </button>
+        <a href="/ui/audit" class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">
+            Run Audit
+        </a>
+        <button class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white"
+                hx-post="/api/sync"
+                hx-swap="none"
+                hx-on::after-request="showToast('Sync complete', 'success')">
+            Sync to Doc Platform
+        </button>
+    </div>
+</div>
+
+<!-- Critical Issues -->
+<div class="card">
+    <h3 class="font-heading text-base text-[#1a2332] mb-3">Critical Issues</h3>
+    {% if critical_issues is defined and critical_issues %}
+    <ul class="divide-y divide-gray-100">
+        {% for issue in critical_issues[:5] %}
+        <li class="py-2 flex items-start gap-2">
+            <span class="badge badge-critical mt-0.5">{{ issue.severity }}</span>
+            <div>
+                <a href="/ui/objects/{{ issue.object_id }}" class="text-sm font-medium text-petrol hover:underline">{{ issue.object_id }}</a>
+                <p class="text-sm text-gray-500">{{ issue.message }}</p>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-gray-400">No critical issues found.</p>
+    {% endif %}
+</div>
 {% endblock %}
