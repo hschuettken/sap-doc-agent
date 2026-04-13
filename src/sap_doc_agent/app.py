@@ -11,18 +11,26 @@ from sap_doc_agent.git_backend.base import GitBackend
 from sap_doc_agent.llm import create_llm_provider
 from sap_doc_agent.llm.base import LLMProvider
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SAPDocAgent:
     config: AppConfig
     llm: LLMProvider
     doc_platform: DocPlatformAdapter
-    git: GitBackend
+    git: GitBackend | None
 
     @classmethod
     def from_config(cls, config_path: Path | str) -> SAPDocAgent:
         config = load_config(config_path)
         llm = create_llm_provider(config.llm)
         doc_platform = create_doc_adapter(config.doc_platform)
-        git = create_git_backend(config.git)
+        try:
+            git = create_git_backend(config.git)
+        except Exception as e:
+            logger.warning("Git backend not available: %s — continuing without it", e)
+            git = None
         return cls(config=config, llm=llm, doc_platform=doc_platform, git=git)
