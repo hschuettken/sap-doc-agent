@@ -1,6 +1,32 @@
 name: "Horvath SAP Documentation Standard v1.0"
 version: "1.0"
-description: "Best-practice documentation standard for SAP BW/4HANA and Datasphere environments. Developed by Horvath for documentation quality assurance and audit."
+description: >
+  Best-practice documentation standard for SAP BW/4HANA and Datasphere
+  environments. Developed by Horvath for documentation quality assurance
+  and audit.
+
+  IMPORTANT: The sections below are NOT 7 separate documents. A complete
+  documentation for a single application/data flow should cover sections
+  2-7 (development guidelines through operational runbook) — either in
+  one document or as a coherent set of pages. Section 1 (Architecture
+  Overview) sits at the domain or system level and covers the big picture.
+
+  The review agent evaluates a DOCUMENTATION SET (all docs for one
+  application) against the complete standard, not individual pages in
+  isolation. A single document can — and ideally does — contain multiple
+  sections.
+
+scope:
+  # How the sections map to documentation scope
+  system_level:
+    - architecture_overview
+  application_level:
+    - development_guidelines
+    - business_requirements
+    - data_flow
+    - object_documentation
+    - master_data
+    - operational_runbook
 
 document_types:
   - id: architecture_overview

@@ -94,6 +94,7 @@ class StandardDefinition(BaseModel):
     description: str = ""
     document_types: list[dict] = Field(default_factory=list)
     scoring: dict = Field(default_factory=dict)
+    scope: dict = Field(default_factory=dict)
 
     def get_type(self, type_id: str) -> Optional[dict]:
         for dt in self.document_types:
@@ -339,10 +340,167 @@ class DocReviewAgent:
             classification_confidence=confidence,
         )
 
+    def review_documentation_set(
+        self,
+        application_name: str,
+        documents: list[dict],
+        scope: str = "application",
+    ) -> DocumentReview:
+        """Review a SET of documents as one application's complete documentation.
+
+        A complete application documentation should cover all application-level
+        sections (dev guidelines, BRS, data flow, object docs, master data, runbook)
+        across its documents. A single document can contain multiple sections.
+
+        This merges all documents into one combined text and checks whether
+        ALL required sections are covered — regardless of which document
+        they appear in.
+
+        Args:
+            application_name: Name of the application being documented
+            documents: List of dicts with 'title' and 'content'
+            scope: 'application' (checks sections 2-7) or 'system' (checks section 1)
+        """
+        # Merge all documents into one combined text, preserving titles as headings
+        combined_parts = []
+        for doc in documents:
+            combined_parts.append(f"# {doc['title']}\n\n{doc['content']}")
+        combined_content = "\n\n---\n\n".join(combined_parts)
+
+        # Determine which section types to check based on scope
+        scope_def = getattr(self._standard, "scope", None)
+        if scope_def and isinstance(scope_def, dict):
+            if scope == "system":
+                type_ids = scope_def.get("system_level", ["architecture_overview"])
+            else:
+                type_ids = scope_def.get("application_level", self._standard.get_type_ids())
+        else:
+            if scope == "system":
+                type_ids = ["architecture_overview"]
+            else:
+                type_ids = [t for t in self._standard.get_type_ids() if t != "architecture_overview"]
+
+        # Collect ALL required sections across all applicable types
+        all_required_sections = []
+        for type_id in type_ids:
+            type_def = self._standard.get_type(type_id)
+            if not type_def:
+                continue
+            for sec in type_def.get("required_sections", []):
+                all_required_sections.append(
+                    {
+                        **sec,
+                        "parent_type": type_id,
+                        "parent_type_name": type_def.get("name", type_id),
+                    }
+                )
+
+        # Evaluate all sections against the combined content
+        scoring = self._standard.scoring
+        section_present_pts = scoring.get("section_present", 5)
+        min_length_pts = scoring.get("section_min_length_met", 3)
+        keywords_pts = scoring.get("section_contains_keywords", 2)
+        visual_pts = scoring.get("section_has_visual", 3)
+        penalties = scoring.get("penalties", {})
+
+        sections: list[DocumentSection] = []
+        total_score = 0.0
+        max_score = 0.0
+        overall_issues: list[str] = []
+        covered_types: set[str] = set()
+
+        for req in all_required_sections:
+            sec_name = req["name"]
+            min_length = req.get("min_content_length", 0)
+            should_contain = req.get("should_contain", [])
+            should_contain_visual = req.get("should_contain_visual", False)
+
+            sec_max = section_present_pts + min_length_pts + keywords_pts
+            if should_contain_visual:
+                sec_max += visual_pts
+            max_score += sec_max
+
+            section_found, section_content = self._find_section(combined_content, sec_name, req["id"])
+
+            sec = DocumentSection(
+                section_id=f"{req['parent_type']}.{req['id']}",
+                name=f"{req['parent_type_name']} > {sec_name}",
+                found=section_found,
+                content=section_content[:500],
+                content_length=len(section_content),
+            )
+
+            if not section_found:
+                sec.score = penalties.get("section_missing", -10)
+                sec.issues.append(f"Missing: {sec_name} (expected in {req['parent_type_name']})")
+                overall_issues.append(f"Missing: {sec_name}")
+            else:
+                covered_types.add(req["parent_type"])
+                sec.score = section_present_pts
+                if len(section_content) >= min_length:
+                    sec.score += min_length_pts
+                else:
+                    sec.score += penalties.get("section_too_short", -3)
+                    sec.issues.append(f"Too short ({len(section_content)} chars, need {min_length})")
+                if not should_contain or any(kw.lower() in section_content.lower() for kw in should_contain):
+                    sec.score += keywords_pts
+                if should_contain_visual:
+                    has_visual = bool(
+                        re.search(
+                            r"!\[.*\]\(.*\)|<img|diagram|figure|screenshot|\.png|\.jpg|flowchart|mermaid|```",
+                            section_content,
+                            re.IGNORECASE,
+                        )
+                    )
+                    sec.has_visual = has_visual
+                    if has_visual:
+                        sec.score += visual_pts
+                    else:
+                        sec.score += penalties.get("no_visuals_where_expected", -5)
+                        sec.issues.append("Expected visual/diagram not found")
+
+            total_score += sec.score
+            sections.append(sec)
+
+        # Check which document types are completely missing
+        missing_types = set(type_ids) - covered_types
+        for mt in missing_types:
+            type_def = self._standard.get_type(mt)
+            if type_def:
+                overall_issues.append(f"No coverage at all for: {type_def['name']}")
+
+        percentage = max(0, min(100, round((total_score / max_score * 100) if max_score > 0 else 0, 1)))
+
+        suggestions = []
+        if missing_types:
+            names = ", ".join(
+                self._standard.get_type(t).get("name", t) for t in missing_types if self._standard.get_type(t)
+            )
+            suggestions.append(f"Documentation has no coverage for: {names}")
+        missing_secs = [s for s in sections if not s.found]
+        if missing_secs:
+            suggestions.append(f"Add {len(missing_secs)} missing sections — see details above")
+        short_secs = [s for s in sections if s.found and any("Too short" in i for i in s.issues)]
+        if short_secs:
+            suggestions.append(f"Expand {len(short_secs)} sections that are too brief")
+
+        return DocumentReview(
+            document_title=f"Documentation Set: {application_name}",
+            document_type=f"set:{scope}",
+            document_type_name=f"{'System' if scope == 'system' else 'Application'} Documentation Set",
+            total_score=round(total_score, 1),
+            max_score=round(max_score, 1),
+            percentage=percentage,
+            sections=sections,
+            overall_issues=overall_issues,
+            suggestions=suggestions,
+        )
+
     def review_all(self, documents: list[dict]) -> ReviewReport:
-        """Review multiple documents.
+        """Review multiple documents individually.
 
         Each document is a dict with 'title' and 'content', optionally 'type'.
+        For holistic application-level review, use review_documentation_set() instead.
         """
         reviews = []
         for doc in documents:

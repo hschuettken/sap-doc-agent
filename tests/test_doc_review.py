@@ -258,3 +258,159 @@ def test_suggestions_for_short(agent):
     short_suggestions = [s for s in review.suggestions if "expand" in s.lower()]
     # May or may not have short suggestions depending on min_length thresholds
     assert isinstance(review.suggestions, list)
+
+
+# --- Documentation Set tests ---
+
+
+def test_review_set_merges_docs():
+    """A documentation set is evaluated holistically across all documents."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)
+
+    docs = [
+        {
+            "title": "Sales Data Flow - BRS",
+            "content": """
+## Business Objective
+Monthly revenue reporting for the CFO across all company codes and product lines.
+
+## Data Scope
+All sales transactions from SAP ECC, granularity at line-item level, fiscal year 2020 onwards.
+
+## Business Rules & Calculations
+Revenue = gross amount minus discounts minus returns. Currency conversion at monthly average rate.
+
+## Source Systems
+SAP ECC via standard extractors (2LIS_11_VAHDR, 2LIS_11_VAITM).
+
+## Output & Consumers
+SAC dashboard for revenue analytics team and monthly board report.
+
+## Acceptance Criteria
+Must reconcile with FI-CO module within 0.1% tolerance.
+
+## Sign-off & Owner
+Business owner: Finance department, approved Q1 2025.
+""",
+        },
+        {
+            "title": "Sales Data Flow - Technical",
+            "content": """
+## Source to Target Overview
+ECC -> DataSource 2LIS_11 -> ADSO_SALES_RAW -> RV_SALES_HARMONIZED -> AM_SALES_REPORT
+
+## Transformation Logic
+Raw sales lines are cleaned, currency-converted using daily rates, and aggregated
+to fiscal period level. Intercompany eliminations are applied based on partner company code.
+
+## Filter / Selection Criteria
+Only document types F1, F2 (billing). Excludes internal orders and statistical postings.
+
+## Error Handling
+Failed records written to error ADSO. Alert email to operations team. Process chain retries 3x.
+
+## Schedule & Frequency
+Daily at 02:00 UTC, full delta load. Monthly full reload on 1st of month.
+
+## Dependencies
+Requires exchange rate load (PROCESS_CHAIN_FX) to complete first.
+""",
+        },
+        {
+            "title": "Sales Objects Reference",
+            "content": """
+## Business Purpose
+This ADSO stores monthly sales actuals for revenue analytics.
+
+## Owner / Responsible Team
+Revenue Analytics Team (finance-analytics@company.com)
+
+## Key Fields & Business Meaning
+COMPANY_CODE - Legal entity, MATERIAL - Product sold, AMOUNT - Revenue in local currency,
+CUSTOMER - Ship-to customer number, FISCAL_YEAR/PERIOD - Time dimension for reporting.
+
+## Data Volume & Retention
+~2M rows/month, 5 years retention, archived to cold storage after 3 years.
+
+## Layer Assignment
+Harmonized layer (02_) — cleaned and currency-converted.
+
+## Upstream Dependencies
+Reads from ADSO_SALES_RAW (01_ layer) via transformation TRFN_SALES_HARM.
+
+## Downstream Consumers
+Consumed by AM_SALES_REPORT (analytic model) and exported to SAC via live connection.
+""",
+        },
+    ]
+
+    review = agent.review_documentation_set("Sales Revenue", docs, scope="application")
+    # The docs cover BRS + data flow + object docs (3 of 6 application types)
+    # Dev guidelines, master data, and runbook are completely missing — that's correct
+    found = [s for s in review.sections if s.found]
+    assert len(found) >= 8  # Should find sections from BRS + data flow + object docs
+    assert "set:application" in review.document_type
+    # Verify it correctly identifies the uncovered types
+    assert any("Development Guidelines" in i for i in review.overall_issues)
+    assert any("Operational Runbook" in i or "Master Data" in i for i in review.overall_issues)
+
+
+def test_review_set_system_scope():
+    """System-level review checks architecture overview sections."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)
+
+    docs = [
+        {
+            "title": "BW/4HANA Architecture",
+            "content": """
+## System Landscape
+Our BW/4HANA system connects to SAP ECC as the primary source system.
+Additional connections to Salesforce CRM and a REST API for external market data.
+The target is SAC for reporting and planning.
+
+## Data Flow Map
+Source systems (ECC, Salesforce) → RAW layer (01_) → HARMONIZED layer (02_) → MART layer (03_) → SAC
+
+## Layer Architecture
+- RAW: Direct replicas of source data, no transformations. Prefix 01_LT_ for local tables.
+- HARMONIZED: Cleaned, joined, currency-converted. Prefix 02_RV_ for relational views.
+- MART: Business-ready aggregates. Prefix 03_FV_ for fact views.
+- CONSUMPTION: Analytic models exposed to SAC. Prefix 03AM_.
+
+## Space / Package Organization
+One space per business domain: FI_ANALYTICS, SD_ANALYTICS, CO_ANALYTICS, SHARED_MASTERDATA.
+
+## Integration Points
+SAC live connection for real-time reporting. REST API for external data ingestion.
+
+## Security & Authorization
+Role-based access via BW authorization objects. SAC inherits BW roles.
+""",
+        },
+    ]
+
+    review = agent.review_documentation_set("Horvath BW/4", docs, scope="system")
+    assert review.percentage > 50
+    assert "set:system" in review.document_type
+    found = [s for s in review.sections if s.found]
+    assert len(found) >= 3  # Should find several architecture sections
+
+
+def test_review_set_empty_docs():
+    """Empty documentation set scores very low."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)
+    review = agent.review_documentation_set("Empty App", [], scope="application")
+    assert review.percentage == 0
+    assert len(review.overall_issues) > 0
