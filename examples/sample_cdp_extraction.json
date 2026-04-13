@@ -1,0 +1,69 @@
+{
+  "repo_objects": [
+    {
+      "business_name": "FI Account ACT+PLAN (RV)",
+      "technical_name": "02RV_RSC_FI_ACCOUNT_FACT",
+      "dsp_type": "View (Relational Dataset)",
+      "space": "RSC_BEST_PRACTICE",
+      "folder": "Fact Data",
+      "status": "Deployed",
+      "last_modified": "Oct 15, 2025"
+    },
+    {
+      "business_name": "FI Account ACT+PLAN (LT)",
+      "technical_name": "01LT_RSC_FI_ACCOUNT_FACT",
+      "dsp_type": "Local Table (Relational Dataset)",
+      "space": "RSC_BEST_PRACTICE",
+      "folder": "Fact Data",
+      "status": "Deployed",
+      "last_modified": "Oct 15, 2025"
+    },
+    {
+      "business_name": "FI Account ACT + PLAN (AM)",
+      "technical_name": "03AM_RSC_FI_ACCOUNT_V1",
+      "dsp_type": "Analytic Model (Cube)",
+      "space": "RSC_BEST_PRACTICE",
+      "folder": "03 Outbound",
+      "status": "Deployed",
+      "last_modified": "Apr 10, 2026"
+    }
+  ],
+  "sql_by_id": {
+    "RSC_BEST_PRACTICE.02RV_RSC_FI_ACCOUNT_FACT": "SELECT\n  \"ACCOUNT\" AS \"Account\",\n  \"COSTCENTER\" AS \"Cost Center\",\n  \"PROFITCENTER\" AS \"Profit Center\",\n  \"COMPANYCODE\" AS \"Company Code\",\n  \"FISCALYEAR\" AS \"Fiscal Year\",\n  \"FISCALPERIOD\" AS \"Fiscal Period\",\n  \"AMOUNT\" AS \"Amount\",\n  \"CURRENCY\" AS \"Currency\",\n  \"RECORD_TYPE\" AS \"Record Type\"\nFROM \"RSC_BEST_PRACTICE\".\"01LT_RSC_FI_ACCOUNT_FACT\""
+  },
+  "columns_by_id": {
+    "RSC_BEST_PRACTICE.02RV_RSC_FI_ACCOUNT_FACT": [
+      {"name": "Account", "type": "VARCHAR(10)", "description": "G/L Account Number"},
+      {"name": "Cost Center", "type": "VARCHAR(10)", "description": "Cost Center"},
+      {"name": "Profit Center", "type": "VARCHAR(10)", "description": "Profit Center"},
+      {"name": "Company Code", "type": "VARCHAR(4)", "description": "Company Code"},
+      {"name": "Fiscal Year", "type": "VARCHAR(4)", "description": "Fiscal Year"},
+      {"name": "Fiscal Period", "type": "VARCHAR(3)", "description": "Fiscal Period"},
+      {"name": "Amount", "type": "DECIMAL(17,2)", "description": "Transaction Amount"},
+      {"name": "Currency", "type": "VARCHAR(3)", "description": "Currency Key"},
+      {"name": "Record Type", "type": "VARCHAR(2)", "description": "Actual (0) or Plan (1)"}
+    ],
+    "RSC_BEST_PRACTICE.01LT_RSC_FI_ACCOUNT_FACT": [
+      {"name": "ACCOUNT", "type": "VARCHAR(10)", "description": "G/L Account Number"},
+      {"name": "COSTCENTER", "type": "VARCHAR(10)", "description": "Cost Center"},
+      {"name": "PROFITCENTER", "type": "VARCHAR(10)", "description": "Profit Center"},
+      {"name": "COMPANYCODE", "type": "VARCHAR(4)", "description": "Company Code"},
+      {"name": "FISCALYEAR", "type": "VARCHAR(4)", "description": "Fiscal Year"},
+      {"name": "FISCALPERIOD", "type": "VARCHAR(3)", "description": "Fiscal Period"},
+      {"name": "AMOUNT", "type": "DECIMAL(17,2)", "description": "Transaction Amount"},
+      {"name": "CURRENCY", "type": "VARCHAR(3)", "description": "Currency Key"},
+      {"name": "RECORD_TYPE", "type": "VARCHAR(2)", "description": "Record Type"}
+    ]
+  },
+  "lineage_by_id": {
+    "RSC_BEST_PRACTICE.02RV_RSC_FI_ACCOUNT_FACT": {
+      "upstream": ["01LT_RSC_FI_ACCOUNT_FACT"],
+      "downstream": ["03AM_RSC_FI_ACCOUNT_V1"]
+    },
+    "RSC_BEST_PRACTICE.03AM_RSC_FI_ACCOUNT_V1": {
+      "upstream": ["02RV_RSC_FI_ACCOUNT_FACT", "02FV_SQL_YTD_MTD"],
+      "downstream": []
+    }
+  },
+  "screenshots_by_id": {}
+}
