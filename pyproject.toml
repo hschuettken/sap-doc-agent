@@ -38,7 +38,12 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"sap_doc_agent.web" = ["templates/**/*.html", "static/**/*"]
+"sap_doc_agent" = [
+    "web/templates/*.html",
+    "web/templates/**/*.html",
+    "web/static/*.css",
+    "web/static/*.js",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
