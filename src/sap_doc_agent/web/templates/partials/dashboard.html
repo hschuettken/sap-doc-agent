@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — SAP Doc Agent{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+    <div class="card">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Objects Scanned</p>
+        <p class="text-3xl font-bold text-[#1a2332]">{{ object_count }}</p>
+        <div class="mt-3 flex flex-wrap gap-1">
+            {% for t, count in type_counts.items() %}
+            <span class="badge badge-{{ t if t in ['view','adso','transformation','table'] else 'other' }}">{{ t }} {{ count }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dependencies</p>
+        <p class="text-3xl font-bold text-[#1a2332]">{{ edge_count }}</p>
+        <p class="text-xs text-gray-400 mt-1">edges in graph</p>
+    </div>
+</div>
+<p class="text-gray-400 text-sm">Use the sidebar to explore objects, quality reports, and dependency graph.</p>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Objects — SAP Doc Agent{% endblock %}
+{% block page_title %}Objects{% endblock %}
+{% block content %}
+<div class="mb-4 flex gap-3 flex-wrap">
+    <form method="get" action="/ui/objects" class="flex gap-2 flex-wrap">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search objects..." class="px-3 py-1.5 text-sm border border-[#E5E5E5] rounded bg-white">
+        <select name="type" class="px-3 py-1.5 text-sm border border-[#E5E5E5] rounded bg-white">
+            <option value="">All Types</option>
+            {% for t in all_types %}
+            <option value="{{ t }}" {{ 'selected' if selected_type == t else '' }}>{{ t }}</option>
+            {% endfor %}
+        </select>
+        <select name="layer" class="px-3 py-1.5 text-sm border border-[#E5E5E5] rounded bg-white">
+            <option value="">All Layers</option>
+            {% for l in all_layers %}
+            <option value="{{ l }}" {{ 'selected' if selected_layer == l else '' }}>{{ l }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="px-3 py-1.5 text-sm bg-petrol text-white rounded">Filter</button>
+    </form>
+</div>
+<div class="card">
+    <table class="data-table w-full text-sm">
+        <thead>
+            <tr>
+                <th class="text-left px-3 py-2">ID</th>
+                <th class="text-left px-3 py-2">Name</th>
+                <th class="text-left px-3 py-2">Type</th>
+                <th class="text-left px-3 py-2">Layer</th>
+                <th class="text-left px-3 py-2">Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in objects %}
+            <tr class="cursor-pointer hover:bg-gray-50" onclick="window.location='/ui/objects/{{ obj.id }}'">
+                <td class="px-3 py-2 font-mono text-xs">{{ obj.id }}</td>
+                <td class="px-3 py-2">{{ obj.name }}</td>
+                <td class="px-3 py-2"><span class="badge badge-{{ obj.type if obj.type in ['view','adso','transformation','table'] else 'other' }}">{{ obj.type }}</span></td>
+                <td class="px-3 py-2 text-gray-500">{{ obj.layer }}</td>
+                <td class="px-3 py-2 text-gray-500">{{ obj.source_system }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="px-3 py-4 text-gray-400 text-center">No objects found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

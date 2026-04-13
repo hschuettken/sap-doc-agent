@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Settings — SAP Doc Agent{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+<div class="card">
+    {% if config_yaml %}
+    <pre class="text-sm whitespace-pre-wrap font-mono bg-gray-50 rounded p-3">{{ config_yaml }}</pre>
+    {% else %}
+    <p class="text-gray-400">No configuration file loaded.</p>
+    {% endif %}
+</div>
+{% endblock %}

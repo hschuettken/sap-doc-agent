@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Dependencies — SAP Doc Agent{% endblock %}
+{% block page_title %}Dependencies{% endblock %}
+{% block head %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div id="dep-graph" style="height: 600px; background: #fafafa; border-radius: 4px;"></div>
+</div>
+<script>
+const graphData = {{ graph_data | safe }};
+const nodes = (graphData.nodes || []).map(n => ({ id: n.id, label: n.name || n.id, group: n.type }));
+const edges = (graphData.edges || []).map(e => ({ from: e.source, to: e.target, label: e.type }));
+const container = document.getElementById('dep-graph');
+new vis.Network(container, { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) }, {
+    layout: { improvedLayout: true },
+    physics: { stabilization: true },
+    edges: { arrows: 'to', smooth: { type: 'curvedCW', roundness: 0.2 } }
+});
+</script>
+{% endblock %}

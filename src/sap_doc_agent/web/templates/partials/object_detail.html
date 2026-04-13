@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ object_id }} — SAP Doc Agent{% endblock %}
+{% block page_title %}{{ object_id }}{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <a href="/ui/objects" class="text-sm text-petrol hover:underline">&larr; Back to Objects</a>
+</div>
+<div class="card mb-4">
+    <h3 class="font-heading text-lg mb-2">{{ metadata.name or object_id }}</h3>
+    <div class="flex gap-2 flex-wrap mb-3">
+        <span class="badge badge-{{ obj_type if obj_type in ['view','adso','transformation','table'] else 'other' }}">{{ obj_type }}</span>
+        {% if metadata.layer %}<span class="badge badge-other">{{ metadata.layer }}</span>{% endif %}
+        {% if metadata.source_system %}<span class="badge badge-other">{{ metadata.source_system }}</span>{% endif %}
+    </div>
+    <pre class="text-xs bg-gray-50 rounded p-3 overflow-x-auto whitespace-pre-wrap">{{ content }}</pre>
+</div>
+{% if upstream or downstream %}
+<div class="card">
+    <h4 class="font-medium mb-3">Dependencies</h4>
+    {% if upstream %}
+    <p class="text-xs text-gray-500 mb-1">Upstream ({{ upstream|length }})</p>
+    <ul class="mb-3">{% for e in upstream %}<li class="text-sm font-mono">{{ e.source }} <span class="text-gray-400">({{ e.type }})</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% if downstream %}
+    <p class="text-xs text-gray-500 mb-1">Downstream ({{ downstream|length }})</p>
+    <ul>{% for e in downstream %}<li class="text-sm font-mono">{{ e.target }} <span class="text-gray-400">({{ e.type }})</span></li>{% endfor %}</ul>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

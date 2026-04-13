@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -56,51 +58,43 @@ def create_app(
         version="1.0.0",
     )
 
+    # Mount static files
+    static_dir = Path(__file__).parent / "static"
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    # Mount UI router
+    from sap_doc_agent.web.auth import AuthMiddleware, hash_password
+    from sap_doc_agent.web.ui import create_ui_router
+
+    ui_router = create_ui_router(output_path)
+    app.include_router(ui_router)
+
+    # Auth middleware (password from env, defaults to "admin" for dev)
+    pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))
+    secret = os.environ.get("SAP_DOC_AGENT_SECRET_KEY", "dev-secret-change-me")
+    app.add_middleware(AuthMiddleware, password_hash=pw_hash, secret_key=secret)
+
     # --- HTML documentation serving ---
 
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    async def landing_page():
-        """Landing page with links to all documentation."""
-        # Build index from output dir
-        pages = []
-        objects_dir = output_path / "objects"
-        if objects_dir.exists():
-            for type_dir in sorted(objects_dir.iterdir()):
-                if type_dir.is_dir():
-                    for md_file in sorted(type_dir.glob("*.md")):
-                        pages.append(
-                            {
-                                "title": md_file.stem,
-                                "url": f"/docs/objects/{type_dir.name}/{md_file.stem}",
-                                "type": type_dir.name,
-                            }
-                        )
+    @app.get("/", include_in_schema=False)
+    async def landing_page(request: Request):
+        """Redirect browsers to UI dashboard; return JSON for programmatic access."""
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            from starlette.responses import RedirectResponse
 
-        page_list = "".join(f'<li><a href="{p["url"]}">[{p["type"]}] {p["title"]}</a></li>' for p in pages)
-        reports_list = ""
-        reports_dir = output_path / "reports"
-        if reports_dir.exists():
-            for f in sorted(reports_dir.glob("*")):
-                reports_list += f'<li><a href="/reports/{f.name}">{f.name}</a></li>'
-
-        return f"""<!DOCTYPE html>
-<html><head><title>SAP Doc Agent</title>
-<style>
-body {{ font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }}
-h1 {{ color: #1a365d; }}
-h2 {{ color: #2b6cb0; }}
-a {{ color: #2b6cb0; text-decoration: none; }}
-a:hover {{ text-decoration: underline; }}
-li {{ margin: 4px 0; }}
-</style></head><body>
-<h1>SAP Documentation Agent</h1>
-<p>Documentation knowledge base for M365 Copilot.</p>
-<h2>Objects ({len(pages)})</h2>
-<ul>{page_list or "<li>No objects scanned yet</li>"}</ul>
-<h2>Reports</h2>
-<ul>{reports_list or "<li>No reports generated yet</li>"}</ul>
-<p><a href="/sitemap.xml">Sitemap</a> | <a href="/docs">API Documentation</a> | <a href="/health">Health</a></p>
-</body></html>"""
+            return RedirectResponse("/ui/dashboard")
+        objects_count = (
+            sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
+        )
+        return {
+            "service": "SAP Doc Agent",
+            "version": "1.0.0",
+            "objects": objects_count,
+            "ui": "/ui/dashboard",
+            "api_docs": "/docs",
+        }
 
     @app.get("/docs/objects/{obj_type}/{obj_name}", response_class=HTMLResponse, include_in_schema=False)
     async def serve_object_doc(obj_type: str, obj_name: str):

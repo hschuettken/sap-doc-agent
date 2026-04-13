@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Quality — SAP Doc Agent{% endblock %}
+{% block page_title %}Quality{% endblock %}
+{% block content %}
+<div class="card">
+    {% if summary %}
+    <pre class="text-sm whitespace-pre-wrap">{{ summary }}</pre>
+    {% else %}
+    <p class="text-gray-400">No quality report generated yet. Run the platform pipeline first.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -43,10 +43,13 @@ def client(output_dir):
 
 
 def test_landing_page(client):
-    resp = client.get("/")
+    # Root returns JSON for programmatic/API access (no text/html Accept header).
+    # Browsers are redirected to /ui/dashboard.
+    resp = client.get("/", headers={"Accept": "application/json"})
     assert resp.status_code == 200
-    assert "OBJ1" in resp.text
-    assert "OBJ2" in resp.text
+    data = resp.json()
+    assert data["service"] == "SAP Doc Agent"
+    assert data["ui"] == "/ui/dashboard"
 
 
 def test_serve_object(client):
