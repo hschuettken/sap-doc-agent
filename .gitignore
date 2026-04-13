@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+config.yaml
+.env
+output/objects/*.md
+output/graph.json
+reports/*.html
+reports/*.pdf
+.pytest_cache/
+.ruff_cache/
