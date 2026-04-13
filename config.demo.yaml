@@ -1,0 +1,48 @@
+# SAP Doc Agent — Horvath Demo Configuration
+# Copy to config.yaml and set environment variables before running.
+
+sap_systems:
+  # Horvath DSP tenant (OAuth credentials needed)
+  - name: "Horvath Datasphere"
+    type: datasphere
+    mcp_server: tools/sap-datasphere-mcp  # Optional MCP server path
+    oauth:
+      client_id_env: DSP_CLIENT_ID
+      client_secret_env: DSP_CLIENT_SECRET
+      token_url_env: DSP_TOKEN_URL
+    spaces: []  # Fill in with actual spaces after OAuth is configured
+
+  # Horvath BW/4 Demo (when ABAP scanner is installed)
+  # - name: "Horvath BW/4 Demo"
+  #   type: bw4hana
+  #   transport: api
+  #   scan_scope:
+  #     top_level_providers: []
+  #     namespace_filter: ["Z*", "Y*"]
+
+doc_platform:
+  type: bookstack
+  url: "http://192.168.0.50:8253"
+  auth:
+    type: api_token
+    token_env: BOOKSTACK_TOKEN
+
+git:
+  type: github
+  url_env: GIT_REPO_URL
+  token_env: GIT_TOKEN
+
+llm:
+  mode: direct
+  provider: openai_compatible
+  base_url_env: LLM_BASE_URL
+  api_key_env: LLM_API_KEY
+  model: qwen2.5:14b
+
+standards:
+  - standards/horvath/doc_standard.yaml
+  - standards/horvath/code_standard.yaml
+
+reporting:
+  formats: [html, markdown]
+  sitemap: true
