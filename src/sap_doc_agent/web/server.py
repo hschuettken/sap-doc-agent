@@ -40,6 +40,18 @@ class ObjectSummary(BaseModel):
     source_system: str = ""
 
 
+class ConfigUpdate(BaseModel):
+    """Request body for settings update/validate endpoints."""
+
+    yaml_content: str
+
+
+class ScanRequest(BaseModel):
+    """Request body for scanner start endpoint."""
+
+    scanner: str = Field("all", description="Scanner type: cdp, api, abap, or all")
+
+
 def create_app(
     output_dir: str = "output",
     horvath_standard_path: str = "standards/horvath/documentation_standard.yaml",
@@ -307,6 +319,87 @@ def create_app(
             "object_id": object_id,
             "upstream": [{"source": e["source"], "type": e["type"]} for e in upstream],
             "downstream": [{"target": e["target"], "type": e["type"]} for e in downstream],
+        }
+
+    # --- New API endpoints for Web UI ---
+
+    @app.get("/api/dashboard/stats", summary="Dashboard statistics", operation_id="getDashboardStats")
+    async def api_dashboard_stats():
+        """Aggregated stats for the dashboard."""
+        graph_path = output_path / "graph.json"
+        objects = []
+        edges = []
+        if graph_path.exists():
+            graph = json.loads(graph_path.read_text())
+            objects = graph.get("nodes", [])
+            edges = graph.get("edges", [])
+        type_counts = {}
+        for obj in objects:
+            t = obj.get("type", "other")
+            type_counts[t] = type_counts.get(t, 0) + 1
+        return {
+            "object_count": len(objects),
+            "edge_count": len(edges),
+            "type_counts": type_counts,
+        }
+
+    @app.get("/api/settings", summary="Get current config", operation_id="getSettings")
+    async def api_get_settings():
+        """Return current config YAML (sanitized)."""
+        config_candidates = [
+            output_path.parent / "config.yaml",
+            output_path.parent / "config.demo.yaml",
+            Path(horvath_standard_path).parent.parent / "config.yaml",
+        ]
+        for cp in config_candidates:
+            if cp.exists():
+                return {"yaml_content": cp.read_text(), "path": str(cp)}
+        return {"yaml_content": "", "path": "", "message": "No config file found"}
+
+    @app.put("/api/settings", summary="Update config", operation_id="updateSettings")
+    async def api_update_settings(update: ConfigUpdate):
+        """Validate and save config YAML."""
+        import yaml as _yaml
+
+        try:
+            raw = _yaml.safe_load(update.yaml_content)
+            from sap_doc_agent.config import AppConfig
+
+            AppConfig.model_validate(raw)
+        except Exception as e:
+            return {"saved": False, "errors": [str(e)]}
+        config_path = output_path.parent / "config.yaml"
+        config_path.write_text(update.yaml_content)
+        return {"saved": True, "path": str(config_path)}
+
+    @app.post("/api/settings/validate", summary="Validate config", operation_id="validateSettings")
+    async def api_validate_settings(update: ConfigUpdate):
+        """Validate config YAML without saving."""
+        import yaml as _yaml
+
+        try:
+            raw = _yaml.safe_load(update.yaml_content)
+            from sap_doc_agent.config import AppConfig
+
+            AppConfig.model_validate(raw)
+            return {"valid": True}
+        except Exception as e:
+            return {"valid": False, "errors": [str(e)]}
+
+    @app.post("/api/scanner/start", summary="Start a scan", operation_id="startScan")
+    async def api_start_scan(req: ScanRequest):
+        """Trigger a scan (placeholder — actual scanning runs async)."""
+        return {"status": "started", "scanner": req.scanner, "message": f"Scan with {req.scanner} scanner initiated"}
+
+    @app.get("/api/scanner/status", summary="Scanner status", operation_id="getScannerStatus")
+    async def api_scanner_status():
+        """Get status of configured scanners."""
+        return {
+            "scanners": [
+                {"name": "CDP Scanner", "type": "cdp", "status": "idle"},
+                {"name": "REST API Scanner", "type": "api", "status": "not_configured"},
+                {"name": "ABAP Scanner", "type": "abap", "status": "not_installed"},
+            ]
         }
 
     return app

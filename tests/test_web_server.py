@@ -142,3 +142,28 @@ def test_openapi_spec(client):
     assert "/api/audit" in paths
     assert "/api/objects" in paths
     assert "/api/search" in paths
+
+
+def test_api_dashboard_stats(client):
+    resp = client.get("/api/dashboard/stats")
+    data = resp.json()
+    assert data["object_count"] == 2
+    assert "view" in data["type_counts"]
+
+
+def test_api_scanner_status(client):
+    resp = client.get("/api/scanner/status")
+    data = resp.json()
+    assert len(data["scanners"]) == 3
+
+
+def test_api_start_scan(client):
+    resp = client.post("/api/scanner/start", json={"scanner": "cdp"})
+    data = resp.json()
+    assert data["status"] == "started"
+
+
+def test_api_validate_settings_invalid(client):
+    resp = client.post("/api/settings/validate", json={"yaml_content": "invalid: {not: valid"})
+    data = resp.json()
+    assert data["valid"] is False
