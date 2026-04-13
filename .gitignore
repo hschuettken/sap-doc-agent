@@ -13,3 +13,4 @@ reports/*.html
 reports/*.pdf
 .pytest_cache/
 .ruff_cache/
+tools/sap-datasphere-mcp/
