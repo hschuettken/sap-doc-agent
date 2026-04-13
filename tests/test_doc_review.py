@@ -414,3 +414,106 @@ def test_review_set_empty_docs():
     review = agent.review_documentation_set("Empty App", [], scope="application")
     assert review.percentage == 0
     assert len(review.overall_issues) > 0
+
+
+# --- Client Standard Parsing tests ---
+
+
+def test_parse_client_standard_heuristic():
+    """Heuristic parser extracts document types from unstructured text."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)
+
+    client_guidelines = """
+# ACME Corp Documentation Guidelines
+
+## Architecture Documentation
+All projects must include a system landscape overview showing all
+integration points and the high-level data flow map.
+
+## Development Standards
+### Naming Conventions
+All custom objects must follow the Z_ prefix naming convention.
+### Code Review
+Every transport must pass a code review checklist before release.
+
+## Data Flow Documentation
+Each ETL process chain must be documented with source to target mapping,
+transformation logic, and extraction schedules.
+
+## Operational Procedures
+A runbook must exist with monitoring procedures, escalation contacts,
+and incident recovery steps for each production system.
+"""
+
+    result = agent._parse_standard_heuristic("ACME Guidelines", client_guidelines)
+    assert result.name == "Client Standard: ACME Guidelines"
+    type_ids = result.get_type_ids()
+    assert "architecture_overview" in type_ids
+    assert "development_guidelines" in type_ids
+    assert "data_flow" in type_ids
+    assert "operational_runbook" in type_ids
+
+
+def test_review_against_both_standards():
+    """Review against both Horvath and client standard, with gap analysis."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)
+
+    # Simple client standard (weaker than Horvath)
+    client_std = StandardDefinition(
+        name="Client Standard",
+        version="1.0",
+        document_types=[
+            {
+                "id": "object_documentation",
+                "name": "Object Documentation",
+                "required_sections": [
+                    {"id": "business_purpose", "name": "Business Purpose", "min_content_length": 10},
+                ],
+            },
+        ],
+        scoring=std.scoring,
+        scope={"application_level": ["object_documentation"]},
+    )
+
+    docs = [
+        {
+            "title": "Sales ADSO",
+            "content": "## Business Purpose\nThis stores sales data for the revenue analytics dashboard.\n## Owner\nFinance Team",
+        },
+    ]
+
+    result = agent.review_against_both_standards("Sales App", docs, client_std)
+    assert "horvath_review" in result
+    assert "client_review" in result
+    assert "gap_analysis" in result
+    assert "combined_issues" in result
+    # Client standard is weaker — should have gaps
+    assert len(result["gap_analysis"]) > 0
+    # Client score should be higher (fewer requirements)
+    assert result["client_score"] >= result["horvath_score"]
+
+
+@pytest.mark.asyncio
+async def test_parse_client_standard_without_llm():
+    """parse_client_standard falls back to heuristic without LLM."""
+    std_path = Path("standards/horvath/documentation_standard.yaml")
+    if not std_path.exists():
+        pytest.skip("Standard file not available")
+    std = load_documentation_standard(std_path)
+    agent = DocReviewAgent(std)  # No LLM
+
+    result = await agent.parse_client_standard(
+        "Client Guidelines",
+        "Our naming convention requires Z_ prefix. Code review is mandatory. "
+        "All ETL data flow processes must have source to target documentation.",
+    )
+    assert result.name.startswith("Client Standard:")
+    assert result.version == "heuristic"

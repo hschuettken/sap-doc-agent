@@ -548,6 +548,237 @@ class DocReviewAgent:
 
         return gaps
 
+    async def parse_client_standard(self, title: str, content: str) -> StandardDefinition:
+        """Parse a client's documentation standard from unstructured text.
+
+        Takes the raw text of a client's documentation guidelines (extracted
+        from PDF, Confluence, or Word) and converts it into a structured
+        StandardDefinition that can be used for review and gap analysis.
+
+        Works in two modes:
+        - With LLM: uses the model to extract structured rules from the text
+        - Without LLM: uses heuristic section/keyword extraction (less accurate)
+        """
+        if self._llm and self._llm.is_available():
+            return await self._parse_standard_with_llm(title, content)
+        return self._parse_standard_heuristic(title, content)
+
+    async def _parse_standard_with_llm(self, title: str, content: str) -> StandardDefinition:
+        """Use LLM to extract structured standard from unstructured text."""
+        schema = {
+            "type": "object",
+            "properties": {
+                "document_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "required_sections": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "name": {"type": "string"},
+                                        "min_content_length": {"type": "integer"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+        system_prompt = (
+            "You are an SAP documentation standards expert. Extract the documentation "
+            "requirements from the following client guidelines into a structured format. "
+            "Identify what document types they require (e.g., architecture docs, technical specs, "
+            "runbooks) and what sections each type must contain. Map each to a standard ID. "
+            "Use these IDs where applicable: architecture_overview, development_guidelines, "
+            "business_requirements, data_flow, object_documentation, master_data, operational_runbook."
+        )
+
+        result = await self._llm.generate_json(
+            f"Parse this documentation standard:\n\n{content[:8000]}",
+            schema=schema,
+            system=system_prompt,
+        )
+
+        if result and "document_types" in result:
+            return StandardDefinition(
+                name=f"Client Standard: {title}",
+                version="parsed",
+                description=f"Auto-parsed from: {title}",
+                document_types=result["document_types"],
+                scoring=self._standard.scoring,  # Inherit scoring from Horvath
+            )
+
+        # Fallback to heuristic if LLM fails
+        return self._parse_standard_heuristic(title, content)
+
+    def _parse_standard_heuristic(self, title: str, content: str) -> StandardDefinition:
+        """Extract standard definition from text using heuristics.
+
+        Looks for heading patterns and requirement keywords to build
+        a rough standard definition. Less accurate than LLM but works
+        without any external service.
+        """
+        content_lower = content.lower()
+        document_types = []
+
+        # Map of keywords to standard document types
+        type_signals = {
+            "architecture_overview": [
+                "system landscape",
+                "architecture",
+                "overview",
+                "high-level",
+                "integration",
+                "data flow map",
+            ],
+            "development_guidelines": [
+                "naming convention",
+                "coding standard",
+                "development guideline",
+                "transport",
+                "code review",
+                "best practice",
+            ],
+            "business_requirements": [
+                "business requirement",
+                "brs",
+                "functional spec",
+                "acceptance criteria",
+                "business objective",
+            ],
+            "data_flow": [
+                "data flow",
+                "etl",
+                "process chain",
+                "extraction",
+                "transformation",
+                "loading",
+                "source to target",
+            ],
+            "object_documentation": [
+                "object documentation",
+                "technical spec",
+                "adso",
+                "infoprovider",
+                "table definition",
+                "view definition",
+            ],
+            "master_data": [
+                "master data",
+                "hierarchy",
+                "dimension",
+                "characteristic",
+                "attribute",
+                "text table",
+            ],
+            "operational_runbook": [
+                "runbook",
+                "operation",
+                "monitoring",
+                "incident",
+                "escalation",
+                "recovery",
+                "support procedure",
+            ],
+        }
+
+        # Detect which types the client standard mentions
+        for type_id, keywords in type_signals.items():
+            matches = [kw for kw in keywords if kw in content_lower]
+            if len(matches) >= 2:  # At least 2 keyword matches
+                # Try to extract required sections from nearby headings
+                sections = self._extract_sections_near_keywords(content, matches)
+                type_name_map = {
+                    "architecture_overview": "Architecture Overview",
+                    "development_guidelines": "Development Guidelines",
+                    "business_requirements": "Business Requirements",
+                    "data_flow": "Data Flow Documentation",
+                    "object_documentation": "Object Documentation",
+                    "master_data": "Master Data Documentation",
+                    "operational_runbook": "Operational Runbook",
+                }
+                document_types.append(
+                    {
+                        "id": type_id,
+                        "name": type_name_map.get(type_id, type_id),
+                        "required_sections": sections,
+                    }
+                )
+
+        return StandardDefinition(
+            name=f"Client Standard: {title}",
+            version="heuristic",
+            description=f"Auto-parsed (heuristic) from: {title}",
+            document_types=document_types,
+            scoring=self._standard.scoring,
+        )
+
+    def _extract_sections_near_keywords(self, content: str, keywords: list[str]) -> list[dict]:
+        """Extract section headings near keyword matches as required sections."""
+        sections = []
+        seen_ids: set[str] = set()
+        # Find all markdown headings
+        headings = re.findall(r"^#{1,4}\s+(.+)", content, re.MULTILINE)
+        for heading in headings:
+            heading_lower = heading.lower().strip()
+            # If heading relates to any keyword, treat it as a required section
+            for kw in keywords:
+                if kw in heading_lower or any(w in heading_lower for w in kw.split()):
+                    sec_id = re.sub(r"[^a-z0-9]+", "_", heading_lower).strip("_")[:30]
+                    if sec_id not in seen_ids:
+                        seen_ids.add(sec_id)
+                        sections.append(
+                            {
+                                "id": sec_id,
+                                "name": heading.strip(),
+                                "min_content_length": 50,
+                            }
+                        )
+                    break
+        return sections
+
+    def review_against_both_standards(
+        self,
+        application_name: str,
+        documents: list[dict],
+        client_standard: StandardDefinition,
+        scope: str = "application",
+    ) -> dict:
+        """Review documentation against BOTH Horvath and client standards.
+
+        Returns a dict with:
+        - horvath_review: DocumentReview against Horvath standard
+        - client_review: DocumentReview against client standard
+        - gap_analysis: where client standard is weaker than Horvath
+        - combined_issues: all unique issues from both reviews
+        """
+        # Create a temp agent with client standard for review
+        client_agent = DocReviewAgent(client_standard, llm=self._llm)
+
+        horvath_review = self.review_documentation_set(application_name, documents, scope)
+        client_review = client_agent.review_documentation_set(application_name, documents, scope)
+        gap_analysis = self.compare_standards(client_standard)
+
+        # Combine unique issues
+        all_issues = set(horvath_review.overall_issues) | set(client_review.overall_issues)
+
+        return {
+            "horvath_review": horvath_review,
+            "client_review": client_review,
+            "gap_analysis": gap_analysis,
+            "combined_issues": sorted(all_issues),
+            "horvath_score": horvath_review.percentage,
+            "client_score": client_review.percentage,
+        }
+
     def _find_section(self, content: str, section_name: str, section_id: str) -> tuple[bool, str]:
         """Find a section in document content by heading match.
 
