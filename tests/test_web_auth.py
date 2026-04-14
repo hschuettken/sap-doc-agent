@@ -63,7 +63,7 @@ def test_login_sets_cookie():
     mw = AuthMiddleware(app, password_hash=hash_password("secret"), secret_key="test-key")
     client = TestClient(mw)
     resp = client.post("/ui/login", data={"password": "secret"}, follow_redirects=False)
-    assert resp.status_code == 307
+    assert resp.status_code == 303
     assert "session" in resp.cookies
 
 

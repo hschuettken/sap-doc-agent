@@ -87,7 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         password = form.get("password", "")
         if verify_password(password, self.password_hash):
             token = self.serializer.dumps({"role": "admin", "t": int(time.time())})
-            response = RedirectResponse("/ui/dashboard", status_code=307)
+            response = RedirectResponse("/ui/dashboard", status_code=303)
             response.set_cookie("session", token, httponly=True, max_age=SESSION_MAX_AGE, samesite="lax")
             return response
         return HTMLResponse(LOGIN_HTML.format(error='<p class="error">Invalid password</p>'))
