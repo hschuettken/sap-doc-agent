@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Target Architecture{% endblock %}
+{% block title %}Target Architecture — SAP Doc Agent{% endblock %}
+{% block page_title %}Target Architecture{% endblock %}
 {% block content %}
 <div class="max-w-6xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-100">Target Architecture</h1>
+      <h1 class="font-heading text-2xl text-[#1a2332]">Target Architecture</h1>
       {% if project_id %}
-      <p class="text-sm text-gray-400 mt-1">Project: {{ project_id }}</p>
+      <p class="text-sm text-gray-500 mt-1">Project: {{ project_id }}</p>
       {% endif %}
     </div>
     {% if project_id %}
     <button
       hx-post="/api/migration/projects/{{ project_id }}/design"
       hx-swap="none"
-      class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+      class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
     >
       Design Target
     </button>
@@ -27,56 +28,56 @@
     {% set harmonization = views | selectattr('layer', 'equalto', 'harmonization') | list %}
     {% set mart = views | selectattr('layer', 'equalto', 'mart') | list %}
     {% set consumption = views | selectattr('layer', 'equalto', 'consumption') | list %}
-    <div class="bg-gray-800 rounded p-4 text-center">
-      <div class="text-2xl font-bold text-blue-400">{{ staging | length }}</div>
-      <div class="text-xs text-gray-400">Staging (01_)</div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-petrol">{{ staging | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Staging (01_)</div>
     </div>
-    <div class="bg-gray-800 rounded p-4 text-center">
-      <div class="text-2xl font-bold text-green-400">{{ harmonization | length }}</div>
-      <div class="text-xs text-gray-400">Harmonization (02_)</div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-green-600">{{ harmonization | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Harmonization (02_)</div>
     </div>
-    <div class="bg-gray-800 rounded p-4 text-center">
-      <div class="text-2xl font-bold text-yellow-400">{{ mart | length }}</div>
-      <div class="text-xs text-gray-400">Mart (03_)</div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-amber-600">{{ mart | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Mart (03_)</div>
     </div>
-    <div class="bg-gray-800 rounded p-4 text-center">
-      <div class="text-2xl font-bold text-purple-400">{{ consumption | length }}</div>
-      <div class="text-xs text-gray-400">Consumption</div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-accent">{{ consumption | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Consumption</div>
     </div>
   </div>
 
   <!-- View list -->
-  <div class="bg-gray-800 rounded-lg overflow-hidden">
+  <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
     <table class="w-full text-sm">
-      <thead class="bg-gray-700">
+      <thead class="bg-[#F5F5F5] border-b border-[#E5E5E5]">
         <tr>
-          <th class="px-4 py-3 text-left text-gray-300">Technical Name</th>
-          <th class="px-4 py-3 text-left text-gray-300">Layer</th>
-          <th class="px-4 py-3 text-left text-gray-300">Usage</th>
-          <th class="px-4 py-3 text-left text-gray-300">Description</th>
-          <th class="px-4 py-3 text-center text-gray-300">Persist</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technical Name</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Layer</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Persist</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-[#E5E5E5]">
         {% for view in views %}
-        <tr class="border-t border-gray-700 hover:bg-gray-750">
-          <td class="px-4 py-3 font-mono text-blue-300">{{ view.technical_name or view.get('technical_name', '') }}</td>
+        <tr class="hover:bg-[#F5F5F5]">
+          <td class="px-4 py-3 font-mono text-petrol text-sm">{{ view.technical_name or view.get('technical_name', '') }}</td>
           <td class="px-4 py-3">
-            <span class="px-2 py-1 rounded text-xs
-              {% if view.layer == 'staging' %}bg-blue-900 text-blue-300
-              {% elif view.layer == 'harmonization' %}bg-green-900 text-green-300
-              {% elif view.layer == 'mart' %}bg-yellow-900 text-yellow-300
-              {% else %}bg-purple-900 text-purple-300{% endif %}">
+            <span class="px-2 py-1 rounded text-xs font-medium
+              {% if view.layer == 'staging' %}bg-petrol/10 text-petrol
+              {% elif view.layer == 'harmonization' %}bg-green-100 text-green-700
+              {% elif view.layer == 'mart' %}bg-amber-100 text-amber-700
+              {% else %}bg-accent/10 text-accent{% endif %}">
               {{ view.layer or '' }}
             </span>
           </td>
-          <td class="px-4 py-3 text-gray-300">{{ view.semantic_usage or view.get('semantic_usage', '') }}</td>
-          <td class="px-4 py-3 text-gray-400">{{ view.description or view.get('description', '') }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ view.semantic_usage or view.get('semantic_usage', '') }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ view.description or view.get('description', '') }}</td>
           <td class="px-4 py-3 text-center">
             {% if view.persistence or view.get('persistence', false) %}
-            <span class="text-yellow-400">●</span>
+            <span class="text-accent">●</span>
             {% else %}
-            <span class="text-gray-600">○</span>
+            <span class="text-gray-300">○</span>
             {% endif %}
           </td>
         </tr>
@@ -85,9 +86,9 @@
     </table>
   </div>
   {% else %}
-  <div class="bg-gray-800 rounded-lg p-8 text-center text-gray-400">
-    <p>No target views designed yet.</p>
-    <p class="text-sm mt-2">Classify chains first, then trigger target design.</p>
+  <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-8 text-center">
+    <p class="text-[#1a2332]">No target views designed yet.</p>
+    <p class="text-sm text-gray-500 mt-2">Classify chains first, then trigger target design.</p>
   </div>
   {% endif %}
 </div>

@@ -434,7 +434,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
         return _render(
             request,
             "partials/migration_projects.html",
-            {"active_page": "migration", "projects": projects},
+            {"active_page": "migration/projects", "projects": projects},
         )
 
     @router.get("/intent", response_class=HTMLResponse)
@@ -452,7 +452,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
         return _render(
             request,
             "partials/migration_intent.html",
-            {"active_page": "migration", "cards": cards, "project_id": project_id},
+            {"active_page": "migration/projects", "cards": cards, "project_id": project_id},
         )
 
     @router.get("/classify", response_class=HTMLResponse)
@@ -471,7 +471,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             request,
             "partials/migration_classify.html",
             {
-                "active_page": "migration",
+                "active_page": "migration/projects",
                 "classifications": classifications,
                 "project_id": project_id,
             },
@@ -485,7 +485,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             request,
             "partials/migration_design.html",
             {
-                "active_page": "migration",
+                "active_page": "migration/projects",
                 "views": views,
                 "project_id": project_id,
             },
@@ -499,7 +499,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             request,
             "partials/migration_generate.html",
             {
-                "active_page": "migration",
+                "active_page": "migration/projects",
                 "sql_results": sql_results,
                 "project_id": project_id,
             },
@@ -512,7 +512,7 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             request,
             "partials/migration_report_page.html",
             {
-                "active_page": "migration",
+                "active_page": "migration/projects",
                 "project_id": project_id,
             },
         )
