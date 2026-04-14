@@ -111,6 +111,16 @@ def create_app(
 
     # --- HTML documentation serving ---
 
+    @app.on_event("startup")
+    async def _run_migrations():
+        """Auto-create scanner tables on startup (idempotent)."""
+        try:
+            from sap_doc_agent.db import ensure_tables
+
+            await ensure_tables()
+        except Exception as e:
+            logger.warning("Failed to ensure scanner tables: %s", e)
+
     @app.get("/", include_in_schema=False)
     async def landing_page(request: Request):
         """Redirect browsers to UI dashboard; return JSON for programmatic access."""
@@ -119,9 +129,15 @@ def create_app(
             from starlette.responses import RedirectResponse
 
             return RedirectResponse("/ui/dashboard")
-        objects_count = (
-            sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
-        )
+        objects_count = 0
+        try:
+            from sap_doc_agent.db import get_object_count
+
+            objects_count = await get_object_count()
+        except Exception:
+            objects_count = (
+                sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
+            )
         return {
             "service": "SAP Doc Agent",
             "version": "1.0.0",
@@ -178,11 +194,19 @@ def create_app(
     @app.get("/health")
     async def health():
         """Health check."""
-        graph_exists = (output_path / "graph.json").exists()
-        objects_count = (
-            sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
-        )
-        return {"status": "ok", "objects": objects_count, "graph_loaded": graph_exists}
+        objects_count = 0
+        graph_loaded = False
+        try:
+            from sap_doc_agent.db import get_object_count
+
+            objects_count = await get_object_count()
+            graph_loaded = objects_count > 0
+        except Exception:
+            graph_loaded = (output_path / "graph.json").exists()
+            objects_count = (
+                sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
+            )
+        return {"status": "ok", "objects": objects_count, "graph_loaded": graph_loaded}
 
     # --- API endpoints for M365 Copilot Actions ---
 

@@ -447,6 +447,40 @@ def _render_readme(result: ScanResult) -> str:
     return "\n".join(lines)
 
 
+async def persist_scan_to_db(result: ScanResult, scan_id: str) -> None:
+    """Persist scan results to PostgreSQL."""
+    from sap_doc_agent.db import save_scan_result
+
+    objects = [
+        {
+            "object_id": obj.object_id,
+            "object_type": obj.object_type.value,
+            "name": obj.name,
+            "description": obj.description,
+            "package": obj.package,
+            "owner": obj.owner,
+            "source_system": obj.source_system,
+            "technical_name": obj.technical_name,
+            "layer": obj.layer,
+            "source_code": obj.source_code,
+            "metadata": obj.metadata,
+            "content_hash": obj.content_hash,
+            "scanned_at": obj.scanned_at.isoformat(),
+        }
+        for obj in result.objects
+    ]
+    deps = [
+        {
+            "source_id": dep.source_id,
+            "target_id": dep.target_id,
+            "dependency_type": dep.dependency_type.value,
+            "metadata": dep.metadata,
+        }
+        for dep in result.dependencies
+    ]
+    await save_scan_result(scan_id, objects, deps)
+
+
 def render_chain_markdown(chain: "DataFlowChain") -> str:
     """Render a DataFlowChain as markdown with YAML frontmatter."""
 

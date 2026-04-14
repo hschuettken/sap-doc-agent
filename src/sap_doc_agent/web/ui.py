@@ -25,14 +25,21 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
 
     @router.get("/dashboard", response_class=HTMLResponse)
     async def dashboard(request: Request):
-        # Gather stats
-        graph_path = output_dir / "graph.json"
+        # Gather stats — try DB first, fall back to files
         objects = []
         edges = []
-        if graph_path.exists():
-            graph = json.loads(graph_path.read_text())
+        try:
+            from sap_doc_agent.db import get_graph_data
+
+            graph = await get_graph_data()
             objects = graph.get("nodes", [])
             edges = graph.get("edges", [])
+        except Exception:
+            graph_path = output_dir / "graph.json"
+            if graph_path.exists():
+                graph = json.loads(graph_path.read_text())
+                objects = graph.get("nodes", [])
+                edges = graph.get("edges", [])
 
         type_counts: dict[str, int] = {}
         for obj in objects:
@@ -52,24 +59,40 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
 
     @router.get("/objects", response_class=HTMLResponse)
     async def objects_list(request: Request):
-        graph_path = output_dir / "graph.json"
-        objects = []
-        if graph_path.exists():
-            graph = json.loads(graph_path.read_text())
-            objects = graph.get("nodes", [])
-
         q = request.query_params.get("q", "")
         obj_type = request.query_params.get("type", "")
         layer = request.query_params.get("layer", "")
 
-        if q:
-            objects = [
-                o for o in objects if q.lower() in o.get("name", "").lower() or q.lower() in o.get("id", "").lower()
-            ]
-        if obj_type:
-            objects = [o for o in objects if o.get("type") == obj_type]
-        if layer:
-            objects = [o for o in objects if o.get("layer") == layer]
+        objects = []
+        try:
+            from sap_doc_agent.db import list_objects as db_list_objects
+
+            objects = await db_list_objects(
+                object_type=obj_type or None,
+                layer=layer or None,
+                q=q or None,
+            )
+            # Normalize field names to match template expectations (id/type vs object_id/object_type)
+            for o in objects:
+                if "id" not in o:
+                    o["id"] = o.get("object_id", "")
+                if "type" not in o:
+                    o["type"] = o.get("object_type", "")
+        except Exception:
+            graph_path = output_dir / "graph.json"
+            if graph_path.exists():
+                graph = json.loads(graph_path.read_text())
+                objects = graph.get("nodes", [])
+                if q:
+                    objects = [
+                        o
+                        for o in objects
+                        if q.lower() in o.get("name", "").lower() or q.lower() in o.get("id", "").lower()
+                    ]
+                if obj_type:
+                    objects = [o for o in objects if o.get("type") == obj_type]
+                if layer:
+                    objects = [o for o in objects if o.get("layer") == layer]
 
         all_types = sorted(set(o.get("type", "") for o in objects))
         all_layers = sorted(set(o.get("layer", "") for o in objects if o.get("layer")))
@@ -90,34 +113,64 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
 
     @router.get("/objects/{object_id:path}", response_class=HTMLResponse)
     async def object_detail(request: Request, object_id: str):
-        # Find markdown file
-        objects_dir = output_dir / "objects"
         content = ""
         metadata: dict = {}
         obj_type = ""
-        if objects_dir.exists():
-            for type_dir in objects_dir.iterdir():
-                md_path = type_dir / f"{object_id}.md"
-                if md_path.exists():
-                    content = md_path.read_text()
-                    obj_type = type_dir.name
-                    if content.startswith("---"):
-                        import yaml
-
-                        parts = content.split("---", 2)
-                        if len(parts) >= 3:
-                            metadata = yaml.safe_load(parts[1]) or {}
-                            content = parts[2]
-                    break
-
-        # Get dependencies
-        graph_path = output_dir / "graph.json"
         upstream = []
         downstream = []
-        if graph_path.exists():
-            graph = json.loads(graph_path.read_text())
+
+        db_obj = None
+        try:
+            from sap_doc_agent.db import get_object as db_get_object, get_graph_data
+
+            db_obj = await db_get_object(object_id)
+            if db_obj:
+                obj_type = db_obj.get("object_type", "")
+                metadata = {
+                    "object_id": db_obj.get("object_id", ""),
+                    "object_type": obj_type,
+                    "name": db_obj.get("name", ""),
+                    "source_system": db_obj.get("source_system", ""),
+                    "package": db_obj.get("package", ""),
+                    "owner": db_obj.get("owner", ""),
+                    "layer": db_obj.get("layer", ""),
+                    "technical_name": db_obj.get("technical_name", ""),
+                    "scanned_at": db_obj.get("scanned_at", ""),
+                    **(db_obj.get("metadata") or {}),
+                }
+                content = db_obj.get("source_code", "")
+
+            graph = await get_graph_data()
             upstream = [e for e in graph.get("edges", []) if e["target"] == object_id]
             downstream = [e for e in graph.get("edges", []) if e["source"] == object_id]
+        except Exception:
+            pass
+
+        # File fallback if DB didn't give us an object
+        if db_obj is None:
+            objects_dir = output_dir / "objects"
+            if objects_dir.exists():
+                for type_dir in objects_dir.iterdir():
+                    md_path = type_dir / f"{object_id}.md"
+                    if md_path.exists():
+                        raw = md_path.read_text()
+                        obj_type = type_dir.name
+                        if raw.startswith("---"):
+                            import yaml
+
+                            parts = raw.split("---", 2)
+                            if len(parts) >= 3:
+                                metadata = yaml.safe_load(parts[1]) or {}
+                                content = parts[2]
+                        else:
+                            content = raw
+                        break
+
+            graph_path = output_dir / "graph.json"
+            if graph_path.exists():
+                graph = json.loads(graph_path.read_text())
+                upstream = [e for e in graph.get("edges", []) if e["target"] == object_id]
+                downstream = [e for e in graph.get("edges", []) if e["source"] == object_id]
 
         return _render(
             request,
@@ -189,10 +242,16 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
 
     @router.get("/graph", response_class=HTMLResponse)
     async def graph_page(request: Request):
-        graph_path = output_dir / "graph.json"
         graph_data = "{}"
-        if graph_path.exists():
-            graph_data = graph_path.read_text()
+        try:
+            from sap_doc_agent.db import get_graph_data
+
+            graph = await get_graph_data()
+            graph_data = json.dumps(graph)
+        except Exception:
+            graph_path = output_dir / "graph.json"
+            if graph_path.exists():
+                graph_data = graph_path.read_text()
         return _render(
             request,
             "partials/graph.html",
@@ -250,10 +309,18 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
     @router.get("/partials/health-dots", response_class=HTMLResponse)
     async def health_dots(request: Request):
         """Tiny partial for the topbar health indicators."""
-        graph_exists = (output_dir / "graph.json").exists()
-        objects_count = (
-            sum(1 for _ in (output_dir / "objects").rglob("*.md")) if (output_dir / "objects").exists() else 0
-        )
+        objects_count = 0
+        graph_exists = False
+        try:
+            from sap_doc_agent.db import get_object_count
+
+            objects_count = await get_object_count()
+            graph_exists = objects_count > 0
+        except Exception:
+            graph_exists = (output_dir / "graph.json").exists()
+            objects_count = (
+                sum(1 for _ in (output_dir / "objects").rglob("*.md")) if (output_dir / "objects").exists() else 0
+            )
         dot_obj = "dot-green" if objects_count > 0 else "dot-amber"
         dot_graph = "dot-green" if graph_exists else "dot-red"
         return HTMLResponse(
