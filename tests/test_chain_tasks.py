@@ -48,3 +48,44 @@ def test_build_chains_task_skips_if_no_graph(tmp_path):
     )
     assert result["status"] == "skipped"
     assert "no graph.json" in result["reason"]
+
+
+def test_build_chains_fan_out_dispatches_analysis(tmp_path):
+    """build_chains should attempt to dispatch analyze_single_chain per chain."""
+    import shutil
+    from unittest.mock import patch
+
+    fixture_copy = tmp_path / "scan_output"
+    shutil.copytree(FIXTURE_DIR, fixture_copy)
+
+    from sap_doc_agent.tasks.chain_tasks import build_chains
+
+    with patch("sap_doc_agent.tasks.chain_tasks.analyze_single_chain") as mock_analyze:
+        mock_analyze.apply_async.return_value = None
+        result = build_chains.run(
+            output_dir=str(fixture_copy),
+            scan_id="fan-out-test",
+        )
+    assert result["analysis_dispatched"] == 3
+    assert mock_analyze.apply_async.call_count == 3
+
+
+def test_build_chains_fan_out_graceful_on_broker_error(tmp_path):
+    """If Celery broker is unavailable, fan-out is skipped gracefully."""
+    import shutil
+    from unittest.mock import patch
+
+    fixture_copy = tmp_path / "scan_output"
+    shutil.copytree(FIXTURE_DIR, fixture_copy)
+
+    from sap_doc_agent.tasks.chain_tasks import build_chains
+
+    with patch("sap_doc_agent.tasks.chain_tasks.analyze_single_chain") as mock_analyze:
+        mock_analyze.apply_async.side_effect = ConnectionError("no broker")
+        result = build_chains.run(
+            output_dir=str(fixture_copy),
+            scan_id="no-broker",
+        )
+    assert result["status"] == "completed"
+    assert result["analysis_dispatched"] == 0
+    assert result["chain_count"] == 3  # chains still built

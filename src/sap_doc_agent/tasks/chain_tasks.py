@@ -43,11 +43,24 @@ def build_chains(self, output_dir: str, scan_id: str) -> dict:
 
     logger.info("build_chains: scan_id=%s chains=%d", scan_id, len(chains))
 
+    # Fan-out: dispatch LLM analysis for each chain
+    dispatched = 0
+    for chain_id in chain_ids:
+        json_path = str(chains_dir / f"{chain_id}.json")
+        try:
+            analyze_single_chain.apply_async(kwargs={"chain_json_path": json_path})
+            dispatched += 1
+        except Exception as exc:
+            # Celery broker unavailable — skip fan-out, chains can be analyzed later
+            logger.warning("Could not dispatch analyze_single_chain for %s: %s", chain_id, exc)
+            break
+
     return {
         "status": "completed",
         "scan_id": scan_id,
         "chain_count": len(chains),
         "chain_ids": chain_ids,
+        "analysis_dispatched": dispatched,
     }
 
 
