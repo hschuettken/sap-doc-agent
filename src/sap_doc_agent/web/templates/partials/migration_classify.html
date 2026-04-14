@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Classifications{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">Migration Classifications</h1>
+      {% if project_id %}
+      <p class="text-sm text-gray-400 mt-1">Project: {{ project_id }}</p>
+      {% endif %}
+    </div>
+    {% if project_id %}
+    <button hx-post="/api/migration/projects/{{ project_id }}/classify"
+            hx-target="#class-list" hx-swap="innerHTML"
+            class="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700">
+      Run Classification
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Classification summary -->
+  {% if classifications %}
+  <div class="grid grid-cols-5 gap-3 mb-6">
+    {% set ns = namespace(migrate=0, simplify=0, replace=0, drop=0, clarify=0) %}
+    {% for c in classifications %}
+      {% set cls = c.classification or c.get('classification', '') %}
+      {% if cls == 'migrate' %}{% set ns.migrate = ns.migrate + 1 %}
+      {% elif cls == 'simplify' %}{% set ns.simplify = ns.simplify + 1 %}
+      {% elif cls == 'replace' %}{% set ns.replace = ns.replace + 1 %}
+      {% elif cls == 'drop' %}{% set ns.drop = ns.drop + 1 %}
+      {% elif cls == 'clarify' %}{% set ns.clarify = ns.clarify + 1 %}{% endif %}
+    {% endfor %}
+    <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-blue-300">{{ ns.migrate }}</div>
+      <div class="text-xs text-blue-400 uppercase">Migrate</div>
+    </div>
+    <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-yellow-300">{{ ns.simplify }}</div>
+      <div class="text-xs text-yellow-400 uppercase">Simplify</div>
+    </div>
+    <div class="bg-green-900/30 border border-green-700 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-green-300">{{ ns.replace }}</div>
+      <div class="text-xs text-green-400 uppercase">Replace</div>
+    </div>
+    <div class="bg-red-900/30 border border-red-700 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-red-300">{{ ns.drop }}</div>
+      <div class="text-xs text-red-400 uppercase">Drop</div>
+    </div>
+    <div class="bg-gray-700/30 border border-gray-600 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-gray-300">{{ ns.clarify }}</div>
+      <div class="text-xs text-gray-400 uppercase">Clarify</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="class-list" class="space-y-4">
+    {% if classifications %}
+      {% for c in classifications %}
+      {% set cls = c.classification or c.get('classification', '') %}
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="flex items-center gap-3">
+              <span class="px-2 py-1 rounded text-xs font-mono uppercase
+                {% if cls == 'migrate' %}bg-blue-600/20 text-blue-300
+                {% elif cls == 'simplify' %}bg-yellow-600/20 text-yellow-300
+                {% elif cls == 'replace' %}bg-green-600/20 text-green-300
+                {% elif cls == 'drop' %}bg-red-600/20 text-red-300
+                {% else %}bg-gray-600/20 text-gray-400{% endif %}">
+                {{ cls }}
+              </span>
+              <h3 class="text-lg font-semibold text-gray-100">
+                {{ c.chain_id or c.get('chain_id', '') }}
+              </h3>
+            </div>
+            <p class="text-gray-400 mt-1 text-sm">
+              {{ c.rationale or c.get('rationale', '') }}
+            </p>
+            <div class="flex gap-4 mt-2 text-xs text-gray-500">
+              {% set effort = c.effort_category or c.get('effort_category', '') %}
+              {% if effort %}
+              <span>Effort:
+                <span class="{% if effort == 'trivial' %}text-green-400{% elif effort == 'moderate' %}text-amber-400{% else %}text-red-400{% endif %}">
+                  {{ effort }}
+                </span>
+              </span>
+              {% endif %}
+              {% set conf = c.confidence if c.confidence is defined else c.get('confidence', 0) %}
+              <span>Confidence: {{ "%.0f"|format((conf or 0) * 100) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center py-12 text-gray-500">
+        <p>No classifications yet. Run interpretation first, then classify.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

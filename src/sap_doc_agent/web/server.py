@@ -92,6 +92,18 @@ def create_app(
     ui_router = create_ui_router(output_path)
     app.include_router(ui_router)
 
+    # Mount migration routers
+    try:
+        from sap_doc_agent.web.migration_routes import (
+            create_migration_api_router,
+            create_migration_ui_router,
+        )
+
+        app.include_router(create_migration_api_router(output_path))
+        app.include_router(create_migration_ui_router(output_path))
+    except ImportError:
+        pass
+
     # Auth middleware (password from env, defaults to "admin" for dev)
     pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))
     secret = os.environ.get("SAP_DOC_AGENT_SECRET_KEY", "dev-secret-change-me")

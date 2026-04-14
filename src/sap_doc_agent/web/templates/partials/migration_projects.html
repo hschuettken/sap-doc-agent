@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Migration Projects{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-100">Migration Projects</h1>
+    <button onclick="document.getElementById('create-form').classList.toggle('hidden')"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      + New Project
+    </button>
+  </div>
+
+  <!-- Create form (hidden by default) -->
+  <div id="create-form" class="hidden mb-6 bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <form hx-post="/api/migration/projects" hx-target="#projects-list" hx-swap="innerHTML"
+          class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Project Name</label>
+        <input name="name" required class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Scan ID</label>
+        <input name="scan_id" required class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Source System</label>
+        <input name="source_system" placeholder="BW/4HANA 2.0" class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">BRS Folder</label>
+        <input name="brs_folder" placeholder="brs/" class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100">
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm text-gray-400 mb-1">Description</label>
+        <textarea name="description" rows="2" class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100"></textarea>
+      </div>
+      <div class="col-span-2">
+        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Create</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Projects list -->
+  <div id="projects-list" class="space-y-4">
+    {% if projects %}
+      {% for p in projects %}
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-100">{{ p.name or p.get('name', 'Unnamed') }}</h2>
+            <p class="text-sm text-gray-400 mt-1">{{ p.description or p.get('description', '') }}</p>
+            <div class="flex gap-4 mt-2 text-xs text-gray-500">
+              <span>Scan: {{ p.scan_id or p.get('scan_id', '') }}</span>
+              <span>Source: {{ p.source_system or p.get('source_system', '') }}</span>
+              <span>Status: <span class="text-blue-400">{{ p.status or p.get('status', 'created') }}</span></span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <a href="/ui/migration/intent?project_id={{ p.id or p.get('id', '') }}"
+               class="px-3 py-1 bg-purple-600/20 text-purple-300 rounded text-sm hover:bg-purple-600/30">
+              Intent Cards
+            </a>
+            <a href="/ui/migration/classify?project_id={{ p.id or p.get('id', '') }}"
+               class="px-3 py-1 bg-amber-600/20 text-amber-300 rounded text-sm hover:bg-amber-600/30">
+              Classifications
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center py-12 text-gray-500">
+        <p>No migration projects yet. Create one to get started.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
