@@ -288,3 +288,15 @@ async def test_classify_chain_falls_back_to_llm():
     result = await classify_chain(intent, chain, mock_llm)
     assert result.classification == MigrationClassification.MIGRATE
     assert mock_llm.generate.call_count >= 1
+
+
+def test_migrate_classification_not_in_rule_patterns():
+    """MIGRATE is only reachable via LLM — no rule pattern defaults to it.
+
+    This is by design (spec §5.3): rules handle SIMPLIFY/REPLACE/DROP/CLARIFY,
+    LLM handles 'real business need, design fresh for DSP' (MIGRATE).
+    """
+    from sap_doc_agent.migration.bw_patterns import BW_PATTERNS
+
+    rule_classifications = {p.classification for p in BW_PATTERNS}
+    assert MigrationClassification.MIGRATE not in rule_classifications

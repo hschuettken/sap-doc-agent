@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+from enum import Enum
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,14 @@ class CreateProjectRequest(BaseModel):
     brs_folder: str = ""
 
 
+class ReviewDecision(str, Enum):
+    APPROVE = "approve"
+    REJECT = "reject"
+    CLARIFY = "clarify"
+
+
 class ReviewRequest(BaseModel):
-    decision: str = Field(..., description="approve, reject, or clarify")
+    decision: ReviewDecision
     notes: str = ""
     reviewer: str = ""
 

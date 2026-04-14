@@ -109,6 +109,25 @@ def test_ui_migration_classify_page():
     assert "Classifications" in resp.text
 
 
+def test_review_request_rejects_invalid_decision():
+    """ReviewRequest should only accept approve/reject/clarify."""
+    from pydantic import ValidationError
+
+    from sap_doc_agent.web.migration_routes import ReviewRequest
+
+    # Valid decisions work
+    ReviewRequest(decision="approve", reviewer="test")
+    ReviewRequest(decision="reject", notes="wrong")
+    ReviewRequest(decision="clarify")
+
+    # Invalid decision raises
+    try:
+        ReviewRequest(decision="invalid_value")
+        assert False, "Should have raised ValidationError"
+    except ValidationError:
+        pass
+
+
 # --- Router registration ---
 
 

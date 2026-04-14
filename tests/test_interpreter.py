@@ -190,3 +190,33 @@ async def test_interpret_chain_json_round_trip():
     json_str = result.model_dump_json()
     restored = IntentCard.model_validate_json(json_str)
     assert restored.business_purpose == result.business_purpose
+
+
+@pytest.mark.asyncio
+async def test_interpret_chain_truncates_large_source():
+    """Large ABAP source code should be truncated to fit context window."""
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = '{"business_purpose": "Revenue","data_domain": "SD","confidence": 0.8}'
+
+    # Create a step with very large source code (~5000 lines)
+    large_code = "\n".join(f"DATA: lv_var{i} TYPE i. lv_var{i} = {i}." for i in range(5000))
+    chain = _make_chain(
+        steps=[
+            ChainStep(
+                position=1,
+                object_id="TR1",
+                object_type=ObjectType.TRANSFORMATION,
+                name="BigRoutine",
+                source_code=large_code,
+            ),
+        ]
+    )
+
+    result = await interpret_chain(chain, mock_llm)
+    assert result.chain_id == "chain_001"
+    # The prompt should have been sent — verify LLM was called
+    assert mock_llm.generate.call_count >= 1
+    # The prompt should NOT contain the full 5000-line source
+    call_args = mock_llm.generate.call_args
+    prompt = call_args[0][0] if call_args[0] else call_args[1].get("prompt", "")
+    assert "truncated" in prompt or len(prompt) < len(large_code)

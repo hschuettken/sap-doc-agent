@@ -66,7 +66,7 @@ def _build_prompt(chain: DataFlowChain, detected_patterns: list[str]) -> str:
                 "object_id": step.object_id,
                 "object_type": step.object_type.value if hasattr(step.object_type, "value") else str(step.object_type),
                 "step_summary": step.step_summary,
-                "source_code": step.source_code,
+                "source_code": _truncate_source(step.source_code),
                 "inter_step_object_name": step.inter_step_object_name,
                 "inter_step_fields": step.inter_step_fields,
             }
@@ -161,3 +161,25 @@ def _pattern_relevant_to_step(pattern_name: str, step_data: dict) -> bool:
     # Simple keyword matching between pattern name and step text
     keywords = pattern_name.replace("_", " ").split()
     return any(kw in step_text for kw in keywords)
+
+
+# Max tokens worth of source code per step in the interpretation prompt.
+# Steps with summaries from chain_analyzer are preferred; raw source is
+# truncated to keep the prompt within context window limits.
+_MAX_SOURCE_TOKENS_PER_STEP = 2000
+
+
+def _truncate_source(source_code: str, max_tokens: int = _MAX_SOURCE_TOKENS_PER_STEP) -> str:
+    """Truncate source code to fit within token budget using ABAP-aware chunking."""
+    if not source_code:
+        return ""
+    from sap_doc_agent.llm.chunking import chunk_text
+
+    chunks = chunk_text(source_code, max_tokens=max_tokens)
+    if not chunks:
+        return ""
+    # Use only the first chunk — the most important code is at the top
+    result = chunks[0]
+    if len(chunks) > 1:
+        result += f"\n\n... [{len(chunks) - 1} more section(s) truncated]"
+    return result
