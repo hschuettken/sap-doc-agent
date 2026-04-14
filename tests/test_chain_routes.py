@@ -36,8 +36,18 @@ def output_with_chains(tmp_path):
 
 @pytest.fixture
 def client(output_with_chains):
+    """Authenticated test client with session cookie."""
+    import os
+
+    from sap_doc_agent.web.auth import hash_password
+
+    pw_hash = hash_password("testpass")
+    os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash
+    os.environ["SAP_DOC_AGENT_SECRET_KEY"] = "test-secret"
     app = create_app(output_dir=str(output_with_chains))
-    return TestClient(app)
+    c = TestClient(app, follow_redirects=True)
+    c.post("/ui/login", data={"password": "testpass"}, follow_redirects=False)
+    return c
 
 
 def test_api_chains_returns_list(client):
@@ -109,3 +119,29 @@ def test_api_chains_build_no_graph(tmp_path):
     c = TestClient(app)
     resp = c.post("/api/chains/build")
     assert resp.status_code == 404
+
+
+def test_ui_chains_list(client):
+    """GET /ui/chains returns HTML page listing chains."""
+    resp = client.get("/ui/chains")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Data Flow Chains" in resp.text
+    assert "chain_001" in resp.text
+
+
+def test_ui_chain_detail(client):
+    """GET /ui/chains/{id} returns HTML detail page."""
+    # Get first chain
+    chains = client.get("/api/chains").json()
+    chain_id = chains[0]["chain_id"]
+    resp = client.get(f"/ui/chains/{chain_id}")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert chain_id in resp.text
+
+
+def test_ui_chain_detail_missing_redirects(client):
+    """GET /ui/chains/nonexistent redirects to chain list."""
+    resp = client.get("/ui/chains/nonexistent", follow_redirects=False)
+    assert resp.status_code == 307

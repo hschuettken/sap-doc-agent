@@ -133,6 +133,45 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
             },
         )
 
+    @router.get("/chains", response_class=HTMLResponse)
+    async def chains_list(request: Request):
+        """List all data flow chains."""
+        chains_dir = output_dir / "chains"
+        chains = []
+        if chains_dir.exists():
+            for f in sorted(chains_dir.glob("*.json")):
+                try:
+                    data = json.loads(f.read_text())
+                    chains.append(data)
+                except (json.JSONDecodeError, OSError):
+                    continue
+        return _render(
+            request,
+            "partials/chains.html",
+            {
+                "active_page": "chains",
+                "chains": chains,
+            },
+        )
+
+    @router.get("/chains/{chain_id}", response_class=HTMLResponse)
+    async def chain_detail(request: Request, chain_id: str):
+        """View a single chain in detail."""
+        chain_file = output_dir / "chains" / f"{chain_id}.json"
+        if not chain_file.exists():
+            from fastapi.responses import RedirectResponse
+
+            return RedirectResponse("/ui/chains")
+        chain = json.loads(chain_file.read_text())
+        return _render(
+            request,
+            "partials/chain_detail.html",
+            {
+                "active_page": "chains",
+                "chain": chain,
+            },
+        )
+
     @router.get("/quality", response_class=HTMLResponse)
     async def quality(request: Request):
         reports_dir = output_dir / "reports"
