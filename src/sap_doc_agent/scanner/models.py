@@ -110,3 +110,41 @@ class ScanResult(BaseModel):
     def get_dependencies_of(self, object_id: str) -> list[Dependency]:
         """Get all dependencies where source_id matches the given object_id."""
         return [dep for dep in self.dependencies if dep.source_id == object_id]
+
+
+class ChainStep(BaseModel):
+    """One transformation step within a data flow chain."""
+
+    position: int
+    object_id: str
+    object_type: ObjectType
+    name: str
+    source_code: str = ""
+    inter_step_object_id: Optional[str] = None
+    inter_step_object_name: Optional[str] = None
+    inter_step_fields: list[str] = Field(default_factory=list)
+    upstream_context: str = ""
+    downstream_context: str = ""
+    step_summary: str = ""
+    confidence: float = 0.0
+
+
+class DataFlowChain(BaseModel):
+    """End-to-end data flow chain from source to consumption."""
+
+    chain_id: str
+    name: str = ""
+    terminal_object_id: str
+    terminal_object_type: ObjectType
+    source_object_ids: list[str] = Field(default_factory=list)
+    steps: list[ChainStep] = Field(default_factory=list)
+    all_object_ids: list[str] = Field(default_factory=list)
+    shared_dependency_ids: list[str] = Field(default_factory=list)
+    summary: str = ""
+    observations: list[str] = Field(default_factory=list)
+    confidence: float = 0.0
+    analyzed_at: Optional[datetime] = None
+
+    @property
+    def step_count(self) -> int:
+        return len(self.steps)
