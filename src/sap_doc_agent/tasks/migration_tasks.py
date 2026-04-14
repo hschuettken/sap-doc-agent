@@ -140,6 +140,94 @@ def classify_chain_task(
     return asyncio.run(_run())
 
 
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30, queue="llm")
+def design_target_task(
+    self, chain_json_path: str, classified_json_path: str, project_id: str, config_path: str = "config.yaml"
+) -> dict:
+    """Design DSP target views for a classified chain."""
+    import asyncio
+
+    async def _run():
+        from sap_doc_agent.app import SAPDocAgent
+        from sap_doc_agent.migration.architect import design_chain_views
+        from sap_doc_agent.migration.models import ClassifiedChain
+        from sap_doc_agent.scanner.models import DataFlowChain
+
+        chain = DataFlowChain.model_validate_json(Path(chain_json_path).read_text())
+        classified = ClassifiedChain.model_validate_json(Path(classified_json_path).read_text())
+        app = SAPDocAgent.from_config(config_path)
+
+        views = await design_chain_views(classified, chain, app.llm)
+
+        # Persist to DB
+        try:
+            from sap_doc_agent.migration import db as migration_db
+
+            for view in views:
+                await migration_db.upsert_target_view(project_id, view.technical_name, view.model_dump())
+        except Exception as e:
+            logger.warning("Failed to persist target views to DB: %s", e)
+
+        # Write target views JSON
+        target_path = Path(chain_json_path).parent / f"{chain.chain_id}_target.json"
+        target_path.write_text(json.dumps([v.model_dump() for v in views], indent=2, default=str))
+
+        return {
+            "status": "completed",
+            "chain_id": chain.chain_id,
+            "views_designed": len(views),
+            "view_names": [v.technical_name for v in views],
+        }
+
+    return asyncio.run(_run())
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30, queue="llm")
+def generate_sql_task(
+    self, chain_id: str, target_json_path: str, project_id: str, config_path: str = "config.yaml"
+) -> dict:
+    """Generate DSP SQL for designed target views."""
+    import asyncio
+
+    async def _run():
+        from sap_doc_agent.app import SAPDocAgent
+        from sap_doc_agent.migration.generator import generate_sql_for_view
+        from sap_doc_agent.migration.models import ViewSpec
+
+        target_data = json.loads(Path(target_json_path).read_text())
+        views = [ViewSpec.model_validate(v) for v in target_data]
+        app = SAPDocAgent.from_config(config_path)
+
+        results = []
+        for view in views:
+            result = await generate_sql_for_view(view, app.llm)
+            results.append(
+                {
+                    "technical_name": result.technical_name,
+                    "space": result.space,
+                    "layer": result.layer,
+                    "sql": result.sql,
+                    "needs_manual_edit": result.needs_manual_edit,
+                    "generation_method": result.generation_method,
+                    "error_count": result.validation_result.error_count if result.validation_result else 0,
+                    "warning_count": result.validation_result.warning_count if result.validation_result else 0,
+                }
+            )
+
+        # Write SQL results JSON
+        sql_path = Path(target_json_path).parent / f"{chain_id}_sql.json"
+        sql_path.write_text(json.dumps(results, indent=2))
+
+        return {
+            "status": "completed",
+            "chain_id": chain_id,
+            "views_generated": len(results),
+            "needs_review": sum(1 for r in results if r["needs_manual_edit"]),
+        }
+
+    return asyncio.run(_run())
+
+
 def _serialize_recon(result: dict) -> dict:
     """Serialize a reconciliation result for JSON output."""
     serialized = {}

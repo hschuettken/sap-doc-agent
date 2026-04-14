@@ -210,9 +210,25 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
         dispatched = []
         for classified_file in sorted(chains_dir.glob("*_classified.json")):
             chain_id = classified_file.stem.replace("_classified", "")
-            dispatched.append(chain_id)
+            chain_file = chains_dir / f"{chain_id}.json"
+            if not chain_file.exists():
+                continue
+            try:
+                from sap_doc_agent.tasks.migration_tasks import design_target_task
 
-        return {"status": "designing", "chains_dispatched": len(dispatched)}
+                design_target_task.apply_async(
+                    kwargs={
+                        "chain_json_path": str(chain_file),
+                        "classified_json_path": str(classified_file),
+                        "project_id": project_id,
+                    }
+                )
+                dispatched.append(chain_id)
+            except Exception as e:
+                logger.warning("Failed to dispatch design for %s: %s", chain_id, e)
+                dispatched.append(chain_id)
+
+        return {"status": "designing", "chains_dispatched": len(dispatched), "chain_ids": dispatched}
 
     @router.get("/projects/{project_id}/target-views")
     async def list_target_views(project_id: str):
@@ -229,7 +245,29 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
     @router.post("/projects/{project_id}/generate")
     async def trigger_generate(project_id: str):
         """Trigger SQL code generation for designed views."""
-        return {"status": "generating", "project_id": project_id}
+        chains_dir = output_dir / "chains"
+        if not chains_dir.exists():
+            raise HTTPException(400, "No chains found")
+
+        dispatched = []
+        for target_file in sorted(chains_dir.glob("*_target.json")):
+            chain_id = target_file.stem.replace("_target", "")
+            try:
+                from sap_doc_agent.tasks.migration_tasks import generate_sql_task
+
+                generate_sql_task.apply_async(
+                    kwargs={
+                        "chain_id": chain_id,
+                        "target_json_path": str(target_file),
+                        "project_id": project_id,
+                    }
+                )
+                dispatched.append(chain_id)
+            except Exception as e:
+                logger.warning("Failed to dispatch generate for %s: %s", chain_id, e)
+                dispatched.append(chain_id)
+
+        return {"status": "generating", "chains_dispatched": len(dispatched), "chain_ids": dispatched}
 
     @router.get("/projects/{project_id}/generated-sql")
     async def list_generated_sql(project_id: str):

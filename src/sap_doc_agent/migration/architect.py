@@ -51,6 +51,21 @@ _DESIGN_SCHEMA = {
                     "sql_logic": {"type": "string"},
                     "collapse_rationale": {"type": "string"},
                     "collapsed_bw_steps": {"type": "array", "items": {"type": "string"}},
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "data_type": {"type": "string"},
+                                "description": {"type": "string"},
+                                "source_field": {"type": "string"},
+                                "is_key": {"type": "boolean"},
+                                "is_measure": {"type": "boolean"},
+                                "aggregation": {"type": "string"},
+                            },
+                        },
+                    },
                     "persistence": {"type": "boolean"},
                     "persistence_rationale": {"type": "string"},
                 },
@@ -205,8 +220,23 @@ async def design_target_architecture(
 
 def _parse_view_specs(views_data: list[dict], chain_id: str) -> list[ViewSpec]:
     """Parse LLM view data into ViewSpec objects."""
+    from sap_doc_agent.migration.models import ColumnSpec
+
     specs = []
     for v in views_data:
+        columns = []
+        for col_data in v.get("columns", []):
+            columns.append(
+                ColumnSpec(
+                    name=col_data.get("name", ""),
+                    data_type=col_data.get("data_type", ""),
+                    description=col_data.get("description", ""),
+                    source_field=col_data.get("source_field", ""),
+                    is_key=col_data.get("is_key", False),
+                    is_measure=col_data.get("is_measure", False),
+                    aggregation=col_data.get("aggregation", ""),
+                )
+            )
         specs.append(
             ViewSpec(
                 technical_name=v.get("technical_name", ""),
@@ -216,6 +246,7 @@ def _parse_view_specs(views_data: list[dict], chain_id: str) -> list[ViewSpec]:
                 description=v.get("description", ""),
                 source_chains=v.get("source_chains", [chain_id]),
                 source_objects=v.get("source_objects", []),
+                columns=columns,
                 sql_logic=v.get("sql_logic", ""),
                 collapse_rationale=v.get("collapse_rationale", ""),
                 collapsed_bw_steps=v.get("collapsed_bw_steps", []),
