@@ -508,6 +508,206 @@ def create_app(
         content, content_type = get_metrics_text()
         return Response(content=content, media_type=content_type)
 
+    # --- Standards + Knowledge endpoints (Phase 4) ---
+
+    @app.post("/api/standards/upload")
+    async def upload_standard(request: Request):
+        """Upload a customer documentation standard file."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        form = await request.form()
+        file = form.get("file")
+        if not file:
+            return _JSONResponse({"error": "No file provided"}, status_code=400)
+        file_data = await file.read()
+        name = form.get("name", file.filename)
+        content_type = file.content_type or "application/octet-stream"
+        max_bytes = int(os.environ.get("UPLOAD_MAX_MB", "50")) * 1024 * 1024
+        if len(file_data) > max_bytes:
+            return _JSONResponse({"error": "File too large"}, status_code=413)
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            standard_id = await standards_db.create_standard(name, file.filename, content_type)
+            await standards_db.store_standard_file(standard_id, file_data, file.filename, content_type)
+            # Enqueue processing task
+            try:
+                from sap_doc_agent.tasks.agent_tasks import process_standard_upload
+
+                task = process_standard_upload.apply_async(
+                    kwargs={"standard_id": standard_id, "config_path": "config.yaml"}
+                )
+                task_id = task.id
+            except (ImportError, Exception):
+                task_id = None
+            return _JSONResponse(
+                {"standard_id": standard_id, "task_id": task_id, "status": "processing"}, status_code=202
+            )
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/standards")
+    async def list_standards_endpoint():
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            standards = await standards_db.list_standards()
+            for s in standards:
+                for k, v in s.items():
+                    if hasattr(v, "isoformat"):
+                        s[k] = v.isoformat()
+                    elif hasattr(v, "hex"):
+                        s[k] = str(v)
+            return _JSONResponse({"standards": standards})
+        except Exception as e:
+            return _JSONResponse({"standards": [], "error": str(e)})
+
+    @app.get("/api/standards/{standard_id}/download")
+    async def download_standard(standard_id: str):
+        from fastapi.responses import JSONResponse as _JSONResponse, Response as _FastAPIResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            file_row = await standards_db.get_standard_file(standard_id)
+            if not file_row:
+                return _JSONResponse({"error": "File not found"}, status_code=404)
+            return _FastAPIResponse(
+                content=bytes(file_row["file_data"]),
+                media_type=file_row["content_type"],
+                headers={"Content-Disposition": f'attachment; filename="{file_row["filename"]}"'},
+            )
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/standards/{standard_id}")
+    async def get_standard_endpoint(standard_id: str):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            std = await standards_db.get_standard(standard_id)
+            if not std:
+                return _JSONResponse({"error": "Not found"}, status_code=404)
+            for k, v in std.items():
+                if hasattr(v, "isoformat"):
+                    std[k] = v.isoformat()
+                elif hasattr(v, "hex"):
+                    std[k] = str(v)
+            return _JSONResponse(std)
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.put("/api/standards/{standard_id}/rules")
+    async def update_standard_rules_endpoint(standard_id: str, request: Request):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            body = await request.json()
+            from sap_doc_agent.standards import db as standards_db
+
+            await standards_db.update_standard_rules(
+                standard_id, body.get("parsed_rules", {}), body.get("raw_text", ""), "ready"
+            )
+            return _JSONResponse({"status": "updated"})
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.delete("/api/standards/{standard_id}")
+    async def delete_standard_endpoint(standard_id: str):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            await standards_db.delete_standard(standard_id)
+            return _JSONResponse({"status": "deleted"})
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/knowledge")
+    async def list_knowledge_endpoint(category: str = None):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            entries = await standards_db.list_knowledge(category)
+            for e in entries:
+                for k, v in e.items():
+                    if hasattr(v, "isoformat"):
+                        e[k] = v.isoformat()
+                    elif hasattr(v, "hex"):
+                        e[k] = str(v)
+            return _JSONResponse({"knowledge": entries})
+        except Exception as e:
+            return _JSONResponse({"knowledge": [], "error": str(e)})
+
+    @app.post("/api/knowledge")
+    async def create_knowledge_endpoint(request: Request):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            body = await request.json()
+            from sap_doc_agent.standards import db as standards_db
+
+            await standards_db.upsert_knowledge(body["category"], body["key"], body.get("value", {}), "manual")
+            return _JSONResponse({"status": "created"}, status_code=201)
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.put("/api/knowledge/{knowledge_id}")
+    async def update_knowledge_endpoint(knowledge_id: str, request: Request):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            body = await request.json()
+            from sap_doc_agent.standards import db as standards_db
+
+            await standards_db.upsert_knowledge(
+                body["category"], body["key"], body.get("value", {}), body.get("source", "manual")
+            )
+            return _JSONResponse({"status": "updated"})
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.delete("/api/knowledge/{knowledge_id}")
+    async def delete_knowledge_endpoint(knowledge_id: str):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        try:
+            from sap_doc_agent.standards import db as standards_db
+
+            await standards_db.delete_knowledge(knowledge_id)
+            return _JSONResponse({"status": "deleted"})
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.post("/api/knowledge/upload")
+    async def upload_knowledge_endpoint(request: Request):
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        form = await request.form()
+        file = form.get("file")
+        if not file:
+            return _JSONResponse({"error": "No file provided"}, status_code=400)
+        file_data = await file.read()
+        try:
+            from sap_doc_agent.tasks.agent_tasks import process_knowledge_upload
+
+            task = process_knowledge_upload.apply_async(
+                kwargs={
+                    "file_data_b64": __import__("base64").b64encode(file_data).decode(),
+                    "filename": file.filename,
+                }
+            )
+            return _JSONResponse({"task_id": task.id, "status": "processing"}, status_code=202)
+        except Exception as e:
+            return _JSONResponse({"error": str(e)}, status_code=500)
+
     return app
 
 
