@@ -193,3 +193,54 @@ def test_shared_dependencies_have_rich_info():
     assert dep.object_id == "IOBJ_CUST"
     assert dep.name == "0CUSTOMER"
     assert dep.object_type == "INFOOBJECT"
+
+
+# --- Fan-out test ---
+
+
+def test_fan_out_shared_adso_appears_in_multiple_chains():
+    """When one ADSO feeds two terminals, it appears in both chains."""
+    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+
+    graph = {
+        "nodes": [
+            {"id": "DS1", "type": "DATA_SOURCE", "name": "Source1", "metadata": {}},
+            {"id": "TR1", "type": "TRANSFORMATION", "name": "Load1", "metadata": {}},
+            {"id": "SHARED_DSO", "type": "ADSO", "name": "ZADSO_SHARED", "metadata": {"fields": ["F1"]}},
+            {"id": "TR_A", "type": "TRANSFORMATION", "name": "ToA", "metadata": {}},
+            {"id": "CMP_A", "type": "COMPOSITE", "name": "ZC_A", "metadata": {}},
+            {"id": "TR_B", "type": "TRANSFORMATION", "name": "ToB", "metadata": {}},
+            {"id": "CMP_B", "type": "COMPOSITE", "name": "ZC_B", "metadata": {}},
+        ],
+        "edges": [
+            {"source": "DS1", "target": "TR1", "type": "READS_FROM"},
+            {"source": "TR1", "target": "SHARED_DSO", "type": "WRITES_TO"},
+            {"source": "SHARED_DSO", "target": "TR_A", "type": "READS_FROM"},
+            {"source": "TR_A", "target": "CMP_A", "type": "WRITES_TO"},
+            {"source": "SHARED_DSO", "target": "TR_B", "type": "READS_FROM"},
+            {"source": "TR_B", "target": "CMP_B", "type": "WRITES_TO"},
+        ],
+    }
+    chains = build_chains_from_graph(graph)
+    assert len(chains) == 2
+
+    chain_a = next(c for c in chains if c.terminal_object_id == "CMP_A")
+    chain_b = next(c for c in chains if c.terminal_object_id == "CMP_B")
+
+    # Both chains should include the shared ADSO
+    assert "SHARED_DSO" in chain_a.all_object_ids
+    assert "SHARED_DSO" in chain_b.all_object_ids
+
+    # Both chains trace back to same source
+    assert "DS1" in chain_a.source_object_ids
+    assert "DS1" in chain_b.source_object_ids
+
+    # Chain A has TR1 + TR_A, Chain B has TR1 + TR_B
+    assert chain_a.step_count == 2
+    assert chain_b.step_count == 2
+    step_ids_a = [s.object_id for s in chain_a.steps]
+    step_ids_b = [s.object_id for s in chain_b.steps]
+    assert "TR1" in step_ids_a
+    assert "TR_A" in step_ids_a
+    assert "TR1" in step_ids_b
+    assert "TR_B" in step_ids_b
