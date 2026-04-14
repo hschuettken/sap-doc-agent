@@ -179,3 +179,17 @@ def test_all_transformation_steps_get_source():
     rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
     for step in rev_chain.steps:
         assert step.source_code != "", f"Step {step.object_id} has no source code"
+
+
+def test_shared_dependencies_have_rich_info():
+    """shared_dependencies should contain name and type from graph nodes."""
+    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+
+    graph = load_fixture_graph()
+    chains = build_chains_from_graph(graph)
+    rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
+    assert len(rev_chain.shared_dependencies) == 1
+    dep = rev_chain.shared_dependencies[0]
+    assert dep.object_id == "IOBJ_CUST"
+    assert dep.name == "0CUSTOMER"
+    assert dep.object_type == "INFOOBJECT"

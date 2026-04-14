@@ -194,6 +194,20 @@ def build_chains_from_graph(graph: dict, objects_dir: Optional[Path] = None) -> 
                 )
             )
 
+        # Build rich shared dependency objects
+        from sap_doc_agent.scanner.models import SharedDependency
+
+        rich_shared_deps = []
+        for dep_id in shared_deps:
+            dep_node = nodes.get(dep_id, {})
+            rich_shared_deps.append(
+                SharedDependency(
+                    object_id=dep_id,
+                    name=dep_node.get("name", dep_id),
+                    object_type=dep_node.get("type", ""),
+                )
+            )
+
         terminal_node = nodes.get(terminal_id, {})
         chain = DataFlowChain(
             chain_id=f"chain_{chain_counter:03d}",
@@ -203,6 +217,7 @@ def build_chains_from_graph(graph: dict, objects_dir: Optional[Path] = None) -> 
             steps=steps,
             all_object_ids=[oid for oid in all_ids if oid not in shared_deps],
             shared_dependency_ids=shared_deps,
+            shared_dependencies=rich_shared_deps,
         )
         chains.append(chain)
 

@@ -285,3 +285,20 @@ async def test_generate_json_fallback_to_generate():
     result = await analyze_chain_steps(chain, mock_llm)
     assert result.steps[0].step_summary == "Fallback text summary."
     assert result.steps[0].confidence == 0.0  # no confidence from fallback
+
+
+@pytest.mark.asyncio
+async def test_summarize_chain_sets_analyzed_at():
+    mock_llm = AsyncMock()
+    mock_llm.generate_json.return_value = {
+        "name": "Test Chain",
+        "summary": "Does stuff.",
+        "observations": [],
+        "confidence": 0.9,
+    }
+
+    chain = _make_chain([])
+    assert chain.analyzed_at is None
+
+    result = await summarize_chain(chain, mock_llm)
+    assert result.analyzed_at is not None

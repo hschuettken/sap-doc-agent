@@ -1,6 +1,10 @@
 """Tests for chain markdown rendering."""
 
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from sap_doc_agent.scanner.models import (
+    ChainStep,
+    DataFlowChain,
+    ObjectType,
+)
 from sap_doc_agent.scanner.output import render_chain_markdown
 
 
@@ -96,3 +100,57 @@ def test_render_chain_markdown_observations():
     md = render_chain_markdown(chain)
     assert "Observations" in md
     assert "Hardcoded EUR" in md
+
+
+def test_render_chain_markdown_analyzed_at():
+    from datetime import datetime, timezone
+
+    ts = datetime(2026, 4, 14, 12, 30, 0, tzinfo=timezone.utc)
+    chain = DataFlowChain(
+        chain_id="chain_005",
+        name="With Timestamp",
+        terminal_object_id="T",
+        terminal_object_type=ObjectType.ADSO,
+        source_object_ids=["S"],
+        steps=[],
+        all_object_ids=["S", "T"],
+        analyzed_at=ts,
+    )
+    md = render_chain_markdown(chain)
+    assert "analyzed_at: 2026-04-14T12:30:00" in md
+
+
+def test_render_chain_markdown_no_analyzed_at():
+    chain = DataFlowChain(
+        chain_id="chain_006",
+        name="No Timestamp",
+        terminal_object_id="T",
+        terminal_object_type=ObjectType.ADSO,
+        source_object_ids=["S"],
+        steps=[],
+        all_object_ids=["S", "T"],
+    )
+    md = render_chain_markdown(chain)
+    assert "analyzed_at" not in md
+
+
+def test_render_chain_markdown_rich_shared_deps():
+    from sap_doc_agent.scanner.models import SharedDependency
+
+    chain = DataFlowChain(
+        chain_id="chain_007",
+        name="Rich Deps",
+        terminal_object_id="T",
+        terminal_object_type=ObjectType.COMPOSITE,
+        source_object_ids=["S"],
+        steps=[],
+        all_object_ids=["S", "T"],
+        shared_dependencies=[
+            SharedDependency(object_id="IOBJ_CUST", name="0CUSTOMER", object_type="INFOOBJECT"),
+            SharedDependency(object_id="IOBJ_MAT", name="0MATERIAL", object_type="INFOOBJECT"),
+        ],
+    )
+    md = render_chain_markdown(chain)
+    assert "Shared Dependencies" in md
+    assert "0CUSTOMER (INFOOBJECT)" in md
+    assert "0MATERIAL (INFOOBJECT)" in md

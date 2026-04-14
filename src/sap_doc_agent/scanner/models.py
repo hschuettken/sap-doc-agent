@@ -129,6 +129,14 @@ class ChainStep(BaseModel):
     confidence: float = 0.0
 
 
+class SharedDependency(BaseModel):
+    """A shared object (master data, table) used by a chain but not a step."""
+
+    object_id: str
+    name: str = ""
+    object_type: str = ""
+
+
 class DataFlowChain(BaseModel):
     """End-to-end data flow chain from source to consumption."""
 
@@ -140,6 +148,7 @@ class DataFlowChain(BaseModel):
     steps: list[ChainStep] = Field(default_factory=list)
     all_object_ids: list[str] = Field(default_factory=list)
     shared_dependency_ids: list[str] = Field(default_factory=list)
+    shared_dependencies: list[SharedDependency] = Field(default_factory=list)
     summary: str = ""
     observations: list[str] = Field(default_factory=list)
     confidence: float = 0.0

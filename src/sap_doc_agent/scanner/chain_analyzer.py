@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from sap_doc_agent.llm.base import LLMProvider
 from sap_doc_agent.scanner.models import DataFlowChain
 
@@ -125,5 +126,9 @@ async def summarize_chain(chain: DataFlowChain, llm: LLMProvider) -> DataFlowCha
         result.summary = data.get("summary", "")
         result.observations = data.get("observations", [])
         result.confidence = data.get("confidence", 0.0)
+
+    from datetime import datetime, timezone
+
+    result.analyzed_at = datetime.now(timezone.utc)
 
     return result

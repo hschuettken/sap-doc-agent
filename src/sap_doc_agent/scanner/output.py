@@ -459,11 +459,13 @@ def render_chain_markdown(chain: "DataFlowChain") -> str:
         f"steps: {chain.step_count}",
         f"objects_involved: {len(chain.all_object_ids)}",
         f"confidence: {chain.confidence}",
-        "---",
-        "",
-        f"# Chain: {chain.name or chain.chain_id}",
-        "",
     ]
+    if chain.analyzed_at:
+        lines.append(f"analyzed_at: {chain.analyzed_at.isoformat()}")
+    lines.append("---")
+    lines.append("")
+    lines.append(f"# Chain: {chain.name or chain.chain_id}")
+    lines.append("")
 
     if chain.summary:
         lines.extend(["## Overview", "", chain.summary, ""])
@@ -483,7 +485,14 @@ def render_chain_markdown(chain: "DataFlowChain") -> str:
                 lines.extend(["", "```abap", step.source_code, "```"])
             lines.append("")
 
-    if chain.shared_dependency_ids:
+    if chain.shared_dependencies:
+        dep_lines = []
+        for dep in chain.shared_dependencies:
+            label = dep.name or dep.object_id
+            type_label = f" ({dep.object_type})" if dep.object_type else ""
+            dep_lines.append(f"- {label}{type_label}")
+        lines.extend(["## Shared Dependencies", "", *dep_lines, ""])
+    elif chain.shared_dependency_ids:
         lines.extend(
             [
                 "## Shared Dependencies",
