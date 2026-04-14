@@ -23,7 +23,8 @@ def build_chains(self, output_dir: str, scan_id: str) -> dict:
     with open(graph_path) as f:
         graph = json.load(f)
 
-    chains = build_chains_from_graph(graph)
+    objects_dir = output_path / "objects"
+    chains = build_chains_from_graph(graph, objects_dir=objects_dir if objects_dir.exists() else None)
 
     # Write chain markdown + JSON files
     chains_dir = output_path / "chains"

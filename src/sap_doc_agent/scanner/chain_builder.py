@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from pathlib import Path
+from typing import Optional
 
 from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
 
@@ -12,8 +15,31 @@ _STEP_TYPES = {"TRANSFORMATION"}
 # Types that are shared dependencies (master data), not chain members
 _SHARED_TYPES = {"INFOOBJECT"}
 
+# Regex to extract fenced code blocks labelled as abap
+_ABAP_FENCE_RE = re.compile(r"```abap\s*\n(.*?)```", re.DOTALL)
 
-def build_chains_from_graph(graph: dict) -> list[DataFlowChain]:
+
+def _extract_source_code(objects_dir: Path, object_id: str, object_type: str) -> str:
+    """Read an object markdown file and extract ABAP source code blocks.
+
+    Searches objects/<type>/<id>.md for ```abap fenced blocks.
+    Returns concatenated source or empty string if not found.
+    """
+    type_lower = object_type.lower()
+    md_path = objects_dir / type_lower / f"{object_id}.md"
+    if not md_path.exists():
+        return ""
+    try:
+        text = md_path.read_text()
+    except OSError:
+        return ""
+    matches = _ABAP_FENCE_RE.findall(text)
+    if not matches:
+        return ""
+    return "\n\n".join(m.strip() for m in matches)
+
+
+def build_chains_from_graph(graph: dict, objects_dir: Optional[Path] = None) -> list[DataFlowChain]:
     """Walk a graph.json and identify all source-to-consumption chains.
 
     Algorithm:
@@ -150,12 +176,18 @@ def build_chains_from_graph(graph: dict) -> list[DataFlowChain]:
                     inter_step_fields = next_node.get("metadata", {}).get("fields", [])
                     break
 
+            # Extract ABAP source from object markdown if available
+            source_code = ""
+            if objects_dir:
+                source_code = _extract_source_code(objects_dir, obj_id, node.get("type", ""))
+
             steps.append(
                 ChainStep(
                     position=position,
                     object_id=obj_id,
                     object_type=ObjectType(node["type"].lower()),
                     name=node.get("name", obj_id),
+                    source_code=source_code,
                     inter_step_object_id=inter_step_id,
                     inter_step_object_name=inter_step_name,
                     inter_step_fields=inter_step_fields,

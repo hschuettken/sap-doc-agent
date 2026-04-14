@@ -140,3 +140,42 @@ def test_shared_dependencies_not_in_steps():
     rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
     step_ids = [s.object_id for s in rev_chain.steps]
     assert "IOBJ_CUST" not in step_ids
+
+
+# --- Source code enrichment tests ---
+
+
+def test_source_code_enriched_when_objects_dir_provided():
+    """When objects_dir is given, transformation steps get ABAP source."""
+    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+
+    graph = load_fixture_graph()
+    objects_dir = FIXTURE_DIR / "objects"
+    chains = build_chains_from_graph(graph, objects_dir=objects_dir)
+    rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
+    # TRAN_002 fixture has TCURR currency conversion ABAP
+    step2 = next(s for s in rev_chain.steps if s.object_id == "TRAN_002")
+    assert "tcurr" in step2.source_code.lower() or "TCURR" in step2.source_code
+
+
+def test_source_code_empty_without_objects_dir():
+    """Without objects_dir, source_code stays empty."""
+    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+
+    graph = load_fixture_graph()
+    chains = build_chains_from_graph(graph)
+    rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
+    for step in rev_chain.steps:
+        assert step.source_code == ""
+
+
+def test_all_transformation_steps_get_source():
+    """Every transformation in the revenue chain should have source code."""
+    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+
+    graph = load_fixture_graph()
+    objects_dir = FIXTURE_DIR / "objects"
+    chains = build_chains_from_graph(graph, objects_dir=objects_dir)
+    rev_chain = next(c for c in chains if c.terminal_object_id == "CMP_REV")
+    for step in rev_chain.steps:
+        assert step.source_code != "", f"Step {step.object_id} has no source code"
