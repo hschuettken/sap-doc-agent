@@ -198,6 +198,67 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
         await migration_db.review_classification(classification_id, req.decision, req.reviewer, req.notes)
         return {"status": req.decision}
 
+    # --- Target Architecture ---
+
+    @router.post("/projects/{project_id}/design")
+    async def trigger_design(project_id: str):
+        """Trigger target architecture design for classified chains."""
+        chains_dir = output_dir / "chains"
+        if not chains_dir.exists():
+            raise HTTPException(400, "No chains found")
+
+        dispatched = []
+        for classified_file in sorted(chains_dir.glob("*_classified.json")):
+            chain_id = classified_file.stem.replace("_classified", "")
+            dispatched.append(chain_id)
+
+        return {"status": "designing", "chains_dispatched": len(dispatched)}
+
+    @router.get("/projects/{project_id}/target-views")
+    async def list_target_views(project_id: str):
+        try:
+            from sap_doc_agent.migration import db as migration_db
+
+            views = await migration_db.list_target_views(project_id)
+            return _serialize_rows(views)
+        except Exception:
+            return _read_target_files(output_dir)
+
+    # --- Code Generation ---
+
+    @router.post("/projects/{project_id}/generate")
+    async def trigger_generate(project_id: str):
+        """Trigger SQL code generation for designed views."""
+        return {"status": "generating", "project_id": project_id}
+
+    @router.get("/projects/{project_id}/generated-sql")
+    async def list_generated_sql(project_id: str):
+        return _read_generated_sql_files(output_dir)
+
+    # --- SQL Validation ---
+
+    @router.post("/validate-sql")
+    async def validate_sql(body: dict):
+        from sap_doc_agent.migration.sql_validator import validate_dsp_sql
+
+        sql = body.get("sql", "")
+        result = validate_dsp_sql(sql)
+        return {
+            "is_valid": result.is_valid,
+            "error_count": result.error_count,
+            "warning_count": result.warning_count,
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "message": v.message,
+                    "severity": v.severity,
+                    "line": v.line,
+                    "suggestion": v.suggestion,
+                }
+                for v in result.violations
+            ],
+        }
+
     return router
 
 
@@ -272,6 +333,34 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             },
         )
 
+    @router.get("/design", response_class=HTMLResponse)
+    async def design_page(request: Request):
+        project_id = request.query_params.get("project_id", "")
+        views = _read_target_files(output_dir) if project_id else []
+        return _render(
+            request,
+            "partials/migration_design.html",
+            {
+                "active_page": "migration",
+                "views": views,
+                "project_id": project_id,
+            },
+        )
+
+    @router.get("/generate", response_class=HTMLResponse)
+    async def generate_page(request: Request):
+        project_id = request.query_params.get("project_id", "")
+        sql_results = _read_generated_sql_files(output_dir) if project_id else []
+        return _render(
+            request,
+            "partials/migration_generate.html",
+            {
+                "active_page": "migration",
+                "sql_results": sql_results,
+                "project_id": project_id,
+            },
+        )
+
     return router
 
 
@@ -321,3 +410,39 @@ def _read_classification_files(output_dir: Path) -> list[dict]:
         except (json.JSONDecodeError, OSError):
             continue
     return classifications
+
+
+def _read_target_files(output_dir: Path) -> list[dict]:
+    """Fallback: read target view JSON files."""
+    chains_dir = output_dir / "chains"
+    if not chains_dir.exists():
+        return []
+    views = []
+    for f in sorted(chains_dir.glob("*_target.json")):
+        try:
+            data = json.loads(f.read_text())
+            if isinstance(data, list):
+                views.extend(data)
+            else:
+                views.append(data)
+        except (json.JSONDecodeError, OSError):
+            continue
+    return views
+
+
+def _read_generated_sql_files(output_dir: Path) -> list[dict]:
+    """Fallback: read generated SQL JSON files."""
+    chains_dir = output_dir / "chains"
+    if not chains_dir.exists():
+        return []
+    results = []
+    for f in sorted(chains_dir.glob("*_sql.json")):
+        try:
+            data = json.loads(f.read_text())
+            if isinstance(data, list):
+                results.extend(data)
+            else:
+                results.append(data)
+        except (json.JSONDecodeError, OSError):
+            continue
+    return results

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Target Architecture{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">Target Architecture</h1>
+      {% if project_id %}
+      <p class="text-sm text-gray-400 mt-1">Project: {{ project_id }}</p>
+      {% endif %}
+    </div>
+    {% if project_id %}
+    <button
+      hx-post="/api/migration/projects/{{ project_id }}/design"
+      hx-swap="none"
+      class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+    >
+      Design Target
+    </button>
+    {% endif %}
+  </div>
+
+  {% if views %}
+  <!-- Layer summary -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    {% set staging = views | selectattr('layer', 'equalto', 'staging') | list %}
+    {% set harmonization = views | selectattr('layer', 'equalto', 'harmonization') | list %}
+    {% set mart = views | selectattr('layer', 'equalto', 'mart') | list %}
+    {% set consumption = views | selectattr('layer', 'equalto', 'consumption') | list %}
+    <div class="bg-gray-800 rounded p-4 text-center">
+      <div class="text-2xl font-bold text-blue-400">{{ staging | length }}</div>
+      <div class="text-xs text-gray-400">Staging (01_)</div>
+    </div>
+    <div class="bg-gray-800 rounded p-4 text-center">
+      <div class="text-2xl font-bold text-green-400">{{ harmonization | length }}</div>
+      <div class="text-xs text-gray-400">Harmonization (02_)</div>
+    </div>
+    <div class="bg-gray-800 rounded p-4 text-center">
+      <div class="text-2xl font-bold text-yellow-400">{{ mart | length }}</div>
+      <div class="text-xs text-gray-400">Mart (03_)</div>
+    </div>
+    <div class="bg-gray-800 rounded p-4 text-center">
+      <div class="text-2xl font-bold text-purple-400">{{ consumption | length }}</div>
+      <div class="text-xs text-gray-400">Consumption</div>
+    </div>
+  </div>
+
+  <!-- View list -->
+  <div class="bg-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-700">
+        <tr>
+          <th class="px-4 py-3 text-left text-gray-300">Technical Name</th>
+          <th class="px-4 py-3 text-left text-gray-300">Layer</th>
+          <th class="px-4 py-3 text-left text-gray-300">Usage</th>
+          <th class="px-4 py-3 text-left text-gray-300">Description</th>
+          <th class="px-4 py-3 text-center text-gray-300">Persist</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for view in views %}
+        <tr class="border-t border-gray-700 hover:bg-gray-750">
+          <td class="px-4 py-3 font-mono text-blue-300">{{ view.technical_name or view.get('technical_name', '') }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded text-xs
+              {% if view.layer == 'staging' %}bg-blue-900 text-blue-300
+              {% elif view.layer == 'harmonization' %}bg-green-900 text-green-300
+              {% elif view.layer == 'mart' %}bg-yellow-900 text-yellow-300
+              {% else %}bg-purple-900 text-purple-300{% endif %}">
+              {{ view.layer or '' }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-300">{{ view.semantic_usage or view.get('semantic_usage', '') }}</td>
+          <td class="px-4 py-3 text-gray-400">{{ view.description or view.get('description', '') }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if view.persistence or view.get('persistence', false) %}
+            <span class="text-yellow-400">●</span>
+            {% else %}
+            <span class="text-gray-600">○</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-gray-800 rounded-lg p-8 text-center text-gray-400">
+    <p>No target views designed yet.</p>
+    <p class="text-sm mt-2">Classify chains first, then trigger target design.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

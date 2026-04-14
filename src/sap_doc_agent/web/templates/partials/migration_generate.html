@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Generated SQL{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">Generated SQL</h1>
+      {% if project_id %}
+      <p class="text-sm text-gray-400 mt-1">Project: {{ project_id }}</p>
+      {% endif %}
+    </div>
+    {% if project_id %}
+    <button
+      hx-post="/api/migration/projects/{{ project_id }}/generate"
+      hx-swap="none"
+      class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+    >
+      Generate SQL
+    </button>
+    {% endif %}
+  </div>
+
+  {% if sql_results %}
+  <div class="space-y-4">
+    {% for result in sql_results %}
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+      <div class="px-4 py-3 bg-gray-700 flex justify-between items-center">
+        <div>
+          <span class="font-mono text-blue-300">{{ result.technical_name or result.get('technical_name', '') }}</span>
+          <span class="ml-3 px-2 py-1 rounded text-xs
+            {% if result.layer == 'staging' %}bg-blue-900 text-blue-300
+            {% elif result.layer == 'harmonization' %}bg-green-900 text-green-300
+            {% elif result.layer == 'mart' %}bg-yellow-900 text-yellow-300
+            {% else %}bg-purple-900 text-purple-300{% endif %}">
+            {{ result.layer or result.get('layer', '') }}
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          {% if result.needs_manual_edit or result.get('needs_manual_edit', false) %}
+          <span class="px-2 py-1 bg-orange-900 text-orange-300 rounded text-xs">Needs Review</span>
+          {% else %}
+          <span class="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">Ready</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="p-4">
+        <pre class="bg-gray-900 rounded p-4 text-sm text-gray-300 overflow-x-auto"><code>{{ result.sql or result.get('sql', '-- No SQL generated') }}</code></pre>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-gray-800 rounded-lg p-8 text-center text-gray-400">
+    <p>No SQL generated yet.</p>
+    <p class="text-sm mt-2">Design target architecture first, then trigger code generation.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
