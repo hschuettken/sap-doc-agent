@@ -5,7 +5,7 @@ services:
     build: .
     command: uvicorn sap_doc_agent.web.server:create_app --factory --host 0.0.0.0 --port 8080
     ports:
-      - "8080:8080"
+      - "8260:8080"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
