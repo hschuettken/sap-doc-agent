@@ -84,3 +84,28 @@ def test_api_chains_empty_when_no_chains(tmp_path):
     resp = c.get("/api/chains")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_api_chains_build_synchronous(tmp_path):
+    """POST /api/chains/build runs synchronously when Celery unavailable."""
+    # Copy fixture graph + objects to tmp_path
+    shutil.copytree(FIXTURE_DIR, tmp_path / "output")
+    output = tmp_path / "output"
+
+    app = create_app(output_dir=str(output))
+    c = TestClient(app)
+    resp = c.post("/api/chains/build")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert data["chain_count"] == 3
+    # Verify chain files were created
+    assert (output / "chains" / "chain_001.json").exists()
+
+
+def test_api_chains_build_no_graph(tmp_path):
+    """POST /api/chains/build returns 404 if no graph.json."""
+    app = create_app(output_dir=str(tmp_path))
+    c = TestClient(app)
+    resp = c.post("/api/chains/build")
+    assert resp.status_code == 404

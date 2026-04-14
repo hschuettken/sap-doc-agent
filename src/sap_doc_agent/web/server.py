@@ -25,6 +25,11 @@ try:
 except ImportError:
     run_scan = None
 
+try:
+    from sap_doc_agent.tasks.chain_tasks import build_chains as _build_chains_task
+except ImportError:
+    _build_chains_task = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -422,10 +427,20 @@ def create_app(
 
         run_id = str(uuid.uuid4())
         if run_scan is not None:
-            task = run_scan.apply_async(
-                kwargs={"scanner_type": scanner_type, "config_path": config_path, "run_id": run_id},
-                priority=body.get("priority", 9),
-            )
+            # Chain: run_scan → build_chains (auto-trigger chain building)
+            scan_kwargs = {"scanner_type": scanner_type, "config_path": config_path, "run_id": run_id}
+            if _build_chains_task is not None:
+                chain_kwargs = {"output_dir": str(output_path), "scan_id": run_id}
+                task = run_scan.apply_async(
+                    kwargs=scan_kwargs,
+                    priority=body.get("priority", 9),
+                    link=_build_chains_task.si(**chain_kwargs),
+                )
+            else:
+                task = run_scan.apply_async(
+                    kwargs=scan_kwargs,
+                    priority=body.get("priority", 9),
+                )
             task_id = task.id
         else:
             task_id = run_id
@@ -449,6 +464,28 @@ def create_app(
         return _JSONResponse({"jobs": [], "message": "job listing requires Redis connection"})
 
     # --- Chain endpoints ---
+
+    @app.post("/api/chains/build", summary="Trigger chain building")
+    async def trigger_build_chains():
+        """Build chains from existing graph.json. Runs synchronously."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+        from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+        from sap_doc_agent.scanner.output import render_chain_markdown
+
+        graph_path = output_path / "graph.json"
+        if not graph_path.exists():
+            return _JSONResponse({"error": "no graph.json found"}, status_code=404)
+        graph = json.loads(graph_path.read_text())
+        objects_dir = output_path / "objects"
+        chains = build_chains_from_graph(graph, objects_dir=objects_dir if objects_dir.exists() else None)
+        chains_dir = output_path / "chains"
+        chains_dir.mkdir(exist_ok=True)
+        for chain in chains:
+            (chains_dir / f"{chain.chain_id}.json").write_text(chain.model_dump_json(indent=2))
+            (chains_dir / f"{chain.chain_id}.md").write_text(render_chain_markdown(chain))
+        return _JSONResponse(
+            {"status": "completed", "chain_count": len(chains)},
+        )
 
     @app.get("/api/chains", summary="List all data flow chains")
     async def list_chains():
