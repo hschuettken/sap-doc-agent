@@ -448,6 +448,43 @@ def create_app(
 
         return _JSONResponse({"jobs": [], "message": "job listing requires Redis connection"})
 
+    # --- Chain endpoints ---
+
+    @app.get("/api/chains", summary="List all data flow chains")
+    async def list_chains():
+        """List all discovered data flow chains from the latest scan."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        chains_dir = output_path / "chains"
+        if not chains_dir.exists():
+            return _JSONResponse([])
+        chains = []
+        for f in sorted(chains_dir.glob("*.json")):
+            try:
+                data = json.loads(f.read_text())
+                chains.append(
+                    {
+                        "chain_id": data.get("chain_id"),
+                        "name": data.get("name", ""),
+                        "step_count": len(data.get("steps", [])),
+                        "terminal_object_id": data.get("terminal_object_id"),
+                        "confidence": data.get("confidence", 0),
+                    }
+                )
+            except (json.JSONDecodeError, OSError):
+                continue
+        return _JSONResponse(chains)
+
+    @app.get("/api/chains/{chain_id}", summary="Get chain detail")
+    async def get_chain(chain_id: str):
+        """Get full detail for a specific data flow chain."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        chain_file = output_path / "chains" / f"{chain_id}.json"
+        if not chain_file.exists():
+            return _JSONResponse({"error": "chain not found"}, status_code=404)
+        return _JSONResponse(json.loads(chain_file.read_text()))
+
     # --- Health endpoints (Phase 3) ---
 
     @app.get("/healthz")
