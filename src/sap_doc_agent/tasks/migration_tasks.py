@@ -103,7 +103,7 @@ def classify_chain_task(
         # Extract activity data from chain metadata
         activity = None
         for step in chain.steps:
-            last_run = (step.model_dump().get("metadata") or {}).get("last_run")
+            last_run = step.metadata.get("last_run")
             if last_run:
                 activity = ActivityData(last_execution=last_run)
                 break

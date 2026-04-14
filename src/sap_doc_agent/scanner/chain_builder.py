@@ -191,6 +191,7 @@ def build_chains_from_graph(graph: dict, objects_dir: Optional[Path] = None) -> 
                     inter_step_object_id=inter_step_id,
                     inter_step_object_name=inter_step_name,
                     inter_step_fields=inter_step_fields,
+                    metadata=node.get("metadata", {}),
                 )
             )
 

@@ -60,6 +60,13 @@ def _object_type_counts(chains: list[tuple[ClassifiedChain, DataFlowChain]]) -> 
     return counts
 
 
+def _dead_code_percentage(chains: list[tuple[ClassifiedChain, DataFlowChain]]) -> float:
+    if not chains:
+        return 0.0
+    drop_count = sum(1 for c, _ in chains if c.classification == MigrationClassification.DROP)
+    return round(drop_count / len(chains) * 100, 1)
+
+
 def _drop_chains(chains: list[tuple[ClassifiedChain, DataFlowChain]]) -> list[tuple[ClassifiedChain, DataFlowChain]]:
     return [
         (c, ch)
@@ -75,6 +82,7 @@ def generate_report_html(data: ReportData) -> str:
     classification_counts = _classification_counts(data.chains)
     effort_counts = _effort_summary(data.efforts)
     object_types = _object_type_counts(data.chains)
+    dead_code_pct = _dead_code_percentage(data.chains)
     drop_chains = _drop_chains(data.chains)
     effort_by_chain = {e.chain_id: e for e in data.efforts}
 
@@ -91,6 +99,7 @@ def generate_report_html(data: ReportData) -> str:
         effort_counts=effort_counts,
         effort_by_chain=effort_by_chain,
         object_types=object_types,
+        dead_code_pct=dead_code_pct,
         drop_chains=drop_chains,
         architecture=data.architecture,
         views=views,

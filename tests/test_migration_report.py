@@ -174,3 +174,12 @@ def test_report_appendix_view_specs():
     data = _make_report_data()
     html = generate_report_html(data)
     assert "Appendix" in html or "View Specifications" in html
+
+
+def test_report_contains_dead_code_percentage():
+    """Source system inventory should include dead code percentage."""
+    data = _make_report_data()
+    html = generate_report_html(data)
+    # 1 DROP chain out of 2 total = 50.0%
+    assert "Dead code" in html
+    assert "50.0%" in html

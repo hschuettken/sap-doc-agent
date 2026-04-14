@@ -123,6 +123,7 @@ class ChainStep(BaseModel):
     inter_step_object_id: Optional[str] = None
     inter_step_object_name: Optional[str] = None
     inter_step_fields: list[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
     upstream_context: str = ""
     downstream_context: str = ""
     step_summary: str = ""

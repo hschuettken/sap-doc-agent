@@ -327,8 +327,6 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
 
                         intent_file = chains_dir / f"{chain.chain_id}_intent.json"
                         if intent_file.exists():
-                            from sap_doc_agent.migration.models import IntentCard
-
                             intent = IntentCard.model_validate_json(intent_file.read_text())
                         else:
                             intent = IntentCard(chain_id=chain.chain_id)

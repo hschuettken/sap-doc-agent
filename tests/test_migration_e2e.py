@@ -109,8 +109,7 @@ async def test_full_pipeline(chains):
 
         activity = None
         for step in chain.steps:
-            meta = step.model_dump().get("metadata") or {}
-            last_run = meta.get("last_run")
+            last_run = step.metadata.get("last_run")
             if last_run:
                 activity = ActivityData(last_execution=last_run)
                 break
@@ -120,10 +119,10 @@ async def test_full_pipeline(chains):
         assert classified.classification in MigrationClassification
         classified_chains.append((classified, chain))
 
-    # Verify classification distribution
-    classifications = {c.classification for c, _ in classified_chains}
-    # At minimum we should have more than one classification type
+    # Verify classification distribution: 3 chains total, at least 1 DROP
     assert len(classified_chains) == 3
+    drop_count = sum(1 for c, _ in classified_chains if c.classification == MigrationClassification.DROP)
+    assert drop_count >= 1, f"Expected at least 1 DROP chain, got {drop_count}"
 
     # --- Phase 4: Design target views for MIGRATE/SIMPLIFY chains ---
     all_views = []

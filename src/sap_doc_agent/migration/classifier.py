@@ -101,7 +101,15 @@ def classify_by_rules(
         classification_counts[p.classification] = classification_counts.get(p.classification, 0) + 1
 
     # Determine dominant classification
-    dominant = max(classification_counts, key=classification_counts.get)
+    # Priority order for tie-breaking: DROP > CLARIFY > REPLACE > SIMPLIFY > MIGRATE
+    _PRIORITY = {
+        MigrationClassification.DROP: 5,
+        MigrationClassification.CLARIFY: 4,
+        MigrationClassification.REPLACE: 3,
+        MigrationClassification.SIMPLIFY: 2,
+        MigrationClassification.MIGRATE: 1,
+    }
+    dominant = max(classification_counts, key=lambda c: (classification_counts[c], _PRIORITY.get(c, 0)))
 
     # DROP candidates always need human review
     needs_review = dominant == MigrationClassification.DROP
