@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class CDPClient:
     """Async CDP client that communicates via Chrome's HTTP debug endpoints."""
 
-    def __init__(self, cdp_url: str = "http://192.168.0.70:9222", timeout: float = 30.0):
+    def __init__(self, cdp_url: str = "http://localhost:9222", timeout: float = 30.0):
         self._cdp_url = cdp_url.rstrip("/")
         self._timeout = timeout
         self._ws_url: Optional[str] = None

@@ -1,4 +1,5 @@
 """Git backend factory."""
+
 from __future__ import annotations
 import os
 from sap_doc_agent.config import GitConfig
@@ -18,11 +19,13 @@ def create_git_backend(cfg: GitConfig) -> GitBackend:
 
     if cfg.type == "github":
         from sap_doc_agent.git_backend.github_backend import GitHubBackend
+
         return GitHubBackend(token=token, repo_name=repo_url)
 
     if cfg.type == "gitea":
         from sap_doc_agent.git_backend.github_backend import GitHubBackend
-        base = os.environ.get("GITEA_BASE_URL", "http://192.168.0.64:3000/api/v1")
+
+        base = os.environ.get("GITEA_BASE_URL", "http://localhost:3000/api/v1")
         return GitHubBackend(token=token, repo_name=repo_url, base_url=base)
 
     raise ValueError(f"Git backend type '{cfg.type}' not yet implemented. Supported: github, gitea")
