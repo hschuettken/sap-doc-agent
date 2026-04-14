@@ -11,7 +11,12 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from sap_doc_agent.scanner.models import Dependency, DependencyType, ScanResult, ScannedObject
+from sap_doc_agent.scanner.models import (
+    Dependency,
+    DependencyType,
+    ScanResult,
+    ScannedObject,
+)
 
 
 # Human-readable labels for dependency types
@@ -438,5 +443,64 @@ def _render_readme(result: ScanResult) -> str:
             link = f"objects/{obj.object_type.value}/{obj.object_id}.md"
             lines.append(f"| [{business_name}]({link}) | {type_label} | {layer} | {space} |")
         lines.append("")
+
+    return "\n".join(lines)
+
+
+def render_chain_markdown(chain: "DataFlowChain") -> str:
+    """Render a DataFlowChain as markdown with YAML frontmatter."""
+
+    lines = [
+        "---",
+        f"chain_id: {chain.chain_id}",
+        f"name: {chain.name}",
+        f"terminal_object: {chain.terminal_object_id} ({chain.terminal_object_type.value})",
+        f"source_objects: {chain.source_object_ids}",
+        f"steps: {chain.step_count}",
+        f"objects_involved: {len(chain.all_object_ids)}",
+        f"confidence: {chain.confidence}",
+        "---",
+        "",
+        f"# Chain: {chain.name or chain.chain_id}",
+        "",
+    ]
+
+    if chain.summary:
+        lines.extend(["## Overview", "", chain.summary, ""])
+
+    if chain.steps:
+        lines.append("## Step Details")
+        lines.append("")
+        for step in chain.steps:
+            lines.append(f"### Step {step.position}: {step.name}")
+            lines.append(f"**Object:** {step.object_id} ({step.object_type.value})")
+            if step.step_summary:
+                lines.append(f"**Summary:** {step.step_summary}")
+            if step.inter_step_object_name:
+                fields_str = ", ".join(step.inter_step_fields) if step.inter_step_fields else "—"
+                lines.append(f"**Writes to:** {step.inter_step_object_name} (fields: {fields_str})")
+            if step.source_code:
+                lines.extend(["", "```abap", step.source_code, "```"])
+            lines.append("")
+
+    if chain.shared_dependency_ids:
+        lines.extend(
+            [
+                "## Shared Dependencies",
+                "",
+                *[f"- {dep_id}" for dep_id in chain.shared_dependency_ids],
+                "",
+            ]
+        )
+
+    if chain.observations:
+        lines.extend(
+            [
+                "## Observations",
+                "",
+                *[f"- {obs}" for obs in chain.observations],
+                "",
+            ]
+        )
 
     return "\n".join(lines)
