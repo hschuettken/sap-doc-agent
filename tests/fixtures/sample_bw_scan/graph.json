@@ -1,0 +1,33 @@
+{
+  "nodes": [
+    {"id": "DS_BILLING", "type": "DATA_SOURCE", "name": "2LIS_11_VAITM", "metadata": {}},
+    {"id": "TRAN_001", "type": "TRANSFORMATION", "name": "TR_BILLING_RAW", "metadata": {"source": "DS_BILLING", "target": "DSO_RAW"}},
+    {"id": "DSO_RAW", "type": "ADSO", "name": "ZADSO_BILLING_RAW", "metadata": {"fields": ["KUNNR", "MATNR", "NETWR", "WAERS", "BUKRS"]}},
+    {"id": "TRAN_002", "type": "TRANSFORMATION", "name": "TR_REVENUE_CLEAN", "metadata": {"source": "DSO_RAW", "target": "DSO_CLEAN"}},
+    {"id": "DSO_CLEAN", "type": "ADSO", "name": "ZADSO_REVENUE_CLEAN", "metadata": {"fields": ["KUNNR", "MATNR", "NETWR_EUR", "CALMONTH"]}},
+    {"id": "TRAN_003", "type": "TRANSFORMATION", "name": "TR_REVENUE_AGG", "metadata": {"source": "DSO_CLEAN", "target": "DSO_AGG"}},
+    {"id": "DSO_AGG", "type": "ADSO", "name": "ZADSO_REVENUE_AGG", "metadata": {"fields": ["HIER_NODE", "MATNR", "CALMONTH", "NETWR_EUR", "MARGIN"]}},
+    {"id": "CMP_REV", "type": "COMPOSITE", "name": "ZC_REVENUE", "metadata": {}},
+    {"id": "IOBJ_CUST", "type": "INFOOBJECT", "name": "0CUSTOMER", "metadata": {}},
+    {"id": "DS_INVENTORY", "type": "DATA_SOURCE", "name": "2LIS_03_BF", "metadata": {}},
+    {"id": "TRAN_INV", "type": "TRANSFORMATION", "name": "TR_INVENTORY", "metadata": {"source": "DS_INVENTORY", "target": "DSO_INV"}},
+    {"id": "DSO_INV", "type": "ADSO", "name": "ZADSO_INVENTORY", "metadata": {"fields": ["MATNR", "WERKS", "LABST", "CALDAY"]}},
+    {"id": "DS_DEAD", "type": "DATA_SOURCE", "name": "2LIS_99_TEST", "metadata": {}},
+    {"id": "TRAN_DEAD", "type": "TRANSFORMATION", "name": "TR_DEAD_LOAD", "metadata": {"source": "DS_DEAD", "target": "DSO_DEAD", "last_run": "2024-01-15"}},
+    {"id": "DSO_DEAD", "type": "ADSO", "name": "ZADSO_OBSOLETE", "metadata": {"fields": ["KEY1", "VAL1"], "last_run": "2024-01-15"}}
+  ],
+  "edges": [
+    {"source": "DS_BILLING", "target": "TRAN_001", "type": "READS_FROM"},
+    {"source": "TRAN_001", "target": "DSO_RAW", "type": "WRITES_TO"},
+    {"source": "DSO_RAW", "target": "TRAN_002", "type": "READS_FROM"},
+    {"source": "TRAN_002", "target": "DSO_CLEAN", "type": "WRITES_TO"},
+    {"source": "DSO_CLEAN", "target": "TRAN_003", "type": "READS_FROM"},
+    {"source": "TRAN_003", "target": "DSO_AGG", "type": "WRITES_TO"},
+    {"source": "DSO_AGG", "target": "CMP_REV", "type": "READS_FROM"},
+    {"source": "IOBJ_CUST", "target": "TRAN_003", "type": "REFERENCES"},
+    {"source": "DS_INVENTORY", "target": "TRAN_INV", "type": "READS_FROM"},
+    {"source": "TRAN_INV", "target": "DSO_INV", "type": "WRITES_TO"},
+    {"source": "DS_DEAD", "target": "TRAN_DEAD", "type": "READS_FROM"},
+    {"source": "TRAN_DEAD", "target": "DSO_DEAD", "type": "WRITES_TO"}
+  ]
+}
