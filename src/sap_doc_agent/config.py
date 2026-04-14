@@ -78,11 +78,14 @@ class GitConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    mode: Literal["none", "copilot_passthrough", "direct"]
-    provider: Optional[str] = None
+    mode: Literal["none", "copilot_passthrough", "direct"] = "direct"  # backward compat
+    provider: Optional[str] = None  # env var LLM_PROVIDER overrides this
     base_url_env: Optional[str] = None
     api_key_env: Optional[str] = None
     model: Optional[str] = None
+    chunk_size_tokens: Optional[int] = None
+    token_budget_per_hour: Optional[int] = None
+    max_concurrent: int = 4
 
 
 class ReportingConfig(BaseModel):

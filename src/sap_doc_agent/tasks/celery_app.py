@@ -22,3 +22,8 @@ celery_app.conf.update(
 WORKER_CONCURRENCY_SCAN = int(os.environ.get("WORKER_CONCURRENCY_SCAN", "4"))
 WORKER_CONCURRENCY_LLM = int(os.environ.get("WORKER_CONCURRENCY_LLM", "2"))
 WORKER_CONCURRENCY_CHROME = int(os.environ.get("WORKER_CONCURRENCY_CHROME", "1"))
+
+# Load beat schedules (nightly QA, weekly report)
+from sap_doc_agent.tasks.schedules import BEAT_SCHEDULE  # noqa: E402
+
+celery_app.conf.beat_schedule = BEAT_SCHEDULE
