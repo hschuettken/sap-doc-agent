@@ -20,6 +20,11 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+try:
+    from sap_doc_agent.tasks.scan_tasks import run_scan
+except ImportError:
+    run_scan = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -401,6 +406,107 @@ def create_app(
                 {"name": "ABAP Scanner", "type": "abap", "status": "not_installed"},
             ]
         }
+
+    # --- Job queue endpoints (Phase 2) ---
+
+    @app.post("/api/scan/start")
+    async def start_scan(request: Request):
+        """Enqueue a scan task. Returns task_id immediately."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        body = await request.json()
+        scanner_type = body.get("scanner_type", "dsp_api")
+        system_name = body.get("system_name", "default")
+        config_path = body.get("config_path", "config.yaml")
+        import uuid
+
+        run_id = str(uuid.uuid4())
+        if run_scan is not None:
+            task = run_scan.apply_async(
+                kwargs={"scanner_type": scanner_type, "config_path": config_path, "run_id": run_id},
+                priority=body.get("priority", 9),
+            )
+            task_id = task.id
+        else:
+            task_id = run_id
+        return _JSONResponse({"task_id": task_id, "run_id": run_id, "status": "queued"}, status_code=202)
+
+    @app.get("/api/scan/status/{task_id}")
+    async def scan_status(task_id: str):
+        from fastapi.responses import JSONResponse as _JSONResponse
+        from celery.result import AsyncResult
+        from sap_doc_agent.tasks.celery_app import celery_app as _celery_app
+
+        result = AsyncResult(task_id, app=_celery_app)
+        return _JSONResponse(
+            {"task_id": task_id, "status": result.status, "result": result.result if result.ready() else None}
+        )
+
+    @app.get("/api/jobs")
+    async def list_jobs():
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        return _JSONResponse({"jobs": [], "message": "job listing requires Redis connection"})
+
+    # --- Health endpoints (Phase 3) ---
+
+    @app.get("/healthz")
+    async def healthz():
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        return _JSONResponse({"status": "ok"})
+
+    @app.get("/readyz")
+    async def readyz():
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        checks = {}
+        overall = "ok"
+
+        # DB check
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url:
+            try:
+                import asyncpg
+
+                conn = await asyncpg.connect(
+                    db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                        "postgresql+asyncpg://", "postgresql://"
+                    )
+                )
+                await conn.fetchval("SELECT 1")
+                await conn.close()
+                checks["database"] = "ok"
+            except Exception as e:
+                checks["database"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["database"] = "unconfigured"
+
+        # Redis check
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url:
+            try:
+                import redis as redis_lib
+
+                r = redis_lib.from_url(redis_url)
+                r.ping()
+                checks["redis"] = "ok"
+            except Exception as e:
+                checks["redis"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["redis"] = "unconfigured"
+
+        status_code = 200 if overall == "ok" else 503
+        return _JSONResponse({"status": overall, "checks": checks}, status_code=status_code)
+
+    @app.get("/metrics")
+    async def metrics():
+        from sap_doc_agent.metrics import get_metrics_text
+
+        content, content_type = get_metrics_text()
+        return Response(content=content, media_type=content_type)
 
     return app
 
