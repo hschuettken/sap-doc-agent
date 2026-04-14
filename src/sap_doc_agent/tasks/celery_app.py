@@ -15,6 +15,8 @@ celery_app.conf.update(
         "sap_doc_agent.tasks.scan_tasks.*": {"queue": "scan"},
         "sap_doc_agent.tasks.agent_tasks.*": {"queue": "llm"},
         "sap_doc_agent.tasks.scan_tasks.run_cdp_scan": {"queue": "chrome"},
+        "sap_doc_agent.tasks.chain_tasks.build_chains": {"queue": "scan"},
+        "sap_doc_agent.tasks.chain_tasks.analyze_single_chain": {"queue": "llm"},
     },
     worker_prefetch_multiplier=1,
 )
