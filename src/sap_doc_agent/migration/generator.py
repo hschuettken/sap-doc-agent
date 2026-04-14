@@ -14,16 +14,25 @@ from typing import Optional
 from jinja2 import Template
 
 from sap_doc_agent.llm.base import LLMProvider
+from sap_doc_agent.migration.dsp_patterns import DSP_SQL_RULES
 from sap_doc_agent.migration.models import TargetArchitecture, ViewSpec
 from sap_doc_agent.migration.sql_validator import SQLValidationResult, validate_dsp_sql
 
 _PROMPT_DIR = Path(__file__).parent / "prompts"
 
-_GENERATE_SYSTEM = (
-    "You are an SAP Datasphere SQL developer. Generate clean, deployable DSP SQL "
-    "following all DSP SQL rules exactly. No CTEs, proper cross-space references, "
-    "DATAB DESC in ROW_NUMBER, VARCHAR date comparisons. Return ONLY SQL code."
-)
+
+def _build_system_prompt() -> str:
+    """Build the generator system prompt with DSP SQL rules as hard constraints."""
+    rules_text = "\n".join(f"- [{r.severity.upper()}] {r.rule_id}: {r.description}" for r in DSP_SQL_RULES)
+    return (
+        "You are an SAP Datasphere SQL developer. Generate clean, deployable DSP SQL.\n\n"
+        "MANDATORY DSP SQL RULES — violations will cause deployment failure:\n"
+        f"{rules_text}\n\n"
+        "Return ONLY the SQL code. No markdown fences, no explanation."
+    )
+
+
+_GENERATE_SYSTEM = _build_system_prompt()
 
 
 @dataclass

@@ -258,3 +258,43 @@ async def test_design_prompt_includes_dsp_rules():
     # Should mention DSP rules
     assert "no_cte" in prompt.lower() or "cte" in prompt.lower()
     assert "01_LT_" in prompt or "02_RV_" in prompt
+
+
+@pytest.mark.asyncio
+async def test_design_fallback_documents_collapse_rationale():
+    """Heuristic fallback should document collapse rationale for merged views."""
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = None  # Force fallback
+
+    classified, chain = _make_classified()
+    views = await design_chain_views(classified, chain, mock_llm)
+    # Fallback merges all steps — should document why
+    for v in views:
+        if v.collapsed_bw_steps:
+            assert v.collapse_rationale != "", f"View {v.technical_name} missing collapse_rationale"
+
+
+@pytest.mark.asyncio
+async def test_design_migration_sequence_respects_dependencies():
+    """Migration sequence should order views by dependency, not just layer."""
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = (
+        '{"views": ['
+        '  {"technical_name": "02_RV_A", "space": "SAP_ADMIN", "layer": "harmonization",'
+        '   "semantic_usage": "relational_dataset", "description": "View A",'
+        '   "sql_logic": "SELECT 1", "source_objects": ["01_LT_SRC"], "persistence": false},'
+        '  {"technical_name": "02_RV_B", "space": "SAP_ADMIN", "layer": "harmonization",'
+        '   "semantic_usage": "relational_dataset", "description": "View B depends on A",'
+        '   "sql_logic": "SELECT 1", "source_objects": ["02_RV_A"], "persistence": false},'
+        '  {"technical_name": "03_FV_C", "space": "SAP_ADMIN", "layer": "mart",'
+        '   "semantic_usage": "fact", "description": "Fact depends on B",'
+        '   "sql_logic": "SELECT 1", "source_objects": ["02_RV_B"], "persistence": true}'
+        "]}"
+    )
+
+    classified, chain = _make_classified()
+    arch = await design_target_architecture("Test", [(classified, chain)], mock_llm)
+    # A must come before B, B must come before C
+    names = [s.view_name for s in arch.migration_sequence]
+    assert names.index("02_RV_A") < names.index("02_RV_B")
+    assert names.index("02_RV_B") < names.index("03_FV_C")

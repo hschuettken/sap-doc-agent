@@ -54,6 +54,7 @@ def validate_dsp_sql(sql: str) -> SQLValidationResult:
     violations.extend(_check_limit_in_union(sql))
     violations.extend(_check_union_aliases(sql))
     violations.extend(_check_no_select_star_cross_space(sql))
+    violations.extend(_check_cross_space_prefix(sql))
     violations.extend(_check_no_arrow_in_comments(sql))
     violations.extend(_check_datab_desc_in_row_number(sql))
     violations.extend(_check_varchar_date_comparison(sql))
@@ -153,6 +154,24 @@ def _check_no_select_star_cross_space(sql: str) -> list[SQLViolation]:
                 message="SELECT * fails on cross-space joins. Use explicit column names.",
                 severity="error",
                 suggestion='Replace SELECT * with SELECT a."COL1", a."COL2" ...',
+            )
+        ]
+    return []
+
+
+def _check_cross_space_prefix(sql: str) -> list[SQLViolation]:
+    """Rule: cross_space_prefix — cross-space references must use quoted \"SPACE\".\"view\" format."""
+    # Detect unquoted dot-separated identifiers that look like space.view references
+    # Pattern: word.word where both are uppercase/mixed and NOT inside quotes
+    # This catches: OTHER_SPACE.view_name but not "OTHER_SPACE"."view_name"
+    # Also catches: SAP_ADMIN.my_view but not "SAP_ADMIN"."my_view"
+    if re.search(r'(?<!")\b[A-Z][A-Z0-9_]+\.\w+\b(?!")', sql):
+        return [
+            SQLViolation(
+                rule_id="cross_space_prefix",
+                message='Cross-space references must use quoted format: "SPACE"."view_name".',
+                severity="warning",
+                suggestion='Use "SPACE_NAME"."view_name" with double quotes.',
             )
         ]
     return []

@@ -98,8 +98,27 @@ def test_select_star_same_space_ok():
 
 
 # --- Rule 5: Cross-space references need full prefix ---
-# This is a warning-level check; hard to fully validate without space context
-# We check that quoted space refs use proper "SPACE"."view" format
+
+
+def test_cross_space_prefix_detects_unquoted():
+    sql = "SELECT a.COL1 FROM SAP_ADMIN.my_view a"
+    result = validate_dsp_sql(sql)
+    violations = [v for v in result.violations if v.rule_id == "cross_space_prefix"]
+    assert len(violations) >= 1
+
+
+def test_cross_space_prefix_passes_quoted():
+    sql = 'SELECT a."COL1" FROM "SAP_ADMIN"."my_view" a'
+    result = validate_dsp_sql(sql)
+    violations = [v for v in result.violations if v.rule_id == "cross_space_prefix"]
+    assert len(violations) == 0
+
+
+def test_cross_space_prefix_passes_local_view():
+    sql = "SELECT col1 FROM my_local_view"
+    result = validate_dsp_sql(sql)
+    violations = [v for v in result.violations if v.rule_id == "cross_space_prefix"]
+    assert len(violations) == 0
 
 
 # --- Rule 6: No --> inside block comments ---

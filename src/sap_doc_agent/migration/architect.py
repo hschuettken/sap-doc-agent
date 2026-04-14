@@ -275,17 +275,54 @@ _LAYER_ORDER = {"staging": 0, "harmonization": 1, "mart": 2, "consumption": 3}
 
 
 def _build_migration_sequence(views: list[ViewSpec]) -> list[MigrationStep]:
-    """Build an ordered migration sequence from view specs."""
-    # Sort by layer (staging first, then harmonization, mart, consumption)
-    sorted_views = sorted(views, key=lambda v: _LAYER_ORDER.get(v.layer, 99))
+    """Build an ordered migration sequence using topological sort by dependencies.
+
+    Falls back to layer ordering when dependencies don't fully constrain the order.
+    """
+    view_names = {v.technical_name for v in views}
+    view_by_name = {v.technical_name: v for v in views}
+
+    # Topological sort: Kahn's algorithm
+    # Count in-degree (how many dependencies each view has within our set)
+    in_degree: dict[str, int] = {v.technical_name: 0 for v in views}
+    dependents: dict[str, list[str]] = {v.technical_name: [] for v in views}
+
+    for v in views:
+        for dep in v.source_objects:
+            if dep in view_names:
+                in_degree[v.technical_name] += 1
+                dependents[dep].append(v.technical_name)
+
+    # Start with views that have no in-set dependencies, sorted by layer for stability
+    queue = sorted(
+        [name for name, deg in in_degree.items() if deg == 0],
+        key=lambda n: _LAYER_ORDER.get(view_by_name[n].layer, 99),
+    )
+    ordered: list[str] = []
+
+    while queue:
+        current = queue.pop(0)
+        ordered.append(current)
+        for dep_name in sorted(dependents[current]):
+            in_degree[dep_name] -= 1
+            if in_degree[dep_name] == 0:
+                queue.append(dep_name)
+        # Keep queue sorted by layer for stable ordering
+        queue.sort(key=lambda n: _LAYER_ORDER.get(view_by_name[n].layer, 99))
+
+    # Add any remaining views (cycle or unresolved) at the end
+    for v in views:
+        if v.technical_name not in ordered:
+            ordered.append(v.technical_name)
 
     sequence = []
-    for i, v in enumerate(sorted_views):
+    for i, name in enumerate(ordered):
+        v = view_by_name[name]
         sequence.append(
             MigrationStep(
                 order=i + 1,
-                view_name=v.technical_name,
-                depends_on=v.source_objects,
+                view_name=name,
+                depends_on=[d for d in v.source_objects if d in view_names],
                 effort="trivial" if v.layer == "staging" else "moderate",
                 notes=v.collapse_rationale or v.description,
             )
