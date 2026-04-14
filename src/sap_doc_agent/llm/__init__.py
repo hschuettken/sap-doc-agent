@@ -71,6 +71,11 @@ def _create_from_provider_name(provider: str, cfg: LLMConfig, output_dir: Option
 
         return OllamaProvider()
 
+    if provider == "gemini":
+        from sap_doc_agent.llm.gemini import GeminiProvider
+
+        return GeminiProvider()
+
     raise ValueError(f"Unknown LLM provider: {provider!r}")
 
 

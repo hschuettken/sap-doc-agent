@@ -40,6 +40,7 @@
           <option value="anthropic" {% if active_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
           <option value="ollama" {% if active_provider == 'ollama' %}selected{% endif %}>Ollama (local / on-prem)</option>
           <option value="vllm" {% if active_provider == 'vllm' %}selected{% endif %}>vLLM (on-prem GPU)</option>
+          <option value="gemini" {% if active_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
           <option value="router" {% if active_provider == 'router' %}selected{% endif %}>LLM Router (homelab)</option>
         </select>
       </div>
@@ -95,6 +96,25 @@
           <div>
             <label class="block text-xs text-gray-500 mb-1">Model</label>
             <input id="anthropic-model" value="{{ env_vars.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514') }}" placeholder="claude-sonnet-4-20250514"
+                   class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+          </div>
+        </div>
+      </div>
+
+      <!-- Gemini fields -->
+      <div id="fields-gemini" class="provider-fields space-y-3 {% if active_provider != 'gemini' %}hidden{% endif %}">
+        <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
+          Uses Google's Gemini models via the OpenAI-compatible API. Get an API key from Google AI Studio.
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">API Key</label>
+            <input id="gemini-key" type="password" value="{{ '********' if env_vars.get('GEMINI_API_KEY') else '' }}" placeholder="Your Gemini API key"
+                   class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Model</label>
+            <input id="gemini-model" value="{{ env_vars.get('GEMINI_MODEL', 'gemini-2.5-flash') }}" placeholder="gemini-2.5-flash"
                    class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
           </div>
         </div>

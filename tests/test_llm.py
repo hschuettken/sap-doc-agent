@@ -1,4 +1,3 @@
-
 import httpx
 import pytest
 import respx
@@ -151,3 +150,13 @@ def test_factory_direct_missing_env():
     )
     with pytest.raises(ValueError, match="environment variable"):
         create_llm_provider(cfg)
+
+
+def test_factory_gemini_via_env(monkeypatch):
+    """Factory resolves LLM_PROVIDER=gemini to GeminiProvider."""
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    from sap_doc_agent.llm.gemini import GeminiProvider
+
+    provider = create_llm_provider(LLMConfig())
+    assert isinstance(provider, GeminiProvider)

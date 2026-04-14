@@ -359,3 +359,63 @@ async def test_anthropic_handles_error(anthropic_provider):
     respx.post("https://api.anthropic.com/v1/messages").mock(return_value=httpx.Response(500, text="Server Error"))
     result = await anthropic_provider.generate("test")
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# GeminiProvider
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def gemini_provider(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key-123")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-2.5-flash")
+    from sap_doc_agent.llm.gemini import GeminiProvider
+
+    return GeminiProvider()
+
+
+def test_gemini_is_available(gemini_provider):
+    assert gemini_provider.is_available() is True
+
+
+def test_gemini_is_llm_provider(gemini_provider):
+    assert isinstance(gemini_provider, LLMProvider)
+
+
+def test_gemini_raises_without_api_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    from sap_doc_agent.llm.gemini import GeminiProvider
+
+    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+        GeminiProvider()
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_gemini_generate(gemini_provider):
+    respx.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions").mock(
+        return_value=httpx.Response(200, json=_OPENAI_RESPONSE)
+    )
+    result = await gemini_provider.generate("test prompt")
+    assert result == "hello from LLM"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_gemini_generate_json(gemini_provider):
+    respx.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions").mock(
+        return_value=httpx.Response(200, json=_OPENAI_JSON_RESPONSE)
+    )
+    result = await gemini_provider.generate_json("test", schema={"type": "object"})
+    assert result == {"result": "ok"}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_gemini_handles_error(gemini_provider):
+    respx.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions").mock(
+        return_value=httpx.Response(500, text="Server Error")
+    )
+    result = await gemini_provider.generate("test")
+    assert result is None
