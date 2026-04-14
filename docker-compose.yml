@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    command: uvicorn sap_doc_agent.web.server:create_app --factory --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - LLM_PROVIDER=${LLM_PROVIDER:-router}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  worker:
+    build: .
+    command: celery -A sap_doc_agent.tasks.celery_app worker -Q scan,llm -c 4 --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - LLM_PROVIDER=${LLM_PROVIDER:-router}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  worker-chrome:
+    build: .
+    command: celery -A sap_doc_agent.tasks.celery_app worker -Q chrome -c 1 --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  scheduler:
+    build: .
+    command: celery -A sap_doc_agent.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sapdoc
+      POSTGRES_USER: sapdoc
+      POSTGRES_PASSWORD: sapdoc
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sapdoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge
