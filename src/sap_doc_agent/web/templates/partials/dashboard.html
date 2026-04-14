@@ -3,6 +3,100 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
+{% if object_count == 0 and not has_scans %}
+<!-- ===== Getting Started (empty state) ===== -->
+<div class="max-w-3xl mx-auto">
+  <div class="card mb-6 border-l-4 border-petrol">
+    <h2 class="font-heading text-xl text-[#1a2332] mb-2">Welcome to SAP Doc Agent</h2>
+    <p class="text-sm text-gray-500 mb-4">AI-powered documentation, quality assessment, and migration planning for SAP BW and Datasphere systems. Follow these steps to get started.</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Step 1: Configure LLM -->
+    <div class="card flex items-start gap-4">
+      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+        {% if llm_configured %}bg-green-100 text-green-700{% else %}bg-petrol text-white{% endif %}">
+        {% if llm_configured %}&#10003;{% else %}1{% endif %}
+      </div>
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-[#1a2332]">Configure an LLM Provider</h3>
+        <p class="text-sm text-gray-500 mt-1">
+          {% if llm_configured %}
+          <span class="text-green-600 font-medium">{{ llm_provider | capitalize }}</span> is configured.
+          Chain interpretation, migration classification, and doc QA are available.
+          {% else %}
+          Set up an AI model for document analysis. The scanner and object browser work without an LLM, but chain interpretation and migration features require one.
+          {% endif %}
+        </p>
+        {% if not llm_configured %}
+        <a href="/ui/settings" class="inline-block mt-2 px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark">Configure LLM</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Step 2: Run a scan -->
+    <div class="card flex items-start gap-4">
+      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+        {% if object_count > 0 %}bg-green-100 text-green-700{% elif llm_configured %}bg-petrol text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
+        {% if object_count > 0 %}&#10003;{% else %}2{% endif %}
+      </div>
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-[#1a2332]">Scan Your SAP System</h3>
+        <p class="text-sm text-gray-500 mt-1">
+          {% if object_count > 0 %}
+          <span class="text-green-600 font-medium">{{ object_count }} objects</span> discovered with {{ edge_count }} dependencies.
+          {% else %}
+          Connect to your Datasphere tenant (REST API or CDP browser automation) or BW/4HANA system to discover objects, transformations, and dependency chains.
+          {% endif %}
+        </p>
+        {% if object_count == 0 %}
+        <a href="/ui/scanner" class="inline-block mt-2 px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Go to Scanner</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Step 3: Review objects -->
+    <div class="card flex items-start gap-4">
+      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">3</div>
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-[#1a2332]">Explore & Audit Documentation</h3>
+        <p class="text-sm text-gray-500 mt-1">Browse discovered objects, view dependency graphs, and run documentation quality audits against Horvath standards.</p>
+      </div>
+    </div>
+
+    <!-- Step 4: Migration -->
+    <div class="card flex items-start gap-4">
+      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">4</div>
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-[#1a2332]">Plan a BW-to-DSP Migration</h3>
+        <p class="text-sm text-gray-500 mt-1">Create a migration project to classify chains (migrate / simplify / replace / drop), design target DSP architecture, generate SQL, and produce assessment reports.</p>
+        <a href="/ui/migration/projects" class="inline-block mt-2 px-3 py-1.5 border border-gray-300 text-gray-500 rounded text-xs font-medium hover:border-petrol hover:text-petrol">Migration Projects</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick info cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    <div class="card text-center">
+      <p class="text-2xl font-bold text-petrol">6</p>
+      <p class="text-xs text-gray-500 mt-1">LLM Providers Supported</p>
+      <p class="text-xs text-gray-400">Azure, OpenAI, Anthropic, Ollama, vLLM, Router</p>
+    </div>
+    <div class="card text-center">
+      <p class="text-2xl font-bold text-petrol">3</p>
+      <p class="text-xs text-gray-500 mt-1">Doc Platforms</p>
+      <p class="text-xs text-gray-400">BookStack, Outline, Confluence</p>
+    </div>
+    <div class="card text-center">
+      <p class="text-2xl font-bold text-petrol">5</p>
+      <p class="text-xs text-gray-500 mt-1">Migration Classifications</p>
+      <p class="text-xs text-gray-400">Migrate, Simplify, Replace, Drop, Clarify</p>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- ===== Normal Dashboard ===== -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
     <!-- Object Count -->
     <div class="card">
@@ -30,6 +124,7 @@
             <div class="text-sm text-gray-500">
                 {% if quality_score is not defined %}
                 <p>No QA report yet</p>
+                <a href="/ui/audit" class="text-petrol text-xs hover:underline">Run audit</a>
                 {% endif %}
             </div>
         </div>
@@ -42,6 +137,7 @@
         <p class="text-lg font-semibold text-[#1a2332]">{{ last_scan }}</p>
         {% else %}
         <p class="text-lg text-gray-400">No scans yet</p>
+        <a href="/ui/scanner" class="text-petrol text-xs hover:underline">Run scan</a>
         {% endif %}
     </div>
 
@@ -58,7 +154,8 @@
     <h3 class="font-heading text-base text-[#1a2332] mb-3">Quick Actions</h3>
     <div class="flex flex-wrap gap-3">
         <button class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
-                hx-post="/api/scanner/start"
+                hx-post="/api/scan/start"
+                hx-vals='{"scanner_type": "dsp_api"}'
                 hx-swap="none"
                 hx-on::after-request="showToast('Scan started', 'success')">
             Run Full Scan
@@ -66,32 +163,42 @@
         <a href="/ui/audit" class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">
             Run Audit
         </a>
-        <button class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white"
-                hx-post="/api/sync"
-                hx-swap="none"
-                hx-on::after-request="showToast('Sync complete', 'success')">
-            Sync to Doc Platform
-        </button>
+        <a href="/ui/migration/projects" class="px-4 py-2 border border-accent text-accent rounded text-sm font-medium hover:bg-accent hover:text-white">
+            Migration Projects
+        </a>
     </div>
 </div>
 
-<!-- Critical Issues -->
-<div class="card">
-    <h3 class="font-heading text-base text-[#1a2332] mb-3">Critical Issues</h3>
-    {% if critical_issues is defined and critical_issues %}
-    <ul class="divide-y divide-gray-100">
-        {% for issue in critical_issues[:5] %}
-        <li class="py-2 flex items-start gap-2">
-            <span class="badge badge-critical mt-0.5">{{ issue.severity }}</span>
-            <div>
-                <a href="/ui/objects/{{ issue.object_id }}" class="text-sm font-medium text-petrol hover:underline">{{ issue.object_id }}</a>
-                <p class="text-sm text-gray-500">{{ issue.message }}</p>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="text-sm text-gray-400">No critical issues found.</p>
-    {% endif %}
+<!-- System Overview -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Critical Issues -->
+    <div class="card">
+        <h3 class="font-heading text-base text-[#1a2332] mb-3">Critical Issues</h3>
+        {% if critical_issues is defined and critical_issues %}
+        <ul class="divide-y divide-gray-100">
+            {% for issue in critical_issues[:5] %}
+            <li class="py-2 flex items-start gap-2">
+                <span class="badge badge-critical mt-0.5">{{ issue.severity }}</span>
+                <div>
+                    <a href="/ui/objects/{{ issue.object_id }}" class="text-sm font-medium text-petrol hover:underline">{{ issue.object_id }}</a>
+                    <p class="text-sm text-gray-500">{{ issue.message }}</p>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-gray-400">No critical issues found.</p>
+        {% endif %}
+    </div>
+
+    <!-- System Status -->
+    <div class="card">
+        <h3 class="font-heading text-base text-[#1a2332] mb-3">System Status</h3>
+        <div id="system-status" class="space-y-2"
+             hx-get="/ui/partials/system-status" hx-trigger="load, every 60s" hx-swap="innerHTML">
+            <p class="text-sm text-gray-400">Loading...</p>
+        </div>
+    </div>
 </div>
+{% endif %}
 {% endblock %}

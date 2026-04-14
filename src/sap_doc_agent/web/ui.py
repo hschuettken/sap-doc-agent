@@ -25,6 +25,8 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
 
     @router.get("/dashboard", response_class=HTMLResponse)
     async def dashboard(request: Request):
+        import os
+
         # Gather stats — try DB first, fall back to files
         objects = []
         edges = []
@@ -46,6 +48,13 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
             t = obj.get("type", "other")
             type_counts[t] = type_counts.get(t, 0) + 1
 
+        # Check if any scans have been run
+        has_scans = len(objects) > 0 or (output_dir / "graph.json").exists()
+
+        # LLM status for getting started
+        llm_provider = os.environ.get("LLM_PROVIDER", "none")
+        llm_configured = llm_provider and llm_provider != "none"
+
         return _render(
             request,
             "partials/dashboard.html",
@@ -54,6 +63,9 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
                 "object_count": len(objects),
                 "type_counts": type_counts,
                 "edge_count": len(edges),
+                "has_scans": has_scans,
+                "llm_configured": llm_configured,
+                "llm_provider": llm_provider,
             },
         )
 
@@ -297,39 +309,170 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
         config_content = ""
         if config_path and config_path.exists():
             config_content = config_path.read_text()
+
+        # Gather LLM provider info from environment
+        import os
+
+        active_provider = os.environ.get("LLM_PROVIDER", "none")
+        env_vars = {
+            "AZURE_OPENAI_ENDPOINT": os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+            "AZURE_OPENAI_API_KEY": os.environ.get("AZURE_OPENAI_API_KEY", ""),
+            "AZURE_OPENAI_DEPLOYMENT": os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+            "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
+            "OPENAI_MODEL": os.environ.get("OPENAI_MODEL", "gpt-4o"),
+            "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", ""),
+            "ANTHROPIC_MODEL": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+            "OLLAMA_BASE_URL": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
+            "OLLAMA_MODEL": os.environ.get("OLLAMA_MODEL", ""),
+            "VLLM_BASE_URL": os.environ.get("VLLM_BASE_URL", ""),
+            "VLLM_MODEL": os.environ.get("VLLM_MODEL", ""),
+            "VLLM_API_KEY": os.environ.get("VLLM_API_KEY", ""),
+            "LLM_ROUTER_URL": os.environ.get("LLM_ROUTER_URL", ""),
+            "LLM_ROUTER_API_KEY": os.environ.get("LLM_ROUTER_API_KEY", ""),
+            "LLM_ROUTER_MODEL": os.environ.get("LLM_ROUTER_MODEL", "default"),
+            "LLM_TOKEN_BUDGET_PER_HOUR": os.environ.get("LLM_TOKEN_BUDGET_PER_HOUR", ""),
+            "LLM_MAX_CONCURRENT": os.environ.get("LLM_MAX_CONCURRENT", "4"),
+            "SAP_RATE_LIMIT_RPS": os.environ.get("SAP_RATE_LIMIT_RPS", "10"),
+            "DATABASE_URL": os.environ.get("DATABASE_URL", ""),
+            "REDIS_URL": os.environ.get("REDIS_URL", ""),
+        }
+
+        # Determine LLM status
+        llm_status = "not_configured"
+        llm_status_label = "Not Configured"
+        llm_model = ""
+        if active_provider and active_provider != "none":
+            llm_status = "configured"
+            llm_status_label = f"{active_provider.capitalize()} configured"
+            model_keys = {
+                "azure": "AZURE_OPENAI_DEPLOYMENT",
+                "openai": "OPENAI_MODEL",
+                "anthropic": "ANTHROPIC_MODEL",
+                "ollama": "OLLAMA_MODEL",
+                "vllm": "VLLM_MODEL",
+                "router": "LLM_ROUTER_MODEL",
+            }
+            llm_model = env_vars.get(model_keys.get(active_provider, ""), "")
+
         return _render(
             request,
             "partials/settings.html",
             {
                 "active_page": "settings",
                 "config_yaml": config_content,
+                "active_provider": active_provider,
+                "env_vars": env_vars,
+                "llm_status": llm_status,
+                "llm_status_label": llm_status_label,
+                "llm_model": llm_model,
             },
         )
 
     @router.get("/partials/health-dots", response_class=HTMLResponse)
     async def health_dots(request: Request):
         """Tiny partial for the topbar health indicators."""
+        import os
+
         objects_count = 0
-        graph_exists = False
         try:
             from sap_doc_agent.db import get_object_count
 
             objects_count = await get_object_count()
-            graph_exists = objects_count > 0
         except Exception:
-            graph_exists = (output_dir / "graph.json").exists()
             objects_count = (
                 sum(1 for _ in (output_dir / "objects").rglob("*.md")) if (output_dir / "objects").exists() else 0
             )
+
+        # DB check
+        db_ok = False
+        try:
+            import asyncpg
+
+            db_url = os.environ.get("DATABASE_URL", "")
+            if db_url:
+                conn = await asyncpg.connect(
+                    db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                        "postgresql+asyncpg://", "postgresql://"
+                    )
+                )
+                await conn.fetchval("SELECT 1")
+                await conn.close()
+                db_ok = True
+        except Exception:
+            pass
+
+        # LLM check
+        llm_provider = os.environ.get("LLM_PROVIDER", "none")
+        llm_configured = llm_provider and llm_provider != "none"
+
+        dot_db = "dot-green" if db_ok else "dot-red"
         dot_obj = "dot-green" if objects_count > 0 else "dot-amber"
-        dot_graph = "dot-green" if graph_exists else "dot-red"
+        dot_llm = "dot-green" if llm_configured else "dot-amber"
+
         return HTMLResponse(
-            f'<div class="flex items-center gap-2 text-xs text-gray-500">'
-            f'<span class="dot {dot_obj}"></span>'
-            f"{objects_count} objects"
-            f'<span class="dot {dot_graph}"></span>'
-            f"graph"
+            f'<div class="flex items-center gap-3 text-xs text-gray-500">'
+            f'<span class="flex items-center gap-1"><span class="dot {dot_db}"></span>DB</span>'
+            f'<span class="flex items-center gap-1"><span class="dot {dot_obj}"></span>{objects_count} obj</span>'
+            f'<span class="flex items-center gap-1"><span class="dot {dot_llm}"></span>LLM</span>'
             f"</div>"
         )
+
+    @router.get("/partials/system-status", response_class=HTMLResponse)
+    async def system_status_partial(request: Request):
+        """Inline system status for dashboard card."""
+        import os
+
+        items = []
+
+        # DB
+        db_ok = False
+        try:
+            import asyncpg
+
+            db_url = os.environ.get("DATABASE_URL", "")
+            if db_url:
+                conn = await asyncpg.connect(
+                    db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                        "postgresql+asyncpg://", "postgresql://"
+                    )
+                )
+                await conn.fetchval("SELECT 1")
+                await conn.close()
+                db_ok = True
+        except Exception:
+            pass
+        items.append(("PostgreSQL", db_ok, "Database"))
+
+        # Redis
+        redis_ok = False
+        try:
+            import redis as redis_lib
+
+            redis_url = os.environ.get("REDIS_URL", "")
+            if redis_url:
+                r = redis_lib.from_url(redis_url)
+                r.ping()
+                redis_ok = True
+        except Exception:
+            pass
+        items.append(("Redis", redis_ok, "Queue & cache"))
+
+        # LLM
+        llm_provider = os.environ.get("LLM_PROVIDER", "none")
+        llm_active = llm_provider and llm_provider != "none"
+        items.append(("LLM", llm_active, f"{llm_provider}" if llm_active else "Disabled"))
+
+        html_parts = []
+        for name, ok, detail in items:
+            dot = "dot-green" if ok else ("dot-amber" if name == "LLM" and not llm_active else "dot-red")
+            if name == "LLM" and not llm_active:
+                dot = "dot-amber"
+            html_parts.append(
+                f'<div class="flex items-center justify-between py-1.5">'
+                f'<span class="flex items-center gap-2 text-sm"><span class="dot {dot}"></span>{name}</span>'
+                f'<span class="text-xs text-gray-400">{detail}</span></div>'
+            )
+
+        return HTMLResponse("".join(html_parts))
 
     return router

@@ -8,5 +8,13 @@ WORKDIR /app
 COPY . /app
 RUN pip install --prefer-binary --no-cache-dir -e ".[all]"
 
-# Default: web
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/healthz || exit 1
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "sap_doc_agent.web.server:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080"]

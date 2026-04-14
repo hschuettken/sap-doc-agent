@@ -1,6 +1,6 @@
 [project]
 name = "sap-doc-agent"
-version = "0.1.0"
+version = "1.1.0"
 description = "Automated SAP BW/4HANA and Datasphere documentation, quality assurance, and code audit"
 requires-python = ">=3.12"
 dependencies = [
@@ -33,7 +33,7 @@ dev = [
     "ruff>=0.4",
 ]
 anthropic = ["anthropic>=0.25"]
-all = ["anthropic>=0.25", "celery[redis]>=5.3", "redis>=5.0"]
+all = ["anthropic>=0.25", "celery[redis]>=5.3", "redis>=5.0", "alembic>=1.13", "psycopg2-binary>=2.9"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -48,6 +48,7 @@ where = ["src"]
     "web/templates/**/*.html",
     "web/static/*.css",
     "web/static/*.js",
+    "migration/templates/*.html",
 ]
 
 [tool.pytest.ini_options]

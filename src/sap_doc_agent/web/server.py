@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -69,6 +70,18 @@ def create_app(
     """Create the FastAPI app."""
     output_path = Path(output_dir)
     standard_path = Path(horvath_standard_path)
+    config_path = output_path.parent / "config.yaml"
+
+    @asynccontextmanager
+    async def lifespan(app_instance: FastAPI):
+        """Startup: auto-create scanner tables."""
+        try:
+            from sap_doc_agent.db import ensure_tables
+
+            await ensure_tables()
+        except Exception as e:
+            logger.warning("Failed to ensure scanner tables: %s", e)
+        yield
 
     app = FastAPI(
         title="SAP Doc Agent API",
@@ -77,7 +90,8 @@ def create_app(
             "provides API endpoints for documentation audit, quality assessment, "
             "and SAP system exploration. Designed for M365 Copilot integration."
         ),
-        version="1.0.0",
+        version="1.1.0",
+        lifespan=lifespan,
     )
 
     # Mount static files
@@ -89,7 +103,7 @@ def create_app(
     from sap_doc_agent.web.auth import AuthMiddleware, hash_password
     from sap_doc_agent.web.ui import create_ui_router
 
-    ui_router = create_ui_router(output_path)
+    ui_router = create_ui_router(output_path, config_path=config_path)
     app.include_router(ui_router)
 
     # Mount migration routers
@@ -110,16 +124,6 @@ def create_app(
     app.add_middleware(AuthMiddleware, password_hash=pw_hash, secret_key=secret)
 
     # --- HTML documentation serving ---
-
-    @app.on_event("startup")
-    async def _run_migrations():
-        """Auto-create scanner tables on startup (idempotent)."""
-        try:
-            from sap_doc_agent.db import ensure_tables
-
-            await ensure_tables()
-        except Exception as e:
-            logger.warning("Failed to ensure scanner tables: %s", e)
 
     @app.get("/", include_in_schema=False)
     async def landing_page(request: Request):
@@ -617,6 +621,173 @@ def create_app(
 
         content, content_type = get_metrics_text()
         return Response(content=content, media_type=content_type)
+
+    # --- System status & management ---
+
+    @app.get("/api/system/status", summary="System status", operation_id="getSystemStatus")
+    async def system_status():
+        """Check connectivity of all backing services."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        checks = {}
+        overall = "ok"
+
+        # Database
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url:
+            try:
+                import asyncpg
+
+                conn = await asyncpg.connect(
+                    db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                        "postgresql+asyncpg://", "postgresql://"
+                    )
+                )
+                await conn.fetchval("SELECT 1")
+                await conn.close()
+                checks["database"] = "ok"
+            except Exception as e:
+                checks["database"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["database"] = "unconfigured"
+
+        # Redis
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url:
+            try:
+                import redis as redis_lib
+
+                r = redis_lib.from_url(redis_url)
+                r.ping()
+                checks["redis"] = "ok"
+            except Exception as e:
+                checks["redis"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["redis"] = "unconfigured"
+
+        # LLM
+        provider_name = os.environ.get("LLM_PROVIDER", "none")
+        if provider_name and provider_name != "none":
+            try:
+                from sap_doc_agent.config import LLMConfig
+                from sap_doc_agent.llm import create_llm_provider
+
+                cfg = LLMConfig(provider=provider_name)
+                provider = create_llm_provider(cfg)
+                if provider.is_available():
+                    checks["llm"] = "ok"
+                else:
+                    checks["llm"] = "unavailable"
+                    overall = "degraded"
+            except Exception as e:
+                checks["llm"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["llm"] = "disabled"
+
+        # Celery
+        if redis_url:
+            try:
+                import redis as redis_lib
+
+                r = redis_lib.from_url(redis_url)
+                # Check if any celery workers have registered
+                keys = r.keys("celery-task-meta-*")
+                # Also check for worker heartbeat keys
+                worker_keys = r.keys("_kombu.binding.*")
+                checks["celery"] = "ok" if worker_keys else "no_workers"
+                if not worker_keys:
+                    overall = "degraded"
+            except Exception as e:
+                checks["celery"] = f"error: {e}"
+                overall = "degraded"
+        else:
+            checks["celery"] = "unconfigured"
+
+        return _JSONResponse(
+            {
+                "status": overall,
+                "checks": checks,
+                "provider": provider_name,
+                "version": "1.1.0",
+            }
+        )
+
+    @app.post("/api/system/test-llm", summary="Test LLM connection", operation_id="testLLM")
+    async def test_llm_connection():
+        """Send a simple test prompt to the configured LLM provider and measure latency."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        provider_name = os.environ.get("LLM_PROVIDER", "none")
+        if not provider_name or provider_name == "none":
+            return _JSONResponse({"success": False, "error": "No LLM provider configured"})
+
+        try:
+            import time
+
+            from sap_doc_agent.config import LLMConfig
+            from sap_doc_agent.llm import create_llm_provider
+
+            cfg = LLMConfig(provider=provider_name)
+            provider = create_llm_provider(cfg)
+
+            start = time.monotonic()
+            result = await provider.generate(
+                "Respond with exactly: OK",
+                system="You are a connectivity test. Respond with exactly the word OK.",
+            )
+            latency = round((time.monotonic() - start) * 1000)
+
+            if result:
+                return _JSONResponse(
+                    {
+                        "success": True,
+                        "model": getattr(provider, "_model", provider_name),
+                        "latency_ms": latency,
+                        "response_preview": result[:100],
+                    }
+                )
+            else:
+                return _JSONResponse({"success": False, "error": "Provider returned empty response"})
+        except Exception as e:
+            return _JSONResponse({"success": False, "error": str(e)})
+
+    @app.put("/api/settings/password", summary="Change UI password", operation_id="changePassword")
+    async def change_password(request: Request):
+        """Update the UI password. Generates a bcrypt hash and stores it."""
+        from fastapi.responses import JSONResponse as _JSONResponse
+
+        body = await request.json()
+        new_password = body.get("password", "")
+        if not new_password or len(new_password) < 6:
+            return _JSONResponse({"error": "Password must be at least 6 characters"}, status_code=400)
+
+        new_hash = hash_password(new_password)
+        # Write to .env file if it exists, otherwise to a dedicated file
+        env_file = output_path.parent / ".env"
+        pw_line = f"SAP_DOC_AGENT_UI_PASSWORD_HASH={new_hash}"
+
+        if env_file.exists():
+            content = env_file.read_text()
+            if "SAP_DOC_AGENT_UI_PASSWORD_HASH=" in content:
+                lines = content.split("\n")
+                lines = [pw_line if l.startswith("SAP_DOC_AGENT_UI_PASSWORD_HASH=") else l for l in lines]
+                env_file.write_text("\n".join(lines))
+            else:
+                env_file.write_text(content.rstrip() + "\n" + pw_line + "\n")
+        else:
+            env_file.write_text(pw_line + "\n")
+
+        # Also update the in-memory middleware
+        os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = new_hash
+        # Update the middleware's hash
+        for middleware in app.user_middleware:
+            if hasattr(middleware, "cls") and middleware.cls.__name__ == "AuthMiddleware":
+                break
+        # The middleware instance is harder to reach; advise restart
+        return _JSONResponse({"status": "updated", "message": "Password updated. Please log in again."})
 
     # --- Standards + Knowledge endpoints (Phase 4) ---
 

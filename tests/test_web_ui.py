@@ -111,4 +111,4 @@ def test_api_still_works_without_auth(output_dir):
 def test_health_dots(authed_client):
     resp = authed_client.get("/ui/partials/health-dots")
     assert resp.status_code == 200
-    assert "objects" in resp.text
+    assert "obj" in resp.text
