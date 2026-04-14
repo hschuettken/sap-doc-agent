@@ -104,3 +104,99 @@ class ReviewDecision(BaseModel):
     decision: str  # approve, reject, clarify
     notes: str = ""
     reviewer: str = ""
+
+
+# --- Phase C: Target Architecture models ---
+
+
+class ColumnSpec(BaseModel):
+    """Column definition in a target DSP view."""
+
+    name: str
+    data_type: str = ""
+    description: str = ""
+    source_field: str = ""  # BW source field for traceability
+    is_key: bool = False
+    is_measure: bool = False
+    aggregation: str = ""  # SUM, COUNT, AVG, etc.
+
+
+class ViewSpec(BaseModel):
+    """Specification for a target DSP SQL view."""
+
+    technical_name: str  # e.g., "02_RV_BILLING_CLEAN"
+    space: str = ""
+    layer: str = ""  # staging, harmonization, mart, consumption
+    semantic_usage: str = ""  # relational_dataset, fact, dimension, text, hierarchy
+    description: str = ""
+    source_chains: list[str] = Field(default_factory=list)  # BW chains this replaces
+    source_objects: list[str] = Field(default_factory=list)  # upstream DSP views/tables
+    columns: list[ColumnSpec] = Field(default_factory=list)
+    sql_logic: str = ""  # SQL sketch (logic, not final code)
+    collapse_rationale: str = ""  # why BW steps were collapsed into this view
+    collapsed_bw_steps: list[str] = Field(default_factory=list)  # BW step IDs this replaces
+    persistence: bool = False
+    persistence_rationale: Optional[str] = None
+    estimated_rows: Optional[int] = None
+
+
+class ReplicationFlowSpec(BaseModel):
+    """Specification for a DSP replication flow."""
+
+    technical_name: str
+    source_table: str  # ECC/S4 table
+    target_table: str  # 01_LT_ local table
+    space: str = ""
+    delta_enabled: bool = True
+    schedule: str = ""  # e.g., "daily 02:00"
+
+
+class AnalyticModelSpec(BaseModel):
+    """Specification for a DSP Analytic Model (consumption layer)."""
+
+    technical_name: str
+    source_fact_view: str
+    dimension_associations: list[str] = Field(default_factory=list)
+    description: str = ""
+    replaces_bex_query: Optional[str] = None
+
+
+class PersistenceDecision(BaseModel):
+    """Decision about whether to persist a view."""
+
+    view_name: str
+    persist: bool
+    rationale: str
+
+
+class MigrationStep(BaseModel):
+    """One step in the ordered migration sequence."""
+
+    order: int
+    view_name: str
+    depends_on: list[str] = Field(default_factory=list)
+    effort: str = ""  # trivial, moderate, complex
+    notes: str = ""
+
+
+class SpaceDesign(BaseModel):
+    """Design for a DSP space."""
+
+    name: str
+    purpose: str = ""
+    pattern: str = ""  # single_tenant, source_semantic_split, multi_tier
+    shares_from: list[str] = Field(default_factory=list)
+    shares_to: list[str] = Field(default_factory=list)
+    estimated_disk_gb: Optional[float] = None
+
+
+class TargetArchitecture(BaseModel):
+    """Complete DSP target architecture for a migration project."""
+
+    project_name: str
+    spaces: list[SpaceDesign] = Field(default_factory=list)
+    views: list[ViewSpec] = Field(default_factory=list)
+    replication_flows: list[ReplicationFlowSpec] = Field(default_factory=list)
+    analytic_models: list[AnalyticModelSpec] = Field(default_factory=list)
+    persistence_plan: list[PersistenceDecision] = Field(default_factory=list)
+    migration_sequence: list[MigrationStep] = Field(default_factory=list)
