@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Migration Report{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="font-heading text-2xl text-petrol">Migration Report</h1>
+    </div>
+
+    {% if project_id %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <p class="text-charcoal mb-4">Generate the full migration assessment report for this project.</p>
+        <a href="/api/migration/projects/{{ project_id }}/report"
+           target="_blank"
+           class="inline-block bg-petrol text-white px-6 py-2 rounded hover:bg-petrol-light transition">
+            Open Full Report
+        </a>
+        <p class="text-sm text-gray-500 mt-3">The report opens in a new tab as a self-contained HTML document.</p>
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <p class="text-yellow-800">Select a project first to generate a report.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -297,6 +297,114 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
             ],
         }
 
+    # --- Report ---
+
+    @router.get("/projects/{project_id}/report")
+    async def get_report(project_id: str):
+        """Generate and return the migration assessment report as HTML."""
+        from sap_doc_agent.migration.diagram import generate_chain_diagram
+        from sap_doc_agent.migration.effort import estimate_chain_effort
+        from sap_doc_agent.migration.models import ClassifiedChain, TargetArchitecture, ViewSpec
+        from sap_doc_agent.migration.report import ReportData, generate_report_html
+        from sap_doc_agent.scanner.models import DataFlowChain
+
+        # Load all chain data from files
+        chains_dir = output_dir / "chains"
+        chains: list[tuple[ClassifiedChain, DataFlowChain]] = []
+        all_views: list[ViewSpec] = []
+
+        if chains_dir.exists():
+            for chain_file in sorted(chains_dir.glob("*.json")):
+                if any(s in chain_file.stem for s in ["_intent", "_classified", "_brs_recon", "_target", "_sql"]):
+                    continue
+                try:
+                    chain = DataFlowChain.model_validate_json(chain_file.read_text())
+                    classified_file = chains_dir / f"{chain.chain_id}_classified.json"
+                    if classified_file.exists():
+                        classified = ClassifiedChain.model_validate_json(classified_file.read_text())
+                    else:
+                        from sap_doc_agent.migration.models import IntentCard, MigrationClassification
+
+                        intent_file = chains_dir / f"{chain.chain_id}_intent.json"
+                        if intent_file.exists():
+                            from sap_doc_agent.migration.models import IntentCard
+
+                            intent = IntentCard.model_validate_json(intent_file.read_text())
+                        else:
+                            intent = IntentCard(chain_id=chain.chain_id)
+                        classified = ClassifiedChain(
+                            chain_id=chain.chain_id,
+                            intent_card=intent,
+                            classification=MigrationClassification.CLARIFY,
+                        )
+                    chains.append((classified, chain))
+                except Exception as e:
+                    logger.warning("Failed to load chain %s: %s", chain_file.stem, e)
+
+            # Load target views
+            for target_file in sorted(chains_dir.glob("*_target.json")):
+                try:
+                    data = json.loads(target_file.read_text())
+                    if isinstance(data, list):
+                        all_views.extend(ViewSpec.model_validate(v) for v in data)
+                    else:
+                        all_views.append(ViewSpec.model_validate(data))
+                except Exception:
+                    pass
+
+        # Build effort estimates
+        efforts = [estimate_chain_effort(c, ch) for c, ch in chains]
+
+        # Build diagrams
+        views_by_chain: dict[str, list[ViewSpec]] = {}
+        for v in all_views:
+            for sc in v.source_chains:
+                views_by_chain.setdefault(sc, []).append(v)
+
+        diagrams = {}
+        for classified, chain in chains:
+            chain_views = views_by_chain.get(classified.chain_id, [])
+            diagrams[classified.chain_id] = generate_chain_diagram(classified, chain, chain_views)
+
+        # Build generated SQL map
+        generated_sql: dict[str, str] = {}
+        if chains_dir.exists():
+            for sql_file in sorted(chains_dir.glob("*_sql.json")):
+                try:
+                    sql_data = json.loads(sql_file.read_text())
+                    if isinstance(sql_data, list):
+                        for item in sql_data:
+                            if isinstance(item, dict) and "technical_name" in item:
+                                generated_sql[item["technical_name"]] = item.get("sql", "")
+                except Exception:
+                    pass
+
+        # Get project name
+        project_name = project_id
+        try:
+            from sap_doc_agent.migration import db as migration_db
+
+            project = await migration_db.get_project(project_id)
+            if project:
+                project_name = project.get("name", project_id)
+        except Exception:
+            pass
+
+        architecture = TargetArchitecture(project_name=project_name, views=all_views) if all_views else None
+
+        report_data = ReportData(
+            project_name=project_name,
+            chains=chains,
+            architecture=architecture,
+            efforts=efforts,
+            diagrams=diagrams,
+            generated_sql=generated_sql,
+        )
+
+        from fastapi.responses import HTMLResponse
+
+        return HTMLResponse(content=generate_report_html(report_data))
+
     return router
 
 
@@ -395,6 +503,18 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             {
                 "active_page": "migration",
                 "sql_results": sql_results,
+                "project_id": project_id,
+            },
+        )
+
+    @router.get("/report", response_class=HTMLResponse)
+    async def report_page(request: Request):
+        project_id = request.query_params.get("project_id", "")
+        return _render(
+            request,
+            "partials/migration_report_page.html",
+            {
+                "active_page": "migration",
                 "project_id": project_id,
             },
         )

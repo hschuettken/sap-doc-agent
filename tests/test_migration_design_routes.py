@@ -119,3 +119,54 @@ def test_api_validate_sql_with_violations():
     data = resp.json()
     assert data["is_valid"] is False
     assert len(data["violations"]) > 0
+
+
+# --- Report route tests ---
+
+
+def test_api_report_empty_project():
+    client = _get_client()
+    resp = client.get("/api/migration/projects/fake-id/report")
+    assert resp.status_code == 200
+    assert "<!DOCTYPE html>" in resp.text
+    assert "Migration Assessment Report" in resp.text
+
+
+def test_api_report_with_chain_data(tmp_path):
+    """Report endpoint loads chain + classified files and generates HTML."""
+    chains_dir = tmp_path / "chains"
+    chains_dir.mkdir()
+
+    from sap_doc_agent.migration.models import ClassifiedChain, IntentCard, MigrationClassification
+    from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+
+    chain = DataFlowChain(
+        chain_id="c1",
+        name="Test Chain",
+        terminal_object_id="T",
+        terminal_object_type=ObjectType.COMPOSITE,
+        source_object_ids=["S"],
+        steps=[ChainStep(position=1, object_id="TR1", object_type=ObjectType.TRANSFORMATION, name="Step 1")],
+        all_object_ids=["S", "TR1", "T"],
+    )
+    (chains_dir / "c1.json").write_text(chain.model_dump_json(indent=2))
+
+    classified = ClassifiedChain(
+        chain_id="c1",
+        intent_card=IntentCard(chain_id="c1", business_purpose="Test purpose"),
+        classification=MigrationClassification.MIGRATE,
+    )
+    (chains_dir / "c1_classified.json").write_text(classified.model_dump_json(indent=2))
+
+    client = _get_client(output_dir=str(tmp_path))
+    resp = client.get("/api/migration/projects/fake-id/report")
+    assert resp.status_code == 200
+    assert "c1" in resp.text
+    assert "Test purpose" in resp.text
+
+
+def test_ui_migration_report_page():
+    client = _get_client()
+    resp = client.get("/ui/migration/report")
+    assert resp.status_code == 200
+    assert "Migration Report" in resp.text

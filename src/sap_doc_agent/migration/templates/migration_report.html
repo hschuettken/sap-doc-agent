@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }} — Migration Assessment Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', -apple-system, sans-serif; color: #333; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        h1 { color: #05415A; font-size: 28px; border-bottom: 3px solid #C8963E; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #05415A; font-size: 22px; margin-top: 40px; margin-bottom: 16px; border-left: 4px solid #C8963E; padding-left: 12px; }
+        h3 { color: #353434; font-size: 18px; margin-top: 24px; margin-bottom: 12px; }
+        .report-header { background: #05415A; color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
+        .report-header h1 { color: white; border-bottom-color: #C8963E; }
+        .report-header .subtitle { color: #C8963E; font-size: 16px; margin-top: 8px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+        .summary-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .summary-card .number { font-size: 36px; font-weight: 700; color: #05415A; }
+        .summary-card .label { font-size: 14px; color: #666; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th { background: #05415A; color: white; padding: 12px 16px; text-align: left; font-weight: 600; font-size: 14px; }
+        td { padding: 10px 16px; border-bottom: 1px solid #eee; font-size: 14px; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f5f5f5; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .badge-migrate { background: #e3f2fd; color: #1565c0; }
+        .badge-simplify { background: #f3e5f5; color: #7b1fa2; }
+        .badge-replace { background: #fff3e0; color: #e65100; }
+        .badge-drop { background: #ffebee; color: #c62828; }
+        .badge-clarify { background: #fff8e1; color: #f57f17; }
+        .badge-trivial { background: #e8f5e9; color: #2e7d32; }
+        .badge-moderate { background: #fff3e0; color: #e65100; }
+        .badge-complex { background: #ffebee; color: #c62828; }
+        .badge-staging { background: #e0f7fa; color: #006064; }
+        .badge-harmonization { background: #e8eaf6; color: #283593; }
+        .badge-mart { background: #fce4ec; color: #880e4f; }
+        .badge-consumption { background: #f3e5f5; color: #4a148c; }
+        .section { background: white; border-radius: 8px; padding: 24px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .mermaid-container { background: white; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #e0e0e0; overflow-x: auto; }
+        .view-spec { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin: 12px 0; }
+        .view-spec h4 { color: #05415A; margin-bottom: 8px; font-family: monospace; }
+        .sql-block { background: #263238; color: #eeffff; padding: 16px; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 13px; overflow-x: auto; white-space: pre-wrap; margin: 8px 0; }
+        .classification-bar { display: flex; height: 24px; border-radius: 12px; overflow: hidden; margin: 12px 0; }
+        .classification-bar div { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; }
+        .bar-migrate { background: #1565c0; }
+        .bar-simplify { background: #7b1fa2; }
+        .bar-replace { background: #e65100; }
+        .bar-drop { background: #c62828; }
+        .bar-clarify { background: #f57f17; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 40px; padding: 20px; border-top: 1px solid #e0e0e0; }
+        @media print { body { background: white; } .section { box-shadow: none; border: 1px solid #ddd; } }
+    </style>
+</head>
+<body>
+
+<!-- Report Header -->
+<div class="report-header">
+    <h1>Migration Assessment Report</h1>
+    <div class="subtitle">{{ project_name }}</div>
+</div>
+
+<!-- 1. Executive Summary -->
+<h2>1. Executive Summary</h2>
+<div class="section">
+    <p><strong>Project:</strong> {{ project_name }}</p>
+    <p><strong>Total chains analyzed:</strong> {{ chain_count }}</p>
+
+    <div class="summary-grid">
+        {% for cls, count in classification_counts.items() %}
+        <div class="summary-card">
+            <div class="number">{{ count }}</div>
+            <div class="label"><span class="badge badge-{{ cls }}">{{ cls }}</span></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if chain_count > 0 %}
+    <h3>Classification Breakdown</h3>
+    <div class="classification-bar">
+        {% for cls, count in classification_counts.items() %}
+        <div class="bar-{{ cls }}" style="width: {{ (count / chain_count * 100)|round(1) }}%">
+            {{ cls }} ({{ count }})
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if effort_counts %}
+    <h3>Effort Distribution</h3>
+    <div class="summary-grid">
+        {% for cat, count in effort_counts.items() %}
+        <div class="summary-card">
+            <div class="number">{{ count }}</div>
+            <div class="label"><span class="badge badge-{{ cat }}">{{ cat }}</span></div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- 2. Source System Inventory -->
+<h2>2. Source System Inventory</h2>
+<div class="section">
+    <h3>Object Types</h3>
+    <table>
+        <thead><tr><th>Object Type</th><th>Count</th></tr></thead>
+        <tbody>
+        {% for otype, count in object_types.items() %}
+        <tr><td>{{ otype }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p><strong>Total objects in chains:</strong> {{ object_types.values()|sum }}</p>
+</div>
+
+<!-- 3. Chain Inventory -->
+<h2>3. Chain Inventory</h2>
+<div class="section">
+    <table>
+        <thead>
+            <tr>
+                <th>Chain ID</th>
+                <th>Name</th>
+                <th>Classification</th>
+                <th>Effort</th>
+                <th>Business Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for classified, chain in chains %}
+        <tr>
+            <td><code>{{ classified.chain_id }}</code></td>
+            <td>{{ chain.name or "—" }}</td>
+            <td><span class="badge badge-{{ classified.classification.value }}">{{ classified.classification.value }}</span></td>
+            <td>
+                {% if classified.chain_id in effort_by_chain %}
+                <span class="badge badge-{{ effort_by_chain[classified.chain_id].category.value }}">{{ effort_by_chain[classified.chain_id].category.value }}</span>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>{{ classified.intent_card.business_purpose[:100] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 4. Technical Debt Analysis -->
+<h2>4. Technical Debt Analysis</h2>
+<div class="section">
+    {% if drop_chains %}
+    <p><strong>{{ drop_chains|length }}</strong> chain(s) identified as technical debt (DROP or CLARIFY):</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Chain ID</th>
+                <th>Classification</th>
+                <th>Evidence</th>
+                <th>Business Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for classified, chain in drop_chains %}
+        <tr>
+            <td><code>{{ classified.chain_id }}</code></td>
+            <td><span class="badge badge-{{ classified.classification.value }}">{{ classified.classification.value }}</span></td>
+            <td>
+                {% if classified.last_execution %}Last run: {{ classified.last_execution }}{% endif %}
+                {% if classified.query_usage_count is not none %}Usage: {{ classified.query_usage_count }}{% endif %}
+                {% if classified.rationale %}{{ classified.rationale[:100] }}{% endif %}
+            </td>
+            <td>{{ classified.intent_card.business_purpose[:100] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No chains identified as technical debt.</p>
+    {% endif %}
+</div>
+
+<!-- 5. Target Architecture -->
+<h2>5. Target Architecture</h2>
+<div class="section">
+    {% if views %}
+    <h3>View Inventory by Layer</h3>
+    {% for layer, layer_views in views_by_layer.items() %}
+    <h4><span class="badge badge-{{ layer }}">{{ layer }}</span> ({{ layer_views|length }} views)</h4>
+    <table>
+        <thead>
+            <tr><th>Technical Name</th><th>Semantic Usage</th><th>Description</th><th>Persistence</th></tr>
+        </thead>
+        <tbody>
+        {% for v in layer_views %}
+        <tr>
+            <td><code>{{ v.technical_name }}</code></td>
+            <td>{{ v.semantic_usage }}</td>
+            <td>{{ v.description[:80] }}</td>
+            <td>{{ "Yes" if v.persistence else "No" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+
+    {% if architecture and architecture.migration_sequence %}
+    <h3>Migration Sequence</h3>
+    <table>
+        <thead><tr><th>#</th><th>View</th><th>Depends On</th><th>Effort</th><th>Notes</th></tr></thead>
+        <tbody>
+        {% for step in architecture.migration_sequence %}
+        <tr>
+            <td>{{ step.order }}</td>
+            <td><code>{{ step.view_name }}</code></td>
+            <td>{{ step.depends_on|join(", ") if step.depends_on else "—" }}</td>
+            <td><span class="badge badge-{{ step.effort }}">{{ step.effort }}</span></td>
+            <td>{{ step.notes[:80] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% else %}
+    <p>No target views designed yet.</p>
+    {% endif %}
+</div>
+
+<!-- 6. BRS Reconciliation -->
+{% if brs_reconciliation %}
+<h2>6. BRS Reconciliation</h2>
+<div class="section">
+    <p><strong>{{ brs_reconciliation|length }}</strong> BRS document(s) analyzed.</p>
+    {% for recon in brs_reconciliation %}
+    <div class="view-spec">
+        <h4>{{ recon.get("brs_document", "Unknown") }}</h4>
+        {% if recon.get("deltas") %}
+        <ul>
+        {% for delta in recon["deltas"] %}
+        <li><strong>{{ delta.get("delta_type", "") }}:</strong> {{ delta.get("delta", "") }}</li>
+        {% endfor %}
+        </ul>
+        {% else %}
+        <p>No deltas found.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 7. Effort Estimation -->
+<h2>7. Effort Estimation</h2>
+<div class="section">
+    {% if effort_by_chain %}
+    <table>
+        <thead><tr><th>Chain</th><th>Category</th><th>Steps</th><th>ABAP Lines</th><th>Rationale</th></tr></thead>
+        <tbody>
+        {% for chain_id, e in effort_by_chain.items() %}
+        <tr>
+            <td><code>{{ chain_id }}</code></td>
+            <td><span class="badge badge-{{ e.category.value }}">{{ e.category.value }}</span></td>
+            <td>{{ e.step_count }}</td>
+            <td>{{ e.abap_line_count }}</td>
+            <td>{{ e.rationale }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No effort estimates available.</p>
+    {% endif %}
+</div>
+
+<!-- 8. Before/After Diagrams -->
+{% if diagrams %}
+<h2>8. Before/After Diagrams</h2>
+<div class="section">
+    {% for chain_id, mermaid_code in diagrams.items() %}
+    <h3>{{ chain_id }}</h3>
+    <div class="mermaid-container">
+        <pre class="mermaid">{{ mermaid_code }}</pre>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 9. Appendix: View Specifications -->
+{% if views %}
+<h2>9. Appendix: View Specifications</h2>
+<div class="section">
+    {% for v in views %}
+    <div class="view-spec">
+        <h4>{{ v.technical_name }}</h4>
+        <p><strong>Layer:</strong> <span class="badge badge-{{ v.layer }}">{{ v.layer }}</span>
+        | <strong>Usage:</strong> {{ v.semantic_usage }}
+        | <strong>Persistence:</strong> {{ "Yes" if v.persistence else "No" }}</p>
+        <p>{{ v.description }}</p>
+        {% if v.collapse_rationale %}
+        <p><em>Collapse rationale:</em> {{ v.collapse_rationale }}</p>
+        {% endif %}
+        {% if v.collapsed_bw_steps %}
+        <p><strong>Replaces BW steps:</strong> {{ v.collapsed_bw_steps|join(", ") }}</p>
+        {% endif %}
+        {% if v.source_chains %}
+        <p><strong>Source chains:</strong> {{ v.source_chains|join(", ") }}</p>
+        {% endif %}
+        {% if v.columns %}
+        <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Measure</th><th>Source</th></tr></thead>
+            <tbody>
+            {% for col in v.columns %}
+            <tr>
+                <td><code>{{ col.name }}</code></td>
+                <td>{{ col.data_type }}</td>
+                <td>{{ "Yes" if col.is_key else "" }}</td>
+                <td>{{ "Yes" if col.is_measure else "" }}</td>
+                <td>{{ col.source_field }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 10. Appendix: Generated SQL -->
+{% if generated_sql %}
+<h2>10. Appendix: Generated SQL</h2>
+<div class="section">
+    {% for view_name, sql in generated_sql.items() %}
+    <h3>{{ view_name }}</h3>
+    <div class="sql-block">{{ sql }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Footer -->
+<div class="footer">
+    <p>Generated by SAP Doc Agent — Migration Accelerator</p>
+    <p>powered by Horv&aacute;th</p>
+</div>
+
+<!-- Mermaid rendering -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad: true, theme: 'neutral'});</script>
+
+</body>
+</html>
