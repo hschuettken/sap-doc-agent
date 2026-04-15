@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Browser Viewer{% endblock %}
+{% block page_title %}Live Browser Viewer{% endblock %}
+{% block content %}
+<div class="space-y-4">
+  <!-- Full Browser Viewer -->
+  <div id="browser-viewer-full" class="bg-gray-900 rounded-lg overflow-hidden shadow-lg">
+    <!-- Control Bar -->
+    <div class="flex items-center justify-between px-4 py-2 bg-gray-800 text-white text-sm">
+      <div class="flex items-center gap-3">
+        <!-- Connection Status -->
+        <span id="viewer-status" class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+          <span>Connected</span>
+        </span>
+        <!-- Current Task -->
+        <span id="viewer-task" class="text-gray-400">
+          {% if task_name %}Watching: {{ task_name }}{% else %}Idle{% endif %}
+        </span>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Viewer Count -->
+        <span id="viewer-count" class="text-gray-400">{{ viewer_count }} watching</span>
+        <!-- Fullscreen Button -->
+        <button onclick="toggleFullscreen()" class="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs font-medium transition">Fullscreen</button>
+        <!-- Mini Button -->
+        <button onclick="togglePiP()" class="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs font-medium transition">Mini</button>
+      </div>
+    </div>
+    <!-- noVNC Iframe -->
+    <iframe id="vnc-iframe"
+            src="{{ novnc_url }}"
+            class="w-full border-0"
+            style="height: 720px;"
+            allow="clipboard-read; clipboard-write">
+    </iframe>
+  </div>
+</div>
+
+<!-- Picture-in-Picture Mini Viewer -->
+<div id="pip-viewer" class="fixed bottom-4 right-4 z-50 hidden">
+  <div class="bg-gray-900 rounded-lg shadow-2xl overflow-hidden" style="width: 320px;">
+    <!-- PiP Control Bar -->
+    <div class="flex items-center justify-between px-3 py-1.5 bg-gray-800 text-white text-xs cursor-move" id="pip-header">
+      <span>Browser Stream</span>
+      <div class="flex items-center gap-2">
+        <span id="pip-count" class="text-gray-400">{{ viewer_count }}</span>
+        <button onclick="expandFromPiP()" class="hover:text-blue-400 transition" title="Expand">&#x2197;</button>
+        <button onclick="closePiP()" class="hover:text-red-400 transition" title="Close">&times;</button>
+      </div>
+    </div>
+    <!-- PiP noVNC Iframe -->
+    <iframe id="pip-iframe"
+            src=""
+            class="w-full border-0"
+            style="height: 180px;">
+    </iframe>
+  </div>
+</div>
+
+<script>
+/**
+ * Toggle fullscreen mode for the main viewer
+ */
+function toggleFullscreen() {
+  const iframe = document.getElementById('vnc-iframe');
+  if (iframe.requestFullscreen) {
+    iframe.requestFullscreen().catch(err => {
+      console.warn('Fullscreen request failed:', err);
+    });
+  }
+}
+
+/**
+ * Minimize to picture-in-picture mode
+ */
+function togglePiP() {
+  const full = document.getElementById('browser-viewer-full');
+  const pip = document.getElementById('pip-viewer');
+  const pipIframe = document.getElementById('pip-iframe');
+
+  full.classList.add('hidden');
+  pipIframe.src = "{{ novnc_url }}";
+  pip.classList.remove('hidden');
+
+  // Make PiP draggable (basic implementation)
+  makeDraggable('pip-viewer', 'pip-header');
+}
+
+/**
+ * Expand from PiP back to full viewer
+ */
+function expandFromPiP() {
+  const full = document.getElementById('browser-viewer-full');
+  const pip = document.getElementById('pip-viewer');
+  const pipIframe = document.getElementById('pip-iframe');
+
+  pip.classList.add('hidden');
+  pipIframe.src = '';
+  full.classList.remove('hidden');
+}
+
+/**
+ * Close PiP viewer completely
+ */
+function closePiP() {
+  const pip = document.getElementById('pip-viewer');
+  const pipIframe = document.getElementById('pip-iframe');
+
+  pip.classList.add('hidden');
+  pipIframe.src = '';
+}
+
+/**
+ * Make an element draggable by a header
+ */
+function makeDraggable(elementId, headerId) {
+  const elem = document.getElementById(elementId);
+  const header = document.getElementById(headerId);
+
+  if (!header) return;
+
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+  header.onmousedown = dragMouseDown;
+
+  function dragMouseDown(e) {
+    e.preventDefault();
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDragElement;
+    document.onmousemove = elementDrag;
+  }
+
+  function elementDrag(e) {
+    e.preventDefault();
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    elem.style.top = (elem.offsetTop - pos2) + "px";
+    elem.style.left = (elem.offsetLeft - pos1) + "px";
+  }
+
+  function closeDragElement() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
+}
+
+/**
+ * Poll for active factory tasks every 10 seconds
+ * Auto-minimize to PiP if a task is running and full viewer is visible
+ */
+setInterval(function() {
+  fetch('/api/factory/active')
+    .then(r => r.json())
+    .then(data => {
+      const full = document.getElementById('browser-viewer-full');
+      const pip = document.getElementById('pip-viewer');
+
+      if (data.active && !full.classList.contains('hidden')) {
+        // Task is active and viewer is full — auto-minimize to PiP
+        togglePiP();
+      } else if (!data.active && !pip.classList.contains('hidden')) {
+        // Task is idle and viewer is PiP — optionally could expand
+        // (commented out to not interrupt user)
+        // expandFromPiP();
+      }
+
+      // Update task name if provided
+      if (data.task_name) {
+        document.getElementById('viewer-task').textContent = 'Watching: ' + data.task_name;
+      }
+    })
+    .catch(err => {
+      console.debug('Factory status poll error:', err);
+    });
+}, 10000);
+
+// Initialize on page load
+window.addEventListener('load', function() {
+  console.log('Browser viewer initialized');
+});
+</script>
+{% endblock %}
