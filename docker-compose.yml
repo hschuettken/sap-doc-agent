@@ -1,7 +1,6 @@
 services:
   web:
     build: .
-    entrypoint: ["/app/entrypoint.sh"]
     command: uvicorn spec2sphere.web.server:create_app --factory --host 0.0.0.0 --port 8080
     ports:
       - "8260:8080"
