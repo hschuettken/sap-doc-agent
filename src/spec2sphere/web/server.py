@@ -63,6 +63,34 @@ class ScanRequest(BaseModel):
     scanner: str = Field("all", description="Scanner type: cdp, api, abap, or all")
 
 
+async def _register_with_oracle() -> None:
+    """Best-effort Oracle registration."""
+    import httpx
+
+    try:
+        manifest = {
+            "service_name": "spec2sphere",
+            "port": 8260,
+            "description": "SAP Datasphere documentation agent — scanners, audit, knowledge engine",
+            "endpoints": [
+                {"method": "GET", "path": "/health", "purpose": "Health check"},
+                {"method": "GET", "path": "/objects", "purpose": "List DSP objects"},
+                {"method": "GET", "path": "/docs/{object_id}", "purpose": "Object documentation HTML"},
+                {"method": "POST", "path": "/audit", "purpose": "Run audit on documents"},
+                {"method": "POST", "path": "/scan/start", "purpose": "Start scanner"},
+                {"method": "GET", "path": "/scan/status", "purpose": "Scanner status"},
+            ],
+            "nats_subjects": [],
+            "source_paths": [
+                {"repo": "sap-doc-agent", "paths": ["src/spec2sphere/"]},
+            ],
+        }
+        async with httpx.AsyncClient(timeout=5) as c:
+            await c.post("http://192.168.0.50:8225/oracle/register", json=manifest)
+    except Exception:
+        pass
+
+
 def create_app(
     output_dir: str = "output",
     horvath_standard_path: str = "standards/horvath/documentation_standard.yaml",
@@ -75,6 +103,10 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
         """Startup: ensure tables, bootstrap single-tenant, configure modules."""
+        import asyncio
+
+        asyncio.create_task(_register_with_oracle())
+
         # 1. Ensure scanner tables
         try:
             from spec2sphere.db import ensure_tables
