@@ -51,6 +51,13 @@ CHECKLISTS = {
         {"key": "persistence_decided", "label": "Persistence decisions documented", "required": True},
         {"key": "naming_compliant", "label": "Naming conventions compliant", "required": True},
     ],
+    "sac_blueprint": [
+        {"key": "pages_complete", "label": "All pages and widgets defined", "required": True},
+        {"key": "artifact_type_justified", "label": "Story/App/Widget decision justified", "required": True},
+        {"key": "interactions_defined", "label": "Filters and navigation defined", "required": True},
+        {"key": "design_tokens_applied", "label": "Design tokens applied correctly", "required": True},
+        {"key": "performance_acceptable", "label": "Performance classification acceptable", "required": False},
+    ],
 }
 
 # Map artifact_type to the DB table that holds the artifact and its status column

@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}Test Spec — Spec2Sphere{% endblock %}
+{% block page_title %}Test Specification{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-5">
+
+  <!-- Back link -->
+  <a href="/ui/pipeline"
+     hx-get="/ui/pipeline"
+     hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+     class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-petrol">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Pipeline
+  </a>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if test_spec %}
+  {% set status = test_spec.status or 'draft' %}
+  {% set test_mode = test_spec.test_mode or 'preservation' %}
+  {% set dsp_tests = test_cases.dsp_tests if (test_cases and test_cases.dsp_tests is defined) else [] %}
+  {% set sac_tests = test_cases.sac_tests if (test_cases and test_cases.sac_tests is defined) else [] %}
+  {% set dev_copy_commands = test_cases.dev_copy_commands if (test_cases and test_cases.dev_copy_commands is defined) else [] %}
+  {% set golden_queries = test_cases.golden_queries if (test_cases and test_cases.golden_queries is defined) else [] %}
+  {% set all_tests = dsp_tests + sac_tests %}
+
+  <!-- ── Header card ────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5 border-l-4
+    {% if status == 'approved' %}border-green-400
+    {% elif status == 'pending_review' %}border-amber-400
+    {% elif status == 'rejected' %}border-red-400
+    {% else %}border-petrol{% endif %}">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h2 class="font-heading text-xl text-charcoal">Test Specification</h2>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+            {% if status == 'approved' %}bg-green-100 text-green-700
+            {% elif status == 'pending_review' %}bg-amber-100 text-amber-700
+            {% elif status == 'rejected' %}bg-red-100 text-red-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ status | replace('_', ' ') }}
+          </span>
+          <span class="text-sm bg-gray-100 text-gray-500 px-2 py-0.5 rounded">v{{ test_spec.version or 1 }}</span>
+          <!-- Test mode badge -->
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium
+            {{ 'bg-blue-100 text-blue-700' if test_mode == 'preservation' else 'bg-purple-100 text-purple-700' }}">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {% if test_mode == 'preservation' %}
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              {% else %}
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              {% endif %}
+            </svg>
+            {{ test_mode | capitalize }}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-1.5 text-sm text-gray-500">
+          {% if test_spec.tech_spec_id %}
+          <span>
+            Tech Spec:
+            <a href="/ui/pipeline/techspec/{{ test_spec.tech_spec_id }}"
+               hx-get="/ui/pipeline/techspec/{{ test_spec.tech_spec_id }}"
+               hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+               class="text-petrol hover:underline">{{ test_spec.tech_spec_id }}</a>
+          </span>
+          {% endif %}
+          {% if test_spec.created_at %}
+          <span class="text-gray-400">{{ test_spec.created_at[:10] }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Summary stats ──────────────────────────────────────────────── -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+      <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Tests</p>
+      <p class="text-2xl font-heading text-charcoal mt-1">{{ all_tests | length }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-blue-100">
+      <p class="text-xs text-blue-600 uppercase font-semibold tracking-wide">DSP Tests</p>
+      <p class="text-2xl font-heading text-blue-700 mt-1">{{ dsp_tests | length }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-amber-100">
+      <p class="text-xs text-amber-600 uppercase font-semibold tracking-wide">SAC Tests</p>
+      <p class="text-2xl font-heading text-amber-700 mt-1">{{ sac_tests | length }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-petrol/20">
+      <p class="text-xs text-petrol uppercase font-semibold tracking-wide">Golden Queries</p>
+      <p class="text-2xl font-heading text-petrol mt-1">{{ golden_queries | length }}</p>
+    </div>
+  </div>
+
+  <!-- ── Test case browser ──────────────────────────────────────────── -->
+  {% if all_tests %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-gray-800">Test Cases</h3>
+      <span class="text-xs text-gray-400">{{ all_tests | length }} total</span>
+    </div>
+
+    <!-- Category filter tabs -->
+    {% set categories = all_tests | map(attribute='category') | select | unique | list %}
+    <div class="flex flex-wrap gap-2 mb-4" id="test-category-tabs">
+      <button onclick="filterTests('all')" id="cat-all"
+              class="px-3 py-1.5 rounded-full text-xs font-medium bg-petrol text-white">
+        All ({{ all_tests | length }})
+      </button>
+      {% for cat in categories %}
+      {% set cat_count = all_tests | selectattr('category', 'equalto', cat) | list | length %}
+      <button onclick="filterTests('{{ cat }}')" id="cat-{{ cat | replace(' ', '-') }}"
+              class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+        {{ cat | replace('_', ' ') | title }} ({{ cat_count }})
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Test cards -->
+    <div id="test-cards" class="space-y-3">
+      {% for test in all_tests %}
+      {% set category = test.category if test is mapping else '' %}
+      {% set platform = 'dsp' if test in dsp_tests else 'sac' %}
+      <div class="test-card border border-gray-200 rounded-lg overflow-hidden"
+           data-category="{{ category }}">
+        <!-- Card header -->
+        <div class="flex items-start justify-between px-4 py-3 bg-gray-50 cursor-pointer"
+             onclick="toggleTestCard(this)">
+          <div class="flex items-start gap-3 flex-1 min-w-0">
+            <div class="flex-shrink-0 mt-0.5">
+              {% if platform == 'dsp' %}
+              <span class="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5"></span>
+              {% else %}
+              <span class="inline-block w-2 h-2 rounded-full bg-amber-500 mt-1.5"></span>
+              {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <code class="text-xs text-gray-400 font-mono">{{ test.test_id if test is mapping else '?' }}</code>
+                <span class="font-medium text-sm text-charcoal">{{ test.title if test is mapping else test }}</span>
+              </div>
+              <div class="flex items-center gap-2 mt-1 flex-wrap">
+                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
+                  {% if category == 'structural' %}bg-blue-100 text-blue-700
+                  {% elif category == 'volume' %}bg-indigo-100 text-indigo-700
+                  {% elif category == 'aggregate' %}bg-purple-100 text-purple-700
+                  {% elif category == 'edge_case' %}bg-orange-100 text-orange-700
+                  {% elif category == 'sample_trace' %}bg-teal-100 text-teal-700
+                  {% elif category == 'data_regression' %}bg-red-100 text-red-600
+                  {% elif category == 'visual' %}bg-pink-100 text-pink-700
+                  {% elif category == 'interaction' %}bg-yellow-100 text-yellow-700
+                  {% elif category == 'design_rule' %}bg-gray-200 text-gray-700
+                  {% else %}bg-gray-100 text-gray-500{% endif %}">
+                  {{ category | replace('_', ' ') }}
+                </span>
+                {% if test is mapping and test.get('object_name') %}
+                <span class="text-xs text-gray-400 font-mono">{{ test.object_name }}</span>
+                {% endif %}
+                {% if platform == 'dsp' %}
+                <span class="inline-block px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-600 border border-blue-200">DSP</span>
+                {% else %}
+                <span class="inline-block px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-600 border border-amber-200">SAC</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+        <!-- Card body (expandable) -->
+        <div class="test-card-body hidden px-4 py-3 space-y-3 border-t border-gray-100">
+          {% if test is mapping and test.get('query') %}
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-semibold mb-1.5">Query</p>
+            <pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded overflow-x-auto leading-relaxed">{{ test.query }}</pre>
+          </div>
+          {% endif %}
+          {% if test is mapping and test.get('expected_value') is not none %}
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 uppercase font-semibold">Expected</span>
+            <code class="text-sm font-mono text-green-700 bg-green-50 px-2 py-0.5 rounded">{{ test.expected_value }}</code>
+          </div>
+          {% endif %}
+          {% if test is mapping and test.get('tolerance_rule') %}
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 uppercase font-semibold">Tolerance</span>
+            <span class="text-xs text-gray-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">{{ test.tolerance_rule }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Tolerance settings ─────────────────────────────────────────── -->
+  {% if test_spec.tolerance_settings is defined and test_spec.tolerance_settings %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Tolerance Settings</h3>
+    <form hx-put="/ui/pipeline/testspec/{{ test_spec.id }}/tolerances"
+          hx-target="#tolerance-save-msg"
+          hx-swap="innerHTML">
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Value</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for cat, settings in test_spec.tolerance_settings.items() %}
+            <tr>
+              <td class="px-4 py-2.5 font-medium text-charcoal capitalize">{{ cat | replace('_', ' ') }}</td>
+              <td class="px-4 py-2.5">
+                <select name="tol_type_{{ cat }}"
+                        class="rounded border border-gray-300 px-2 py-1 text-xs focus:ring-petrol">
+                  {% for opt in ['absolute', 'relative', 'exact', 'regex'] %}
+                  <option value="{{ opt }}" {{ 'selected' if settings.get('type') == opt else '' }}>{{ opt }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td class="px-4 py-2.5">
+                <input type="text" name="tol_value_{{ cat }}"
+                       value="{{ settings.get('value', '') }}"
+                       class="rounded border border-gray-300 px-2 py-1 text-xs w-24 focus:ring-petrol">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="submit"
+                class="bg-petrol text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-petrol-light">
+          Save Tolerances
+        </button>
+        <span id="tolerance-save-msg" class="text-xs text-gray-500"></span>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- ── Expected deltas (improvement mode) ────────────────────────── -->
+  {% if test_mode == 'improvement' and test_spec.expected_deltas is defined and test_spec.expected_deltas %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <h3 class="font-semibold text-sm text-gray-800">Expected Deltas <span class="text-xs font-normal text-purple-600">(Improvement Mode)</span></h3>
+    </div>
+    <div class="space-y-3">
+      {% for delta in test_spec.expected_deltas %}
+      <div class="flex items-start gap-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
+        <svg class="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <div>
+          <p class="text-sm font-medium text-charcoal">{{ delta.name if delta is mapping else delta }}</p>
+          {% if delta is mapping and delta.get('explanation') %}
+          <p class="text-xs text-gray-600 mt-0.5">{{ delta.explanation }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Dev copy commands ──────────────────────────────────────────── -->
+  {% if dev_copy_commands %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <h3 class="font-semibold text-sm text-gray-800">Dev Copy Commands</h3>
+    </div>
+    <div class="space-y-4">
+      {% for cmd in dev_copy_commands %}
+      {% set cmd_name = cmd.name if cmd is mapping else 'Command ' ~ loop.index %}
+      {% set cmd_sql = cmd.sql if cmd is mapping else cmd %}
+      <div class="rounded-lg border border-gray-200 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 bg-gray-800">
+          <span class="text-xs font-mono text-gray-300">{{ cmd_name }}</span>
+          <button onclick="copyToClipboard(this, 'cmd-{{ loop.index }}')"
+                  class="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre id="cmd-{{ loop.index }}" class="bg-gray-900 text-green-400 text-xs p-4 overflow-x-auto leading-relaxed m-0">{{ cmd_sql }}</pre>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Golden query catalog ──────────────────────────────────────── -->
+  {% if golden_queries %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+        <h3 class="font-semibold text-sm text-gray-800">Golden Query Catalog</h3>
+      </div>
+      <span class="text-xs text-gray-400">{{ golden_queries | length }} quer{% if golden_queries | length == 1 %}y{% else %}ies{% endif %}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Expected Behavior</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">SQL</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for gq in golden_queries %}
+          {% set gq_name = gq.name if gq is mapping else 'Query ' ~ loop.index %}
+          {% set gq_cat = gq.category if gq is mapping else '' %}
+          {% set gq_sql = gq.sql if gq is mapping else gq %}
+          {% set gq_behavior = gq.expected_behavior if (gq is mapping and gq.get('expected_behavior')) else '' %}
+          <tr class="hover:bg-gray-50 align-top">
+            <td class="px-4 py-3 font-medium text-charcoal">{{ gq_name }}</td>
+            <td class="px-4 py-3">
+              {% if gq_cat %}
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-petrol/10 text-petrol">{{ gq_cat | replace('_', ' ') }}</span>
+              {% else %}
+              <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-600 max-w-xs">{{ gq_behavior or '—' }}</td>
+            <td class="px-4 py-3">
+              {% if gq_sql %}
+              <details class="cursor-pointer">
+                <summary class="text-xs text-petrol hover:underline list-none inline-flex items-center gap-1">
+                  View SQL
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <pre class="mt-2 bg-gray-900 text-gray-100 text-xs p-3 rounded overflow-x-auto leading-relaxed max-w-lg">{{ gq_sql }}</pre>
+              </details>
+              {% else %}
+              <span class="text-gray-400 text-xs">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}{# end if test_spec #}
+
+</div>
+
+<script>
+// ── Test card expand/collapse ─────────────────────────────────────────
+function toggleTestCard(header) {
+  const card = header.closest('.test-card');
+  const body = card.querySelector('.test-card-body');
+  const chevron = header.querySelector('svg');
+  if (!body) return;
+  const hidden = body.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+}
+
+// ── Category filter ───────────────────────────────────────────────────
+function filterTests(category) {
+  // Update button styles
+  document.querySelectorAll('#test-category-tabs button').forEach(btn => {
+    const isActive = btn.id === 'cat-all' ? category === 'all' : btn.id === 'cat-' + category.replace(/ /g, '-');
+    btn.className = isActive
+      ? 'px-3 py-1.5 rounded-full text-xs font-medium bg-petrol text-white'
+      : 'px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200';
+  });
+  // Show/hide cards
+  document.querySelectorAll('.test-card').forEach(card => {
+    const cardCat = card.dataset.category || '';
+    card.style.display = (category === 'all' || cardCat === category) ? '' : 'none';
+  });
+}
+
+// ── Copy to clipboard ─────────────────────────────────────────────────
+function copyToClipboard(btn, preId) {
+  const pre = document.getElementById(preId);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Copied!';
+    btn.className = 'text-xs text-green-400 flex items-center gap-1.5 transition-colors';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.className = 'text-xs text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors';
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

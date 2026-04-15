@@ -55,11 +55,16 @@ PIPELINE_STAGES = [
         "url": "/ui/pipeline/architecture",
         "icon": "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z",
     },
-    {"key": "tech_spec", "label": "Tech Spec", "url": "#", "icon": "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"},
+    {
+        "key": "tech_spec",
+        "label": "Tech Spec",
+        "url": "/ui/pipeline/techspec",
+        "icon": "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4",
+    },
     {
         "key": "test_spec",
         "label": "Test Spec",
-        "url": "#",
+        "url": "/ui/pipeline/testspec",
         "icon": "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
     },
     {
@@ -488,6 +493,8 @@ def create_pipeline_routes() -> APIRouter:
         approval: Optional[dict] = None
         placements: list[dict] = []
         versions: list[dict] = []
+        tech_specs: list[dict] = []
+        blueprints: list[dict] = []
         error: Optional[str] = None
 
         try:
@@ -529,6 +536,24 @@ def create_pipeline_routes() -> APIRouter:
                 except Exception:
                     pass
 
+                # Tech specs generated from this HLA
+                try:
+                    from spec2sphere.pipeline.tech_spec_generator import list_tech_specs
+
+                    all_ts = await list_tech_specs(ctx)
+                    tech_specs = [_str_ids(ts) or ts for ts in all_ts if str(ts.get("hla_id", "")) == hla_id]
+                except Exception:
+                    pass
+
+                # SAC blueprints generated from this HLA
+                try:
+                    from spec2sphere.pipeline.blueprint_generator import list_blueprints
+
+                    all_bp = await list_blueprints(ctx)
+                    blueprints = [_str_ids(bp) or bp for bp in all_bp if str(bp.get("hla_id", "")) == hla_id]
+                except Exception:
+                    pass
+
         except Exception as exc:
             logger.warning("HLA detail error: %s", exc)
             error = str(exc)
@@ -549,6 +574,8 @@ def create_pipeline_routes() -> APIRouter:
                 "approval": approval,
                 "placements": placements,
                 "versions": versions,
+                "tech_specs": tech_specs,
+                "blueprints": blueprints,
                 "checklist_template": checklist_template,
                 "error": error,
             },
@@ -851,5 +878,491 @@ def create_pipeline_routes() -> APIRouter:
         except Exception as exc:
             logger.warning("Mark read %s failed: %s", notif_id, exc)
         return HTMLResponse("")
+
+    # ── Tech Spec ─────────────────────────────────────────────────────────────
+
+    @router.get("/ui/pipeline/techspec", response_class=HTMLResponse)
+    async def techspec_list(request: Request):
+        """List tech specs."""
+        tech_specs: list[dict] = []
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.tech_spec_generator import list_tech_specs  # noqa: PLC0415
+
+            tech_specs = await list_tech_specs(ctx)
+            for ts in tech_specs:
+                _str_ids(ts)
+        except Exception as exc:
+            logger.warning("Tech spec list error: %s", exc)
+            error = str(exc)
+
+        rows_html = ""
+        for ts in tech_specs:
+            ts_id = ts.get("id", "")
+            title = ts.get("title") or ts.get("name") or ts_id
+            status = ts.get("status", "draft")
+            badge = _status_badge(status)
+            rows_html += (
+                f'<tr class="hover:bg-gray-50 cursor-pointer" '
+                f'    hx-get="/ui/pipeline/techspec/{ts_id}" '
+                f'    hx-target="#content" hx-push-url="true" hx-select="#content-inner">'
+                f'  <td class="px-4 py-3 text-sm font-medium text-gray-900">{title}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-500">{badge}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-400">{ts.get("created_at", "")[:10]}</td>'
+                f"</tr>"
+            )
+        if not rows_html:
+            rows_html = (
+                '<tr><td colspan="3" class="px-4 py-6 text-center text-sm text-gray-400">'
+                + (f"Error: {error}" if error else "No tech specs yet.")
+                + "</td></tr>"
+            )
+
+        html = (
+            '<div id="content-inner" class="p-6">'
+            '<div class="flex items-center justify-between mb-6">'
+            '<h2 class="font-heading text-xl text-gray-900">Tech Specs</h2>'
+            "</div>"
+            '<div class="bg-white rounded-lg shadow-sm overflow-hidden">'
+            '<table class="w-full text-left">'
+            "<thead><tr>"
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</th>'
+            "</tr></thead>"
+            f"<tbody>{rows_html}</tbody>"
+            "</table></div></div>"
+        )
+        return HTMLResponse(html)
+
+    @router.get("/ui/pipeline/techspec/{ts_id}", response_class=HTMLResponse)
+    async def techspec_detail(ts_id: str, request: Request):
+        """Tech spec detail with technical objects and approval panel."""
+        tech_spec: Optional[dict] = None
+        objects: list[dict] = []
+        approval: Optional[dict] = None
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.tech_spec_generator import get_tech_spec, get_technical_objects  # noqa: PLC0415
+            from spec2sphere.governance.approvals import get_approval_for_artifact, CHECKLISTS  # noqa: PLC0415
+
+            tech_spec = await get_tech_spec(ts_id)
+            if tech_spec:
+                _str_ids(tech_spec)
+                tech_spec["objects"] = _safe_json(tech_spec.get("objects"))
+                tech_spec["dependency_graph"] = _safe_json(tech_spec.get("dependency_graph"))
+                tech_spec["deployment_order"] = _safe_json(tech_spec.get("deployment_order"))
+
+                objects = await get_technical_objects(ts_id)
+                for obj in objects:
+                    _str_ids(obj)
+                    obj["definition"] = _safe_json(obj.get("definition"))
+
+                try:
+                    approval = await get_approval_for_artifact("tech_spec", ts_id)
+                    if approval:
+                        _str_ids(approval)
+                        approval["checklist"] = _safe_json(approval.get("checklist"))
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.warning("Tech spec detail error: %s", exc)
+            error = str(exc)
+
+        if tech_spec is None and not error:
+            error = "Tech spec not found"
+
+        from spec2sphere.governance.approvals import CHECKLISTS  # noqa: PLC0415
+
+        checklist_template = CHECKLISTS.get("tech_spec", [])
+
+        return _render(
+            request,
+            "partials/techspec.html",
+            {
+                "active_page": "pipeline",
+                "tech_spec": tech_spec,
+                "objects": objects,
+                "approval": approval,
+                "checklist_template": checklist_template,
+                "error": error,
+            },
+        )
+
+    @router.post("/ui/pipeline/techspec/{hla_id}/generate", response_class=HTMLResponse)
+    async def generate_techspec_route(hla_id: str, request: Request):
+        """Generate a tech spec from an approved HLA."""
+        try:
+            ctx = await _get_ctx()
+            llm = _get_llm()
+            from spec2sphere.pipeline.tech_spec_generator import generate_tech_spec  # noqa: PLC0415
+
+            result = await generate_tech_spec(hla_id, ctx, llm)
+            ts_id = result.get("tech_spec_id", "") if isinstance(result, dict) else str(result)
+            return HTMLResponse(
+                f'<div class="p-3 bg-green-50 border border-green-200 rounded-lg">'
+                f'<p class="text-sm font-medium text-green-700">Tech spec generated.</p>'
+                f'<a href="/ui/pipeline/techspec/{ts_id}" '
+                f'   hx-get="/ui/pipeline/techspec/{ts_id}" '
+                f'   hx-target="#content" hx-push-url="true" hx-select="#content-inner" '
+                f'   class="text-xs text-petrol underline mt-1 inline-block">View Tech Spec →</a>'
+                f"</div>"
+            )
+        except Exception as exc:
+            logger.error("Tech spec generation for HLA %s failed: %s", hla_id, exc)
+            return HTMLResponse(
+                f'<div class="p-3 bg-red-50 border border-red-200 rounded-lg">'
+                f'<p class="text-sm text-red-700">Tech spec generation failed: {exc}</p>'
+                f"</div>"
+            )
+
+    @router.post("/ui/pipeline/techspec/{ts_id}/submit-review", response_class=HTMLResponse)
+    async def submit_techspec_review(ts_id: str, request: Request):
+        """Submit tech spec for review."""
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.governance.approvals import submit_for_review  # noqa: PLC0415
+
+            approval = await submit_for_review(
+                artifact_type="tech_spec",
+                artifact_id=ts_id,
+                ctx=ctx,
+                reviewer_id=None,
+            )
+            _str_ids(approval)
+            approval_id = approval.get("id", "")
+            return HTMLResponse(
+                f'<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">'
+                f'<p class="text-sm font-medium text-amber-700">Tech spec submitted for review.</p>'
+                f'<a href="/ui/pipeline/approvals/{approval_id}" '
+                f'   hx-get="/ui/pipeline/approvals/{approval_id}" '
+                f'   hx-target="#content" hx-push-url="true" hx-select="#content-inner" '
+                f'   class="text-xs text-petrol underline mt-1 inline-block">View Approval →</a>'
+                f"</div>"
+            )
+        except Exception as exc:
+            return HTMLResponse(
+                f'<div class="p-3 bg-red-50 border border-red-200 rounded-lg">'
+                f'<p class="text-sm text-red-700">Submit failed: {exc}</p>'
+                f"</div>"
+            )
+
+    @router.post("/ui/pipeline/techspec/{ts_id}/generate-tests", response_class=HTMLResponse)
+    async def generate_tests_from_techspec(ts_id: str, request: Request):
+        """Generate a test spec from an approved tech spec."""
+        try:
+            ctx = await _get_ctx()
+            llm = _get_llm()
+            from spec2sphere.pipeline.test_spec_generator import generate_test_spec  # noqa: PLC0415
+
+            result = await generate_test_spec(ts_id, ctx, llm)
+            test_id = result.get("test_spec_id", "") if isinstance(result, dict) else str(result)
+            return HTMLResponse(
+                f'<div class="p-3 bg-green-50 border border-green-200 rounded-lg">'
+                f'<p class="text-sm font-medium text-green-700">Test spec generated.</p>'
+                f'<a href="/ui/pipeline/testspec/{test_id}" '
+                f'   hx-get="/ui/pipeline/testspec/{test_id}" '
+                f'   hx-target="#content" hx-push-url="true" hx-select="#content-inner" '
+                f'   class="text-xs text-petrol underline mt-1 inline-block">View Test Spec →</a>'
+                f"</div>"
+            )
+        except Exception as exc:
+            logger.error("Test spec generation for tech spec %s failed: %s", ts_id, exc)
+            return HTMLResponse(
+                f'<div class="p-3 bg-red-50 border border-red-200 rounded-lg">'
+                f'<p class="text-sm text-red-700">Test spec generation failed: {exc}</p>'
+                f"</div>"
+            )
+
+    # ── SAC Blueprint ─────────────────────────────────────────────────────────
+
+    @router.get("/ui/pipeline/blueprint", response_class=HTMLResponse)
+    async def blueprint_list(request: Request):
+        """List SAC blueprints."""
+        blueprints: list[dict] = []
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.blueprint_generator import list_blueprints  # noqa: PLC0415
+
+            blueprints = await list_blueprints(ctx)
+            for bp in blueprints:
+                _str_ids(bp)
+        except Exception as exc:
+            logger.warning("Blueprint list error: %s", exc)
+            error = str(exc)
+
+        rows_html = ""
+        for bp in blueprints:
+            bp_id = bp.get("id", "")
+            title = bp.get("title") or bp.get("name") or bp_id
+            status = bp.get("status", "draft")
+            badge = _status_badge(status)
+            rows_html += (
+                f'<tr class="hover:bg-gray-50 cursor-pointer" '
+                f'    hx-get="/ui/pipeline/blueprint/{bp_id}" '
+                f'    hx-target="#content" hx-push-url="true" hx-select="#content-inner">'
+                f'  <td class="px-4 py-3 text-sm font-medium text-gray-900">{title}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-500">{badge}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-400">{bp.get("created_at", "")[:10]}</td>'
+                f"</tr>"
+            )
+        if not rows_html:
+            rows_html = (
+                '<tr><td colspan="3" class="px-4 py-6 text-center text-sm text-gray-400">'
+                + (f"Error: {error}" if error else "No blueprints yet.")
+                + "</td></tr>"
+            )
+
+        html = (
+            '<div id="content-inner" class="p-6">'
+            '<div class="flex items-center justify-between mb-6">'
+            '<h2 class="font-heading text-xl text-gray-900">SAC Blueprints</h2>'
+            "</div>"
+            '<div class="bg-white rounded-lg shadow-sm overflow-hidden">'
+            '<table class="w-full text-left">'
+            "<thead><tr>"
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</th>'
+            "</tr></thead>"
+            f"<tbody>{rows_html}</tbody>"
+            "</table></div></div>"
+        )
+        return HTMLResponse(html)
+
+    @router.get("/ui/pipeline/blueprint/{bp_id}", response_class=HTMLResponse)
+    async def blueprint_detail(bp_id: str, request: Request):
+        """SAC blueprint detail with approval panel."""
+        blueprint: Optional[dict] = None
+        approval: Optional[dict] = None
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.blueprint_generator import get_blueprint  # noqa: PLC0415
+            from spec2sphere.governance.approvals import get_approval_for_artifact, CHECKLISTS  # noqa: PLC0415
+
+            blueprint = await get_blueprint(bp_id)
+            if blueprint:
+                _str_ids(blueprint)
+                blueprint["pages"] = _safe_json(blueprint.get("pages"))
+                blueprint["widgets"] = _safe_json(blueprint.get("widgets"))
+
+                try:
+                    approval = await get_approval_for_artifact("sac_blueprint", bp_id)
+                    if approval:
+                        _str_ids(approval)
+                        approval["checklist"] = _safe_json(approval.get("checklist"))
+                except Exception:
+                    pass
+        except Exception as exc:
+            logger.warning("Blueprint detail error: %s", exc)
+            error = str(exc)
+
+        if blueprint is None and not error:
+            error = "Blueprint not found"
+
+        from spec2sphere.governance.approvals import CHECKLISTS  # noqa: PLC0415
+
+        checklist_template = CHECKLISTS.get("sac_blueprint", [])
+
+        return _render(
+            request,
+            "partials/blueprint.html",
+            {
+                "active_page": "pipeline",
+                "blueprint": blueprint,
+                "approval": approval,
+                "checklist_template": checklist_template,
+                "error": error,
+            },
+        )
+
+    @router.post("/ui/pipeline/blueprint/{hla_id}/generate", response_class=HTMLResponse)
+    async def generate_blueprint_route(hla_id: str, request: Request):
+        """Generate an SAC blueprint from an approved HLA."""
+        try:
+            ctx = await _get_ctx()
+            llm = _get_llm()
+            from spec2sphere.pipeline.blueprint_generator import generate_blueprint  # noqa: PLC0415
+
+            result = await generate_blueprint(hla_id, ctx, llm)
+            bp_id = result.get("blueprint_id", "") if isinstance(result, dict) else str(result)
+            return HTMLResponse(
+                f'<div class="p-3 bg-green-50 border border-green-200 rounded-lg">'
+                f'<p class="text-sm font-medium text-green-700">SAC blueprint generated.</p>'
+                f'<a href="/ui/pipeline/blueprint/{bp_id}" '
+                f'   hx-get="/ui/pipeline/blueprint/{bp_id}" '
+                f'   hx-target="#content" hx-push-url="true" hx-select="#content-inner" '
+                f'   class="text-xs text-petrol underline mt-1 inline-block">View Blueprint →</a>'
+                f"</div>"
+            )
+        except Exception as exc:
+            logger.error("Blueprint generation for HLA %s failed: %s", hla_id, exc)
+            return HTMLResponse(
+                f'<div class="p-3 bg-red-50 border border-red-200 rounded-lg">'
+                f'<p class="text-sm text-red-700">Blueprint generation failed: {exc}</p>'
+                f"</div>"
+            )
+
+    @router.post("/ui/pipeline/blueprint/{bp_id}/submit-review", response_class=HTMLResponse)
+    async def submit_blueprint_review(bp_id: str, request: Request):
+        """Submit SAC blueprint for review."""
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.governance.approvals import submit_for_review  # noqa: PLC0415
+
+            approval = await submit_for_review(
+                artifact_type="sac_blueprint",
+                artifact_id=bp_id,
+                ctx=ctx,
+                reviewer_id=None,
+            )
+            _str_ids(approval)
+            approval_id = approval.get("id", "")
+            return HTMLResponse(
+                f'<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">'
+                f'<p class="text-sm font-medium text-amber-700">Blueprint submitted for review.</p>'
+                f'<a href="/ui/pipeline/approvals/{approval_id}" '
+                f'   hx-get="/ui/pipeline/approvals/{approval_id}" '
+                f'   hx-target="#content" hx-push-url="true" hx-select="#content-inner" '
+                f'   class="text-xs text-petrol underline mt-1 inline-block">View Approval →</a>'
+                f"</div>"
+            )
+        except Exception as exc:
+            return HTMLResponse(
+                f'<div class="p-3 bg-red-50 border border-red-200 rounded-lg">'
+                f'<p class="text-sm text-red-700">Submit failed: {exc}</p>'
+                f"</div>"
+            )
+
+    # ── Test Spec ─────────────────────────────────────────────────────────────
+
+    @router.get("/ui/pipeline/testspec", response_class=HTMLResponse)
+    async def testspec_list(request: Request):
+        """List test specs."""
+        test_specs: list[dict] = []
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.test_spec_generator import list_test_specs  # noqa: PLC0415
+
+            test_specs = await list_test_specs(ctx)
+            for ts in test_specs:
+                _str_ids(ts)
+        except Exception as exc:
+            logger.warning("Test spec list error: %s", exc)
+            error = str(exc)
+
+        rows_html = ""
+        for ts in test_specs:
+            ts_id = ts.get("id", "")
+            title = ts.get("title") or ts.get("name") or ts_id
+            status = ts.get("status", "draft")
+            badge = _status_badge(status)
+            rows_html += (
+                f'<tr class="hover:bg-gray-50 cursor-pointer" '
+                f'    hx-get="/ui/pipeline/testspec/{ts_id}" '
+                f'    hx-target="#content" hx-push-url="true" hx-select="#content-inner">'
+                f'  <td class="px-4 py-3 text-sm font-medium text-gray-900">{title}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-500">{badge}</td>'
+                f'  <td class="px-4 py-3 text-sm text-gray-400">{ts.get("created_at", "")[:10]}</td>'
+                f"</tr>"
+            )
+        if not rows_html:
+            rows_html = (
+                '<tr><td colspan="3" class="px-4 py-6 text-center text-sm text-gray-400">'
+                + (f"Error: {error}" if error else "No test specs yet.")
+                + "</td></tr>"
+            )
+
+        html = (
+            '<div id="content-inner" class="p-6">'
+            '<div class="flex items-center justify-between mb-6">'
+            '<h2 class="font-heading text-xl text-gray-900">Test Specs</h2>'
+            "</div>"
+            '<div class="bg-white rounded-lg shadow-sm overflow-hidden">'
+            '<table class="w-full text-left">'
+            "<thead><tr>"
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>'
+            '<th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</th>'
+            "</tr></thead>"
+            f"<tbody>{rows_html}</tbody>"
+            "</table></div></div>"
+        )
+        return HTMLResponse(html)
+
+    @router.get("/ui/pipeline/testspec/{ts_id}", response_class=HTMLResponse)
+    async def testspec_detail(ts_id: str, request: Request):
+        """Test spec detail."""
+        test_spec: Optional[dict] = None
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.pipeline.test_spec_generator import get_test_spec  # noqa: PLC0415
+
+            test_spec = await get_test_spec(ts_id)
+            if test_spec:
+                _str_ids(test_spec)
+                test_spec["test_cases"] = _safe_json(test_spec.get("test_cases"))
+                test_spec["tolerance_rules"] = _safe_json(test_spec.get("tolerance_rules"))
+        except Exception as exc:
+            logger.warning("Test spec detail error: %s", exc)
+            error = str(exc)
+
+        if test_spec is None and not error:
+            error = "Test spec not found"
+
+        return _render(
+            request,
+            "partials/testspec.html",
+            {
+                "active_page": "pipeline",
+                "test_spec": test_spec,
+                "error": error,
+            },
+        )
+
+    @router.put("/ui/pipeline/testspec/{ts_id}/tolerances", response_class=HTMLResponse)
+    async def update_testspec_tolerances(ts_id: str, request: Request):
+        """Update tolerance_rules JSONB on a test spec from form data."""
+        try:
+            form = await request.form()
+            import os
+            import asyncpg  # noqa: PLC0415
+
+            db_url = os.environ.get("DATABASE_URL", "")
+            pg_url = db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                "postgresql+asyncpg://", "postgresql://"
+            )
+
+            # Build tolerance_rules dict from form fields
+            tolerance_rules: dict = {}
+            for key, val in form.items():
+                tolerance_rules[key] = str(val)
+
+            conn = await asyncpg.connect(pg_url)
+            try:
+                await conn.execute(
+                    "UPDATE test_specs SET tolerance_rules = $1::jsonb WHERE id = $2::uuid",
+                    json.dumps(tolerance_rules),
+                    ts_id,
+                )
+            finally:
+                await conn.close()
+
+            return HTMLResponse('<p class="text-xs text-green-600 font-medium">Tolerance rules saved.</p>')
+        except Exception as exc:
+            logger.error("Update tolerances for test spec %s failed: %s", ts_id, exc)
+            return HTMLResponse(f'<p class="text-xs text-red-500">Save failed: {exc}</p>')
 
     return router

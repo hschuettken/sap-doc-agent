@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% block title %}{{ blueprint.title if blueprint else 'Blueprint' }} — Spec2Sphere{% endblock %}
+{% block page_title %}SAC Blueprint Detail{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-5">
+
+  <!-- Back link -->
+  <a href="/ui/pipeline"
+     hx-get="/ui/pipeline"
+     hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+     class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-petrol">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Pipeline
+  </a>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if blueprint %}
+  {% set status = blueprint.status or 'draft' %}
+  {% set audience = blueprint.audience or '' %}
+  {% set archetype = blueprint.archetype or '' %}
+  {% set artifact_type = blueprint.artifact_type or '' %}
+  {% set performance_class = blueprint.performance_class or '' %}
+
+  <!-- ── Header card ────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5 border-l-4
+    {% if status == 'approved' %}border-green-400
+    {% elif status == 'pending_review' %}border-amber-400
+    {% elif status == 'rejected' %}border-red-400
+    {% else %}border-petrol{% endif %}">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h2 class="font-heading text-xl text-charcoal">{{ blueprint.title or 'SAC Blueprint' }}</h2>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+            {% if status == 'approved' %}bg-green-100 text-green-700
+            {% elif status == 'pending_review' %}bg-amber-100 text-amber-700
+            {% elif status == 'rejected' %}bg-red-100 text-red-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ status | replace('_', ' ') }}
+          </span>
+          {% if performance_class %}
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium
+            {% if performance_class | lower == 'realtime' %}bg-red-100 text-red-700
+            {% elif performance_class | lower == 'near_realtime' %}bg-orange-100 text-orange-700
+            {% elif performance_class | lower == 'batch' %}bg-blue-100 text-blue-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ performance_class | replace('_', ' ') }}
+          </span>
+          {% endif %}
+        </div>
+        <div class="flex flex-wrap gap-4 mt-1.5 text-sm text-gray-500">
+          {% if audience %}<span>Audience: <strong class="text-gray-700">{{ audience }}</strong></span>{% endif %}
+          {% if archetype %}<span>Archetype: <strong class="text-gray-700">{{ archetype }}</strong></span>{% endif %}
+          {% if blueprint.created_at %}
+          <span class="text-gray-400">{{ blueprint.created_at[:10] }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <!-- Actions -->
+      <div id="blueprint-action-result" class="flex flex-wrap gap-2">
+        {% if status == 'draft' %}
+        <button hx-post="/ui/pipeline/blueprint/{{ blueprint.id }}/submit-review"
+                hx-target="#blueprint-action-result"
+                hx-swap="innerHTML"
+                class="bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent/90">
+          Submit for Review
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Dashboard metadata card ───────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Dashboard Metadata</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <!-- Artifact type decision -->
+      <div class="col-span-1 md:col-span-2 lg:col-span-1 p-4 rounded-lg bg-petrol/5 border border-petrol/10">
+        <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Artifact Type Decision</p>
+        <div class="flex items-center gap-2 mb-2">
+          {% if artifact_type | lower == 'story' %}
+          <svg class="w-5 h-5 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          {% elif artifact_type | lower == 'app' %}
+          <svg class="w-5 h-5 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          {% elif artifact_type | lower == 'widget' %}
+          <svg class="w-5 h-5 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+          {% else %}
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+          {% endif %}
+          <span class="font-semibold text-petrol capitalize">{{ artifact_type or 'Unknown' }}</span>
+        </div>
+        {% if blueprint.artifact_rationale %}
+        <p class="text-xs text-gray-600 leading-relaxed">{{ blueprint.artifact_rationale }}</p>
+        {% endif %}
+        {% if blueprint.artifact_confidence is not none %}
+        {% set conf = (blueprint.artifact_confidence * 100) | int if blueprint.artifact_confidence <= 1 else blueprint.artifact_confidence | int %}
+        <div class="mt-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-500">Confidence</span>
+            <span class="text-xs font-semibold {{ 'text-green-600' if conf >= 80 else ('text-amber-500' if conf >= 50 else 'text-red-500') }}">{{ conf }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-1.5">
+            <div class="h-1.5 rounded-full {{ 'bg-green-500' if conf >= 80 else ('bg-amber-400' if conf >= 50 else 'bg-red-400') }}"
+                 style="width: {{ conf }}%"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Key metadata pairs -->
+      <div class="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-3">
+        <p class="text-xs text-gray-500 uppercase font-semibold">Audience Profile</p>
+        {% if audience %}
+        <div class="flex gap-2 text-sm">
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span class="text-gray-700">{{ audience }}</span>
+        </div>
+        {% endif %}
+        {% if archetype %}
+        <div class="flex gap-2 text-sm">
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          <span class="text-gray-700">{{ archetype }}</span>
+        </div>
+        {% endif %}
+        {% if performance_class %}
+        <div class="flex gap-2 text-sm">
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span class="text-gray-700">{{ performance_class | replace('_', ' ') }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Page count -->
+      {% set pages = blueprint.pages if (blueprint.pages is defined and blueprint.pages) else [] %}
+      <div class="p-4 rounded-lg bg-gray-50 border border-gray-200">
+        <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Pages</p>
+        <p class="text-3xl font-heading text-charcoal">{{ pages | length }}</p>
+        {% set total_widgets = namespace(n=0) %}
+        {% for page in pages %}
+          {% if page is mapping and page.get('widgets') %}
+            {% set total_widgets.n = total_widgets.n + (page.widgets | length) %}
+          {% endif %}
+        {% endfor %}
+        <p class="text-xs text-gray-400 mt-1">{{ total_widgets.n }} total widget{% if total_widgets.n != 1 %}s{% endif %}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Page previewer ────────────────────────────────────────────── -->
+  {% if blueprint.pages %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Page Layout Schematics</h3>
+    <div class="space-y-6">
+      {% for page in blueprint.pages %}
+      {% set page_title = page.title if page is mapping else 'Page ' ~ loop.index %}
+      {% set widgets = page.widgets if (page is mapping and page.get('widgets')) else [] %}
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div class="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
+          <h4 class="font-medium text-sm text-charcoal">{{ page_title }}</h4>
+          <span class="text-xs text-gray-400">{{ widgets | length }} widget{% if widgets | length != 1 %}s{% endif %}</span>
+        </div>
+        <!-- Grid schematic — 12-column layout -->
+        <div class="p-4 bg-[#FAFAFA]">
+          {% if widgets %}
+          <div class="grid grid-cols-12 gap-2 auto-rows-[40px]">
+            {% for widget in widgets %}
+            {% set w_cols = widget.size_cols if (widget is mapping and widget.get('size_cols')) else 4 %}
+            {% set w_rows = widget.size_rows if (widget is mapping and widget.get('size_rows')) else 2 %}
+            {% set w_type = widget.type if (widget is mapping) else 'chart' %}
+            {% set w_title = widget.title if (widget is mapping) else 'Widget' %}
+            <div class="col-span-{{ [w_cols, 12] | min }} row-span-{{ w_rows }}
+                        border-2 border-dashed rounded-md flex flex-col items-center justify-center p-2 min-h-[80px]
+                        {% if w_type | lower in ['chart', 'bar', 'line', 'pie'] %}border-blue-200 bg-blue-50
+                        {% elif w_type | lower in ['table', 'grid'] %}border-purple-200 bg-purple-50
+                        {% elif w_type | lower in ['kpi', 'metric', 'scorecard'] %}border-green-200 bg-green-50
+                        {% elif w_type | lower in ['filter', 'input'] %}border-amber-200 bg-amber-50
+                        {% else %}border-gray-200 bg-white{% endif %}">
+              <span class="text-xs font-semibold text-center text-gray-600 truncate max-w-full px-1">{{ w_title }}</span>
+              <span class="text-xs text-gray-400 mt-0.5">{{ w_type }}</span>
+              <span class="text-xs text-gray-300 mt-0.5">{{ w_cols }}×{{ w_rows }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="flex items-center justify-center h-20 text-sm text-gray-400 italic">No widgets defined for this page</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Widget list per page (accordion) ──────────────────────────── -->
+  {% if blueprint.pages %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Widget Inventory by Page</h3>
+    <div class="space-y-3" id="widget-accordion">
+      {% for page in blueprint.pages %}
+      {% set page_id = 'page-' ~ loop.index %}
+      {% set page_title = page.title if page is mapping else 'Page ' ~ loop.index %}
+      {% set widgets = page.widgets if (page is mapping and page.get('widgets')) else [] %}
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <button onclick="toggleAccordion('{{ page_id }}')"
+                class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left">
+          <span class="font-medium text-sm text-charcoal">{{ page_title }}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">{{ widgets | length }} widget{% if widgets | length != 1 %}s{% endif %}</span>
+            <svg id="chevron-{{ page_id }}" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </button>
+        <div id="{{ page_id }}" class="hidden">
+          {% if widgets %}
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 border-t border-b border-gray-200">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Widget ID</th>
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Metric Binding</th>
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Size</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                {% for w in widgets %}
+                {% set w_type = w.type if w is mapping else '—' %}
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-2.5">
+                    <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{{ w.id if w is mapping else loop.index }}</code>
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+                      {% if w_type | lower in ['chart', 'bar', 'line', 'pie'] %}bg-blue-100 text-blue-700
+                      {% elif w_type | lower in ['table', 'grid'] %}bg-purple-100 text-purple-700
+                      {% elif w_type | lower in ['kpi', 'metric', 'scorecard'] %}bg-green-100 text-green-700
+                      {% elif w_type | lower in ['filter', 'input'] %}bg-amber-100 text-amber-700
+                      {% else %}bg-gray-100 text-gray-600{% endif %}">
+                      {{ w_type }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-2.5 font-medium text-gray-800">{{ w.title if w is mapping else '—' }}</td>
+                  <td class="px-4 py-2.5 text-gray-500 text-xs font-mono">{{ w.metric_binding if (w is mapping and w.get('metric_binding')) else '—' }}</td>
+                  <td class="px-4 py-2.5 text-gray-500 text-xs">
+                    {% if w is mapping and (w.get('size_cols') or w.get('size_rows')) %}
+                    {{ w.get('size_cols', '?') }}×{{ w.get('size_rows', '?') }}
+                    {% else %}—{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="px-4 py-3 text-sm text-gray-400 italic">No widgets defined</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Interaction map ───────────────────────────────────────────── -->
+  {% set interactions = blueprint.interactions if (blueprint.interactions is defined and blueprint.interactions) else {} %}
+  {% if interactions %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Interaction Map</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <!-- Global filters -->
+      {% set global_filters = interactions.global_filters if (interactions is mapping and interactions.get('global_filters')) else [] %}
+      <div class="p-4 rounded-lg bg-amber-50 border border-amber-200">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          <h4 class="text-sm font-semibold text-amber-800">Global Filters</h4>
+        </div>
+        {% if global_filters %}
+        <ul class="space-y-1">
+          {% for f in global_filters %}
+          <li class="text-xs text-amber-700 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+            {{ f.name if f is mapping else f }}
+            {% if f is mapping and f.get('type') %}
+            <span class="text-amber-500">({{ f.type }})</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-xs text-amber-600 italic">No global filters</p>
+        {% endif %}
+      </div>
+
+      <!-- Page navigation -->
+      {% set nav_paths = interactions.navigation if (interactions is mapping and interactions.get('navigation')) else [] %}
+      <div class="p-4 rounded-lg bg-petrol/5 border border-petrol/10">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          <h4 class="text-sm font-semibold text-petrol">Navigation Paths</h4>
+        </div>
+        {% if nav_paths %}
+        <ul class="space-y-1.5">
+          {% for path in nav_paths %}
+          <li class="text-xs text-gray-700 flex items-center gap-1.5">
+            <span class="font-medium text-petrol">{{ path.from if path is mapping else path }}</span>
+            {% if path is mapping and path.get('to') %}
+            <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            <span class="text-gray-600">{{ path.to }}</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-xs text-gray-500 italic">No navigation paths defined</p>
+        {% endif %}
+      </div>
+
+      <!-- Drill behavior -->
+      {% set drill = interactions.drill_behavior if (interactions is mapping and interactions.get('drill_behavior')) else [] %}
+      <div class="p-4 rounded-lg bg-purple-50 border border-purple-200">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <h4 class="text-sm font-semibold text-purple-800">Drill Behavior</h4>
+        </div>
+        {% if drill %}
+        <ul class="space-y-1">
+          {% for d in drill %}
+          <li class="text-xs text-purple-700 flex items-start gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-1"></span>
+            <span>{{ d.description if (d is mapping and d.get('description')) else (d.source if d is mapping else d) }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-xs text-purple-600 italic">No drill behavior defined</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Design profile ────────────────────────────────────────────── -->
+  {% set design_profile = blueprint.design_profile if (blueprint.design_profile is defined and blueprint.design_profile) else {} %}
+  {% if design_profile %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Design Profile</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <!-- Color tokens -->
+      {% set colors = design_profile.colors if (design_profile is mapping and design_profile.get('colors')) else [] %}
+      {% if colors %}
+      <div>
+        <p class="text-xs text-gray-500 uppercase font-semibold mb-3">Color Tokens</p>
+        <div class="flex flex-wrap gap-3">
+          {% for color in colors %}
+          {% set hex = color.hex if (color is mapping and color.get('hex')) else color %}
+          {% set name = color.name if (color is mapping and color.get('name')) else hex %}
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md border border-gray-200 shadow-sm flex-shrink-0"
+                 style="background-color: {{ hex }};"></div>
+            <div>
+              <p class="text-xs font-medium text-gray-700">{{ name }}</p>
+              <p class="text-xs text-gray-400 font-mono">{{ hex }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Typography tokens -->
+      {% set typography = design_profile.typography if (design_profile is mapping and design_profile.get('typography')) else [] %}
+      {% if typography %}
+      <div>
+        <p class="text-xs text-gray-500 uppercase font-semibold mb-3">Typography</p>
+        <div class="space-y-2">
+          {% for token in typography %}
+          {% set font_family = token.family if (token is mapping and token.get('family')) else 'sans-serif' %}
+          {% set font_size = token.size if (token is mapping and token.get('size')) else '14px' %}
+          {% set font_weight = token.weight if (token is mapping and token.get('weight')) else '400' %}
+          <div class="flex items-baseline gap-3 p-2 rounded bg-gray-50">
+            <span class="text-xs text-gray-400 w-24 flex-shrink-0">{{ token.role if (token is mapping and token.get('role')) else 'default' }}</span>
+            <span style="font-family: {{ font_family }}; font-size: {{ font_size }}; font-weight: {{ font_weight }};"
+                  class="text-gray-800">Aa Bb Cc</span>
+            <span class="text-xs text-gray-400">{{ font_family }}, {{ font_size }}, {{ font_weight }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Approval panel ────────────────────────────────────────────── -->
+  {% if approval and approval.status == 'pending_review' %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-5">
+    <h3 class="font-semibold text-sm text-amber-800 mb-4">Review Checklist — SAC Blueprint</h3>
+    <form hx-put="/ui/pipeline/approvals/{{ approval.id }}/checklist"
+          hx-target="#blueprint-checklist-save"
+          hx-swap="innerHTML"
+          class="space-y-3 mb-4">
+      {% for item in checklist_template %}
+      {% set checked = approval.checklist.get(item.key, False) if approval.checklist else False %}
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" name="{{ item.key }}" {{ 'checked' if checked }}
+               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-petrol focus:ring-petrol">
+        <span class="text-sm text-gray-700">
+          {{ item.label }}
+          {% if item.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+      <button type="submit" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-300">
+        Save Checklist
+      </button>
+      <span id="blueprint-checklist-save" class="ml-2 text-xs"></span>
+    </form>
+
+    <form hx-post="/ui/pipeline/approvals/{{ approval.id }}/decide"
+          hx-target="#blueprint-decision-result"
+          hx-swap="innerHTML"
+          class="border-t border-amber-200 pt-4 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Review Comments</label>
+        <textarea name="comments" rows="3"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol"
+                  placeholder="Blueprint review notes, design concerns, SAC compliance…"></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" name="decision" value="approve"
+                class="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          Approve
+        </button>
+        <button type="submit" name="decision" value="rework"
+                class="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Request Rework
+        </button>
+        <button type="submit" name="decision" value="reject"
+                class="flex items-center gap-1.5 bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          Reject
+        </button>
+      </div>
+      <div id="blueprint-decision-result"></div>
+    </form>
+  </div>
+  {% elif approval %}
+  <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-medium text-gray-700">Review decision:</span>
+      <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+        {% if approval.status == 'approved' %}bg-green-100 text-green-700
+        {% elif approval.status == 'rejected' %}bg-red-100 text-red-700
+        {% elif approval.status == 'rework' %}bg-blue-100 text-blue-700
+        {% else %}bg-gray-100 text-gray-600{% endif %}">
+        {{ approval.status }}
+      </span>
+      {% if approval.get('reviewed_at') %}
+      <span class="text-xs text-gray-400">{{ approval.reviewed_at[:10] }}</span>
+      {% endif %}
+    </div>
+    {% if approval.get('comments') %}
+    <p class="text-sm text-gray-600 mt-2">{{ approval.comments }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% endif %}{# end if blueprint #}
+
+</div>
+
+<script>
+function toggleAccordion(id) {
+  const panel = document.getElementById(id);
+  const chevron = document.getElementById('chevron-' + id);
+  if (!panel) return;
+  const hidden = panel.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+}
+</script>
+{% endblock %}

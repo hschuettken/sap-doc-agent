@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% block title %}{{ tech_spec.title if tech_spec else 'Tech Spec' }} — Spec2Sphere{% endblock %}
+{% block page_title %}Tech Spec Detail{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-5">
+
+  <!-- Back link -->
+  <a href="/ui/pipeline"
+     hx-get="/ui/pipeline"
+     hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+     class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-petrol">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Pipeline
+  </a>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if tech_spec %}
+  {% set status = tech_spec.status or 'draft' %}
+
+  <!-- ── Header card ────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5 border-l-4
+    {% if status == 'approved' %}border-green-400
+    {% elif status == 'pending_review' %}border-amber-400
+    {% elif status == 'rejected' %}border-red-400
+    {% else %}border-petrol{% endif %}">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h2 class="font-heading text-xl text-charcoal">{{ tech_spec.title or 'Technical Specification' }}</h2>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+            {% if status == 'approved' %}bg-green-100 text-green-700
+            {% elif status == 'pending_review' %}bg-amber-100 text-amber-700
+            {% elif status == 'rejected' %}bg-red-100 text-red-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ status | replace('_', ' ') }}
+          </span>
+          <span class="text-sm bg-gray-100 text-gray-500 px-2 py-0.5 rounded">v{{ tech_spec.version or 1 }}</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-1.5 text-sm text-gray-500">
+          {% if tech_spec.hla_id %}
+          <span>
+            HLA:
+            <a href="/ui/pipeline/architecture/{{ tech_spec.hla_id }}"
+               hx-get="/ui/pipeline/architecture/{{ tech_spec.hla_id }}"
+               hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+               class="text-petrol hover:underline">{{ tech_spec.hla_id }}</a>
+          </span>
+          {% endif %}
+          {% if tech_spec.created_at %}
+          <span class="text-gray-400">{{ tech_spec.created_at[:10] }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div id="techspec-action-result" class="flex flex-wrap gap-2">
+        {% if status == 'draft' %}
+        <button hx-post="/ui/pipeline/techspec/{{ tech_spec.id }}/submit-review"
+                hx-target="#techspec-action-result"
+                hx-swap="innerHTML"
+                class="bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent/90">
+          Submit for Review
+        </button>
+        {% endif %}
+        <button hx-post="/ui/pipeline/techspec/{{ tech_spec.id }}/generate-tests"
+                hx-target="#techspec-action-result"
+                hx-swap="innerHTML"
+                class="bg-petrol text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-petrol-light flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          Generate Test Spec
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Summary stats ──────────────────────────────────────────────── -->
+  {% set total_objects = objects | length if objects else 0 %}
+  {% set dsp_objects = objects | selectattr('platform', 'equalto', 'dsp') | list | length if objects else 0 %}
+  {% set sac_objects = objects | selectattr('platform', 'equalto', 'sac') | list | length if objects else 0 %}
+  {% set sql_errors = namespace(n=0) %}
+  {% if objects %}
+    {% for obj in objects %}
+      {% if obj is mapping and obj.get('definition') and obj.definition.get('validation_errors') %}
+        {% set sql_errors.n = sql_errors.n + 1 %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+      <p class="text-xs text-gray-500 uppercase font-semibold tracking-wide">Total Objects</p>
+      <p class="text-2xl font-heading text-charcoal mt-1">{{ total_objects }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-blue-100">
+      <p class="text-xs text-blue-600 uppercase font-semibold tracking-wide">DSP Objects</p>
+      <p class="text-2xl font-heading text-blue-700 mt-1">{{ dsp_objects }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-amber-100">
+      <p class="text-xs text-amber-600 uppercase font-semibold tracking-wide">SAC Objects</p>
+      <p class="text-2xl font-heading text-amber-700 mt-1">{{ sac_objects }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4 border border-red-100">
+      <p class="text-xs text-red-500 uppercase font-semibold tracking-wide">SQL Errors</p>
+      <p class="text-2xl font-heading mt-1 {{ 'text-red-600' if sql_errors.n > 0 else 'text-gray-400' }}">{{ sql_errors.n }}</p>
+    </div>
+  </div>
+
+  <!-- ── Object inventory table ─────────────────────────────────────── -->
+  {% if objects %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-gray-800">Object Inventory</h3>
+      <span class="text-xs text-gray-400">{{ total_objects }} object{% if total_objects != 1 %}s{% endif %}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="object-inventory-table">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:text-charcoal" onclick="sortTable(0)">
+              Name <svg class="w-3 h-3 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+            </th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:text-charcoal" onclick="sortTable(1)">Type</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:text-charcoal" onclick="sortTable(2)">Platform</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:text-charcoal" onclick="sortTable(3)">Layer</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:text-charcoal" onclick="sortTable(4)">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100" id="object-table-body">
+          {% for obj in objects %}
+          {% set obj_status = obj.status if obj is mapping else 'unknown' %}
+          <tr class="hover:bg-gray-50 cursor-pointer"
+              onclick="showObjectDetail('{{ obj.id if obj is mapping else loop.index0 }}', '{{ obj.name if obj is mapping else obj }}')">
+            <td class="px-4 py-3 font-medium text-petrol hover:underline">
+              {{ obj.name if obj is mapping else obj }}
+            </td>
+            <td class="px-4 py-3 text-gray-600">
+              <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{{ obj.type if obj is mapping else '—' }}</code>
+            </td>
+            <td class="px-4 py-3">
+              {% set platform = obj.platform if obj is mapping else '' %}
+              {% if platform == 'dsp' %}
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700 font-medium">DSP</span>
+              {% elif platform == 'sac' %}
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-medium">SAC</span>
+              {% elif platform %}
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{{ platform }}</span>
+              {% else %}
+              <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ obj.layer if obj is mapping else '—' }}</td>
+            <td class="px-4 py-3">
+              <span class="inline-block px-2 py-0.5 rounded text-xs
+                {% if obj_status == 'valid' %}bg-green-100 text-green-700
+                {% elif obj_status == 'error' %}bg-red-100 text-red-600
+                {% elif obj_status == 'warning' %}bg-amber-100 text-amber-700
+                {% else %}bg-gray-100 text-gray-500{% endif %}">
+                {{ obj_status }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Dependency graph ──────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-gray-800">Dependency Graph</h3>
+      <div class="flex gap-2 text-xs text-gray-400">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-200 inline-block"></span>DSP</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-200 inline-block"></span>SAC</span>
+      </div>
+    </div>
+    <div id="dep-graph" style="height:360px;" class="border border-gray-100 rounded-lg bg-gray-50"></div>
+  </div>
+
+  <!-- ── Deployment order ───────────────────────────────────────────── -->
+  {% set dep_order = tech_spec.deployment_order if tech_spec.deployment_order is defined else [] %}
+  {% if dep_order %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Deployment Order</h3>
+    <ol class="space-y-2">
+      {% for step in dep_order %}
+      {% set step_name = step.view_name if step is mapping else step %}
+      {% set step_deps = step.depends_on if (step is mapping and step.get('depends_on')) else [] %}
+      {% set step_effort = step.effort if (step is mapping and step.get('effort')) else '' %}
+      <li class="flex items-start gap-3">
+        <span class="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full bg-petrol text-white text-xs font-semibold">{{ loop.index }}</span>
+        <div class="flex-1 min-w-0">
+          <span class="font-medium text-sm text-charcoal">{{ step_name }}</span>
+          {% if step_deps %}
+          <p class="text-xs text-gray-400 mt-0.5">
+            Depends on:
+            {% for dep in step_deps %}
+            <code class="bg-gray-100 px-1 rounded">{{ dep }}</code>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+          {% endif %}
+        </div>
+        {% if step_effort %}
+        <span class="inline-block px-2 py-0.5 rounded text-xs
+          {% if step_effort | lower in ['high', 'complex'] %}bg-red-100 text-red-600
+          {% elif step_effort | lower == 'medium' %}bg-amber-100 text-amber-600
+          {% else %}bg-green-100 text-green-600{% endif %}">
+          {{ step_effort }}
+        </span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+  <!-- ── SQL Viewer (tabbed) ────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-gray-800">SQL Viewer</h3>
+      <p class="text-xs text-gray-400">Select an object from the inventory above</p>
+    </div>
+
+    <!-- Object selector -->
+    <div class="mb-4">
+      <select id="sql-object-select"
+              class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol w-full md:w-64"
+              onchange="loadObjectDetail(this.value)">
+        <option value="">— select an object —</option>
+        {% if objects %}
+        {% for obj in objects %}
+        <option value="{{ obj.id if obj is mapping else loop.index0 }}" data-name="{{ obj.name if obj is mapping else obj }}">
+          {{ obj.name if obj is mapping else obj }}
+        </option>
+        {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+
+    <!-- Tab buttons -->
+    <div class="flex border-b border-gray-200 mb-4" id="sql-tabs">
+      <button onclick="switchSqlTab('sql')" id="tab-sql"
+              class="px-4 py-2 text-sm font-medium text-petrol border-b-2 border-petrol -mb-px">SQL</button>
+      <button onclick="switchSqlTab('definition')" id="tab-definition"
+              class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-charcoal border-b-2 border-transparent -mb-px">Definition</button>
+    </div>
+
+    <!-- SQL tab content -->
+    <div id="sql-tab-content">
+      <div id="sql-panel">
+        <div id="sql-empty" class="text-sm text-gray-400 italic py-4 text-center">Select an object to view its SQL</div>
+        <div id="sql-content" class="hidden">
+          <div id="sql-editor-container" class="rounded border border-gray-200 overflow-hidden text-sm"></div>
+        </div>
+      </div>
+      <div id="definition-panel" class="hidden">
+        <div id="def-empty" class="text-sm text-gray-400 italic py-4 text-center">Select an object to view its definition</div>
+        <div id="def-content" class="hidden">
+          <pre id="def-pre" class="bg-gray-900 text-gray-100 text-xs p-4 rounded overflow-x-auto leading-relaxed"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Object data store (hidden, populated by Jinja) -->
+    <script id="objects-data" type="application/json">
+      {{ objects | tojson if objects else '[]' }}
+    </script>
+  </div>
+
+  <!-- ── Validation results ─────────────────────────────────────────── -->
+  {% if objects %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Validation Results</h3>
+    <div class="space-y-3">
+      {% for obj in objects %}
+      {% set obj_def = obj.definition if (obj is mapping and obj.get('definition')) else {} %}
+      {% set errors = obj_def.validation_errors if (obj_def is mapping and obj_def.get('validation_errors')) else [] %}
+      <div class="flex items-start gap-3 p-3 rounded-lg {{ 'bg-red-50 border border-red-100' if errors else 'bg-green-50 border border-green-100' }}">
+        {% if errors %}
+        <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        {% else %}
+        <svg class="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+        {% endif %}
+        <div class="flex-1 min-w-0">
+          <span class="text-sm font-medium {{ 'text-red-700' if errors else 'text-green-700' }}">{{ obj.name if obj is mapping else obj }}</span>
+          {% if errors %}
+          <ul class="mt-1 space-y-0.5">
+            {% for err in errors %}
+            <li class="text-xs text-red-600">{{ err.rule if err is mapping else err }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-xs text-green-600 mt-0.5">All validation rules passed</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Approval panel ────────────────────────────────────────────── -->
+  {% if approval and approval.status == 'pending_review' %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-5">
+    <h3 class="font-semibold text-sm text-amber-800 mb-4">Review Checklist — Technical Specification</h3>
+    <form hx-put="/ui/pipeline/approvals/{{ approval.id }}/checklist"
+          hx-target="#techspec-checklist-save"
+          hx-swap="innerHTML"
+          class="space-y-3 mb-4">
+      {% for item in checklist_template %}
+      {% set checked = approval.checklist.get(item.key, False) if approval.checklist else False %}
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" name="{{ item.key }}" {{ 'checked' if checked }}
+               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-petrol focus:ring-petrol">
+        <span class="text-sm text-gray-700">
+          {{ item.label }}
+          {% if item.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+      <button type="submit" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-300">
+        Save Checklist
+      </button>
+      <span id="techspec-checklist-save" class="ml-2 text-xs"></span>
+    </form>
+
+    <form hx-post="/ui/pipeline/approvals/{{ approval.id }}/decide"
+          hx-target="#techspec-decision-result"
+          hx-swap="innerHTML"
+          class="border-t border-amber-200 pt-4 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Review Comments</label>
+        <textarea name="comments" rows="3"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol"
+                  placeholder="Technical review notes, SQL concerns, deployment risks…"></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" name="decision" value="approve"
+                class="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          Approve
+        </button>
+        <button type="submit" name="decision" value="rework"
+                class="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Request Rework
+        </button>
+        <button type="submit" name="decision" value="reject"
+                class="flex items-center gap-1.5 bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          Reject
+        </button>
+      </div>
+      <div id="techspec-decision-result"></div>
+    </form>
+  </div>
+  {% elif approval %}
+  <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-medium text-gray-700">Review decision:</span>
+      <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+        {% if approval.status == 'approved' %}bg-green-100 text-green-700
+        {% elif approval.status == 'rejected' %}bg-red-100 text-red-700
+        {% elif approval.status == 'rework' %}bg-blue-100 text-blue-700
+        {% else %}bg-gray-100 text-gray-600{% endif %}">
+        {{ approval.status }}
+      </span>
+      {% if approval.get('reviewed_at') %}
+      <span class="text-xs text-gray-400">{{ approval.reviewed_at[:10] }}</span>
+      {% endif %}
+    </div>
+    {% if approval.get('comments') %}
+    <p class="text-sm text-gray-600 mt-2">{{ approval.comments }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% endif %}{# end if tech_spec #}
+
+</div>
+
+<script>
+// ── Dependency graph via vis.js ──────────────────────────────────────
+(function() {
+  const depGraph = {{ tech_spec.dependency_graph | tojson if (tech_spec and tech_spec.dependency_graph is defined) else '{}' }};
+  const container = document.getElementById('dep-graph');
+  if (!container) return;
+
+  const nodes = new vis.DataSet();
+  const edges = new vis.DataSet();
+
+  if (depGraph && depGraph.nodes) {
+    depGraph.nodes.forEach(function(n) {
+      const platform = (n.platform || '').toLowerCase();
+      nodes.add({
+        id: n.id,
+        label: n.name || n.id,
+        color: platform === 'dsp' ? { background: '#DBEAFE', border: '#3B82F6', highlight: { background: '#BFDBFE', border: '#1D4ED8' } }
+             : platform === 'sac' ? { background: '#FEF3C7', border: '#F59E0B', highlight: { background: '#FDE68A', border: '#D97706' } }
+             : { background: '#F1F5F9', border: '#94A3B8' },
+        font: { size: 11, face: 'Inter, sans-serif' },
+        shape: 'box',
+        borderWidth: 1.5,
+        margin: 8,
+      });
+    });
+  }
+  if (depGraph && depGraph.edges) {
+    depGraph.edges.forEach(function(e) {
+      edges.add({ from: e.from || e.source, to: e.to || e.target, arrows: 'to', color: { color: '#94A3B8' }, width: 1.5 });
+    });
+  }
+
+  if (nodes.length === 0) {
+    container.innerHTML = '<div class="flex items-center justify-center h-full text-sm text-gray-400">No dependency data available</div>';
+    return;
+  }
+
+  new vis.Network(container, { nodes, edges }, {
+    layout: { hierarchical: { enabled: true, direction: 'LR', sortMethod: 'directed', levelSeparation: 150, nodeSpacing: 80 } },
+    physics: false,
+    interaction: { dragNodes: true, zoomView: true, hover: true },
+    edges: { smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 } },
+  });
+})();
+
+// ── SQL viewer ───────────────────────────────────────────────────────
+const objectsData = JSON.parse(document.getElementById('objects-data').textContent || '[]');
+let activeTab = 'sql';
+let sqlEditor = null;
+
+function switchSqlTab(tab) {
+  activeTab = tab;
+  document.getElementById('sql-panel').classList.toggle('hidden', tab !== 'sql');
+  document.getElementById('definition-panel').classList.toggle('hidden', tab !== 'definition');
+  document.getElementById('tab-sql').className = tab === 'sql'
+    ? 'px-4 py-2 text-sm font-medium text-petrol border-b-2 border-petrol -mb-px'
+    : 'px-4 py-2 text-sm font-medium text-gray-500 hover:text-charcoal border-b-2 border-transparent -mb-px';
+  document.getElementById('tab-definition').className = tab === 'definition'
+    ? 'px-4 py-2 text-sm font-medium text-petrol border-b-2 border-petrol -mb-px'
+    : 'px-4 py-2 text-sm font-medium text-gray-500 hover:text-charcoal border-b-2 border-transparent -mb-px';
+}
+
+function loadObjectDetail(objId) {
+  const obj = objectsData.find(o => String(o.id) === String(objId));
+  if (!obj) return;
+  const sql = (obj.definition && obj.definition.sql) || (obj.sql) || '';
+  const sqlEmpty = document.getElementById('sql-empty');
+  const sqlContent = document.getElementById('sql-content');
+  const defEmpty = document.getElementById('def-empty');
+  const defContent = document.getElementById('def-content');
+
+  if (sql) {
+    sqlEmpty.classList.add('hidden');
+    sqlContent.classList.remove('hidden');
+    const editorContainer = document.getElementById('sql-editor-container');
+    editorContainer.innerHTML = '';
+    sqlEditor = CodeMirror(editorContainer, {
+      value: sql,
+      mode: 'sql',
+      theme: 'material-darker',
+      lineNumbers: true,
+      readOnly: true,
+      lineWrapping: false,
+      viewportMargin: Infinity,
+    });
+  } else {
+    sqlEmpty.textContent = 'No SQL available for this object';
+    sqlEmpty.classList.remove('hidden');
+    sqlContent.classList.add('hidden');
+  }
+
+  const def = obj.definition || obj;
+  if (def) {
+    defEmpty.classList.add('hidden');
+    defContent.classList.remove('hidden');
+    document.getElementById('def-pre').textContent = JSON.stringify(def, null, 2);
+  }
+}
+
+function showObjectDetail(objId, objName) {
+  document.getElementById('sql-object-select').value = objId;
+  loadObjectDetail(objId);
+}
+
+// ── Object table sort ────────────────────────────────────────────────
+function sortTable(colIndex) {
+  const tbody = document.getElementById('object-table-body');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const dir = tbody.dataset.sortDir === 'asc' ? -1 : 1;
+  tbody.dataset.sortDir = dir === 1 ? 'asc' : 'desc';
+  rows.sort(function(a, b) {
+    const aText = a.cells[colIndex] ? a.cells[colIndex].textContent.trim() : '';
+    const bText = b.cells[colIndex] ? b.cells[colIndex].textContent.trim() : '';
+    return aText.localeCompare(bText) * dir;
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+</script>
+{% endblock %}
