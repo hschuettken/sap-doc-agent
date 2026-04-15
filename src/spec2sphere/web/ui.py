@@ -371,6 +371,10 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
             },
         )
 
+    @router.get("/admin", response_class=HTMLResponse)
+    async def admin_page(request: Request):
+        return _render(request, "partials/admin.html", {"active_page": "admin"})
+
     @router.get("/partials/health-dots", response_class=HTMLResponse)
     async def health_dots(request: Request):
         """Tiny partial for the topbar health indicators."""

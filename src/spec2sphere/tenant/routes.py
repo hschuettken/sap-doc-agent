@@ -340,10 +340,135 @@ async def workspace_switcher_component(ctx: ContextDep) -> str:
 """
 
 
+# ---------------------------------------------------------------------------
+# Admin HTMX table partials (no auth guard — protected by the auth middleware)
+# ---------------------------------------------------------------------------
+
+admin_ui_router = APIRouter(prefix="/ui/admin", tags=["admin-ui"], include_in_schema=False)
+
+
+@admin_ui_router.get("/tenants-table", response_class=HTMLResponse)
+async def tenants_table() -> str:
+    """Return HTML table rows for the tenants admin section."""
+    from spec2sphere.db import _get_conn
+
+    try:
+        conn = await _get_conn()
+        try:
+            rows = await conn.fetch("SELECT id, name, slug, created_at FROM tenants ORDER BY name")
+            tenants = [dict(r) for r in rows]
+        finally:
+            await conn.close()
+    except Exception as exc:
+        return f'<tr><td colspan="3" class="px-4 py-3 text-sm text-red-500">Error loading tenants: {exc}</td></tr>'
+
+    if not tenants:
+        return '<tr><td colspan="3" class="px-4 py-3 text-sm text-gray-400 italic">No tenants yet.</td></tr>'
+
+    html = ""
+    for t in tenants:
+        html += (
+            f'<tr class="border-t border-[#E5E5E5] hover:bg-[#F5F5F5]">'
+            f'<td class="px-4 py-2.5 text-sm font-medium text-[#1a2332]">{t["name"]}</td>'
+            f'<td class="px-4 py-2.5 text-sm text-gray-500 font-mono">{t["slug"]}</td>'
+            f'<td class="px-4 py-2.5 text-xs text-gray-400">{str(t["created_at"])[:10] if t.get("created_at") else ""}</td>'
+            f"</tr>"
+        )
+    return html
+
+
+@admin_ui_router.get("/customers-table", response_class=HTMLResponse)
+async def customers_table() -> str:
+    """Return HTML table rows for the customers admin section."""
+    from spec2sphere.db import _get_conn
+
+    try:
+        conn = await _get_conn()
+        try:
+            rows = await conn.fetch(
+                """SELECT c.id, c.name, c.slug, c.created_at, t.name AS tenant_name
+                   FROM customers c LEFT JOIN tenants t ON t.id = c.tenant_id
+                   ORDER BY c.name"""
+            )
+            customers = [dict(r) for r in rows]
+        finally:
+            await conn.close()
+    except Exception as exc:
+        return f'<tr><td colspan="4" class="px-4 py-3 text-sm text-red-500">Error loading customers: {exc}</td></tr>'
+
+    if not customers:
+        return '<tr><td colspan="4" class="px-4 py-3 text-sm text-gray-400 italic">No customers yet.</td></tr>'
+
+    html = ""
+    for c in customers:
+        html += (
+            f'<tr class="border-t border-[#E5E5E5] hover:bg-[#F5F5F5]">'
+            f'<td class="px-4 py-2.5 text-xs text-gray-400">{c.get("tenant_name", "")}</td>'
+            f'<td class="px-4 py-2.5 text-sm font-medium text-[#1a2332]">{c["name"]}</td>'
+            f'<td class="px-4 py-2.5 text-sm text-gray-500 font-mono">{c["slug"]}</td>'
+            f'<td class="px-4 py-2.5 text-xs text-gray-400">{str(c["created_at"])[:10] if c.get("created_at") else ""}</td>'
+            f"</tr>"
+        )
+    return html
+
+
+@admin_ui_router.get("/projects-table", response_class=HTMLResponse)
+async def projects_table() -> str:
+    """Return HTML table rows for the projects admin section."""
+    from spec2sphere.db import _get_conn
+
+    try:
+        conn = await _get_conn()
+        try:
+            rows = await conn.fetch(
+                """SELECT p.id, p.name, p.slug, p.environment, p.status, p.created_at,
+                          c.name AS customer_name
+                   FROM projects p LEFT JOIN customers c ON c.id = p.customer_id
+                   ORDER BY p.name"""
+            )
+            projects = [dict(r) for r in rows]
+        finally:
+            await conn.close()
+    except Exception as exc:
+        return f'<tr><td colspan="5" class="px-4 py-3 text-sm text-red-500">Error loading projects: {exc}</td></tr>'
+
+    if not projects:
+        return '<tr><td colspan="5" class="px-4 py-3 text-sm text-gray-400 italic">No projects yet.</td></tr>'
+
+    env_badge = {
+        "sandbox": "bg-gray-100 text-gray-600",
+        "test": "bg-amber-50 text-amber-700",
+        "production": "bg-red-50 text-red-700",
+    }
+    status_badge = {
+        "active": "bg-green-50 text-green-700",
+        "archived": "bg-gray-100 text-gray-500",
+        "draft": "bg-blue-50 text-blue-700",
+    }
+
+    html = ""
+    for p in projects:
+        env = p.get("environment", "sandbox")
+        status = p.get("status", "draft")
+        env_cls = env_badge.get(env, "bg-gray-100 text-gray-600")
+        status_cls = status_badge.get(status, "bg-gray-100 text-gray-500")
+        html += (
+            f'<tr class="border-t border-[#E5E5E5] hover:bg-[#F5F5F5]">'
+            f'<td class="px-4 py-2.5 text-xs text-gray-400">{p.get("customer_name", "")}</td>'
+            f'<td class="px-4 py-2.5 text-sm font-medium text-[#1a2332]">{p["name"]}</td>'
+            f'<td class="px-4 py-2.5 text-sm text-gray-500 font-mono">{p["slug"]}</td>'
+            f'<td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-full text-xs font-medium {env_cls}">{env}</span></td>'
+            f'<td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-full text-xs font-medium {status_cls}">{status}</span></td>'
+            f"</tr>"
+        )
+    return html
+
+
 def create_workspace_router():
     """Return a combined router for workspace API + admin + UI."""
     combined = APIRouter()
     combined.include_router(router)
     combined.include_router(admin_router)
     combined.include_router(ui_router)
+    combined.include_router(admin_ui_router)
     return combined
