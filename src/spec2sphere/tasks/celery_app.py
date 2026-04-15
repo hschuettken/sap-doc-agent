@@ -19,6 +19,9 @@ celery_app.conf.update(
         "spec2sphere.tasks.chain_tasks.analyze_single_chain": {"queue": "llm"},
         "spec2sphere.tasks.migration_tasks.*": {"queue": "llm"},
         "spec2sphere.tasks.pipeline_tasks.*": {"queue": "llm"},
+        "spec2sphere.tasks.factory_tasks.run_dsp_deployment": {"queue": "chrome"},
+        "spec2sphere.tasks.factory_tasks.run_sac_deployment": {"queue": "sac"},
+        "spec2sphere.tasks.factory_tasks.run_reconciliation": {"queue": "llm"},
     },
     worker_prefetch_multiplier=1,
 )
