@@ -79,6 +79,13 @@ async def _register_with_oracle() -> None:
                 {"method": "POST", "path": "/audit", "purpose": "Run audit on documents"},
                 {"method": "POST", "path": "/scan/start", "purpose": "Start scanner"},
                 {"method": "GET", "path": "/scan/status", "purpose": "Scanner status"},
+                {"method": "GET", "path": "/ui/factory", "purpose": "Factory monitor"},
+                {"method": "GET", "path": "/ui/reconciliation", "purpose": "Data reconciliation"},
+                {"method": "GET", "path": "/ui/visual-qa", "purpose": "Visual QA"},
+                {"method": "GET", "path": "/ui/lab/fitness", "purpose": "Route fitness dashboard"},
+                {"method": "GET", "path": "/ui/browser-view", "purpose": "noVNC browser viewer"},
+                {"method": "POST", "path": "/api/factory/deploy/dsp", "purpose": "Trigger DSP deployment"},
+                {"method": "POST", "path": "/api/factory/deploy/sac", "purpose": "Trigger SAC deployment"},
             ],
             "nats_subjects": [],
             "source_paths": [
