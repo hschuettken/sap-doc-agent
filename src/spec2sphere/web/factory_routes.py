@@ -133,7 +133,7 @@ def create_factory_routes() -> APIRouter:
             rows = await conn.fetch(
                 """
                 SELECT id, artifact_name, artifact_type, status, started_at,
-                       completed_at, error_message
+                       completed_at, error_message, route_chosen, route_reason
                 FROM deployment_steps
                 WHERE run_id = $1
                 ORDER BY started_at ASC
@@ -254,6 +254,10 @@ def create_factory_routes() -> APIRouter:
             if conn:
                 await conn.close()
 
+        from spec2sphere.factory.reconciliation import compute_aggregate_summary  # noqa: PLC0415
+
+        summary = compute_aggregate_summary([dict(r) for r in results])
+
         return _render(
             request,
             "reconciliation.html",
@@ -262,6 +266,7 @@ def create_factory_routes() -> APIRouter:
                 "error": error,
                 "status_classes": RECON_STATUS_CLASSES,
                 "active_page": "reconciliation",
+                "summary": summary,
             },
         )
 
@@ -452,9 +457,10 @@ def create_factory_routes() -> APIRouter:
 
         novnc_url = ""
         viewer_count = 0
+        task_name = ""
 
         try:
-            from spec2sphere.browser.novnc import get_novnc_url, get_viewer_count
+            from spec2sphere.browser.novnc import get_novnc_url, get_viewer_count  # noqa: PLC0415
 
             if tenant:
                 try:
@@ -466,6 +472,28 @@ def create_factory_routes() -> APIRouter:
         except Exception as exc:
             logger.warning("browser_viewer novnc import: %s", exc)
 
+        # Fetch the active deployment run name for "Watching" overlay
+        conn = None
+        try:
+            conn = await _get_conn()
+            active_run = await conn.fetchrow(
+                """
+                SELECT dr.id, p.name AS project_name
+                FROM deployment_runs dr
+                LEFT JOIN projects p ON p.id = dr.project_id
+                WHERE dr.status = 'running'
+                ORDER BY dr.created_at DESC
+                LIMIT 1
+                """
+            )
+            if active_run:
+                task_name = active_run["project_name"] or str(active_run["id"])
+        except Exception as exc:
+            logger.debug("browser_viewer: could not fetch active run: %s", exc)
+        finally:
+            if conn:
+                await conn.close()
+
         return _render(
             request,
             "browser_viewer.html",
@@ -474,6 +502,7 @@ def create_factory_routes() -> APIRouter:
                 "viewer_count": viewer_count,
                 "tenant": tenant,
                 "env": env,
+                "task_name": task_name,
                 "active_page": "browser",
             },
         )

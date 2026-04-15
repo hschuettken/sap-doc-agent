@@ -94,6 +94,54 @@
         {% endif %}
       </div>
 
+      <!-- Design score -->
+      {% if r.design_score is defined and r.design_score is not none %}
+      <div class="px-4 py-2 border-t border-gray-50">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-medium text-gray-600">Design Score</span>
+          {% set ds = r.design_score | float %}
+          <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+            {% if ds >= 80 %}bg-green-100 text-green-700
+            {% elif ds >= 50 %}bg-amber-100 text-amber-700
+            {% else %}bg-red-100 text-red-700{% endif %}">
+            {{ ds | int }}/100
+          </span>
+        </div>
+        {% if r.design_violations %}
+        <details class="text-xs text-gray-500">
+          <summary class="cursor-pointer text-gray-400 hover:text-gray-600">Show violations ({{ r.design_violations | length }})</summary>
+          <ul class="mt-1 space-y-0.5 pl-3">
+            {% for v in r.design_violations %}
+            <li class="text-red-500">&#8226; {{ v }}</li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Interaction test results -->
+      {% if r.interaction_results %}
+      <div class="px-4 py-2 border-t border-gray-50">
+        <p class="text-xs font-medium text-gray-600 mb-1">Interaction Tests</p>
+        <ul class="space-y-1">
+          {% for it in r.interaction_results %}
+          <li class="flex items-center gap-2 text-xs">
+            {% if it.status == 'pass' %}
+            <span class="inline-block px-1.5 py-0.5 rounded text-green-700 bg-green-100 font-medium">pass</span>
+            {% else %}
+            <span class="inline-block px-1.5 py-0.5 rounded text-red-700 bg-red-100 font-medium">fail</span>
+            {% endif %}
+            <span class="text-gray-600">{{ it.title }}</span>
+            {% if it.screenshot_path %}
+            <a href="{{ it.screenshot_path }}" target="_blank" class="text-petrol hover:underline text-xs ml-auto">screenshot</a>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
       <!-- Footer: timestamp -->
       <div class="px-4 pb-3 text-xs text-gray-400">
         {{ r.created_at or '' }}

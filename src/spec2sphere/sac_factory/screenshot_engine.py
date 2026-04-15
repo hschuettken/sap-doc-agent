@@ -52,6 +52,51 @@ def classify_visual_diff(diff_pct: float, elements_missing: int = 0) -> str:
     return "major_diff"
 
 
+def structural_screenshot_diff(expected_elements: list[str], actual_elements: list[str]) -> dict:
+    """Compare expected vs actual UI elements (by label/ID).
+
+    Returns: {match: bool, missing: [str], extra: [str], elements_missing: int}
+    """
+    expected_set = set(expected_elements)
+    actual_set = set(actual_elements)
+    missing = sorted(expected_set - actual_set)
+    extra = sorted(actual_set - expected_set)
+    return {
+        "match": len(missing) == 0,
+        "missing": missing,
+        "extra": extra,
+        "elements_missing": len(missing),
+    }
+
+
+def generate_diff_overlay_html(
+    screenshot_path: str,
+    differences: list[dict],
+    width: int = 1920,
+    height: int = 1080,
+) -> str:
+    """Generate an HTML overlay highlighting differences on a screenshot.
+
+    Returns HTML string with positioned annotations over the screenshot.
+    """
+    annotations = []
+    for i, diff in enumerate(differences):
+        x = diff.get("x", 10 + i * 50)
+        y = diff.get("y", 10 + i * 30)
+        label = diff.get("label", diff.get("type", f"Diff {i + 1}"))
+        annotations.append(
+            f'<div style="position:absolute;left:{x}px;top:{y}px;'
+            f"border:2px solid red;padding:2px 6px;background:rgba(255,0,0,0.15);"
+            f'color:red;font-size:11px;border-radius:3px;">{label}</div>'
+        )
+    return (
+        f'<div style="position:relative;width:{width}px;height:{height}px;">'
+        f'<img src="{screenshot_path}" style="width:100%;height:100%;object-fit:contain;">'
+        f"{''.join(annotations)}"
+        f"</div>"
+    )
+
+
 async def capture_page_screenshot(
     tenant_id: object,
     environment: str,

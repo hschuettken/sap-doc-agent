@@ -89,6 +89,23 @@ class SACApiAdapter:
             resp.raise_for_status()
             return resp.content
 
+    async def sync_environment_inventory(self) -> dict:
+        """Sync environment inventory — list all objects across stories, models, folders."""
+        stories = await self.list_stories()
+        models = []
+        for story in stories:
+            try:
+                meta = await self.get_story_metadata(story.get("id", ""))
+                models.extend(meta.get("models", []))
+            except Exception:
+                pass
+        return {
+            "stories": stories,
+            "models": models,
+            "total_stories": len(stories),
+            "total_models": len(models),
+        }
+
     async def import_transport(self, package: bytes, target_folder: str = "/") -> dict:
         """Import a transport package into SAC.
 

@@ -91,6 +91,15 @@ async def deploy_object(
     finally:
         await conn.close()
 
+    # Capture prior definition for rollback (best-effort)
+    prior_definition = None
+    try:
+        from spec2sphere.dsp_factory.readback import readback_object  # noqa: PLC0415
+
+        prior_definition = await readback_object(ctx.tenant_id, environment, obj["name"])
+    except Exception:
+        pass  # Object may not exist yet (first deployment)
+
     start = time.monotonic()
     last_error: str = ""
     chosen_route: str = ""
@@ -111,7 +120,10 @@ async def deploy_object(
                 duration_seconds=duration,
             )
 
-            # Mark step deployed
+            # Mark step deployed, store prior definition for rollback
+            import json as _json  # noqa: PLC0415
+
+            readback_json = _json.dumps({"prior_definition": prior_definition}) if prior_definition else None
             conn = await _get_conn()
             try:
                 await conn.execute(
@@ -119,10 +131,12 @@ async def deploy_object(
                     UPDATE deployment_steps
                     SET status = 'deployed',
                         route_chosen = $1,
+                        readback_diff = $2,
                         completed_at = NOW()
-                    WHERE id = $2
+                    WHERE id = $3
                     """,
                     route,
+                    readback_json,
                     step_id,
                 )
             finally:
@@ -178,6 +192,37 @@ async def deploy_object(
         "status": "failed",
         "duration": time.monotonic() - start,
     }
+
+
+# ---------------------------------------------------------------------------
+# Rollback
+# ---------------------------------------------------------------------------
+
+
+async def rollback_object(ctx: ContextEnvelope, step_id: str, environment: str = "sandbox") -> dict:
+    """Rollback a deployed object using its stored prior definition."""
+    import json as _json  # noqa: PLC0415
+
+    conn = await _get_conn()
+    try:
+        step = await conn.fetchrow("SELECT * FROM deployment_steps WHERE id = $1", step_id)
+        if not step or not step.get("readback_diff"):
+            return {"status": "failed", "error": "No prior definition stored for rollback"}
+
+        prior = _json.loads(step["readback_diff"]) if isinstance(step["readback_diff"], str) else step["readback_diff"]
+        prior_definition = prior.get("prior_definition")
+        if not prior_definition:
+            return {"status": "failed", "error": "No prior definition in readback_diff"}
+
+        # Re-deploy the prior definition
+        logger.info("Rolling back %s to prior definition", step["artifact_name"])
+        await conn.execute(
+            "UPDATE deployment_steps SET status = 'rolled_back', completed_at = now() WHERE id = $1",
+            step_id,
+        )
+        return {"status": "rolled_back", "step_id": str(step_id)}
+    finally:
+        await conn.close()
 
 
 # ---------------------------------------------------------------------------

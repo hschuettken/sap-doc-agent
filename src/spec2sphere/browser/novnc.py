@@ -73,3 +73,21 @@ def unregister_viewer(tenant_id: UUID, environment: str, user_id: str) -> int:
 def get_viewer_count(tenant_id: UUID, environment: str) -> int:
     """Get the number of active viewers for this tenant/environment."""
     return len(_active_viewers.get((tenant_id, environment), set()))
+
+
+def handle_workspace_switch(
+    old_tenant_id: UUID,
+    old_environment: str,
+    new_tenant_id: UUID,
+    new_environment: str,
+    user_id: str,
+) -> dict:
+    """Handle workspace switch — unregister from old, register to new, return new URL."""
+    unregister_viewer(old_tenant_id, old_environment, user_id)
+    new_count = register_viewer(new_tenant_id, new_environment, user_id)
+    new_url = get_novnc_url(new_tenant_id, new_environment)
+    return {
+        "novnc_url": new_url,
+        "viewer_count": new_count,
+        "action": "reconnect",
+    }

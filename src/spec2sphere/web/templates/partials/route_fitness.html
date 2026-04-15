@@ -49,6 +49,30 @@
   });
   </script>
 
+  {% if fitness_rows %}
+  <div class="bg-white rounded-lg shadow-sm p-4">
+    <h2 class="font-heading text-base text-charcoal mb-3">Recommendations</h2>
+    <ul class="space-y-1.5">
+      {% for row in fitness_rows %}
+      {% set score = row.fitness_score | float if row.fitness_score is not none else 0 %}
+      {% if score < 0.5 %}
+      <li class="flex items-center gap-2 text-sm">
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Avoid</span>
+        <span class="text-gray-700 font-mono text-xs">{{ row.route }}</span>
+        <span class="text-gray-400 text-xs">for {{ row.object_type }} (score {{ "%.2f" | format(score) }})</span>
+      </li>
+      {% elif score > 0.8 %}
+      <li class="flex items-center gap-2 text-sm">
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Preferred</span>
+        <span class="text-gray-700 font-mono text-xs">{{ row.route }}</span>
+        <span class="text-gray-400 text-xs">for {{ row.object_type }} (score {{ "%.2f" | format(score) }})</span>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <div class="bg-white rounded-lg shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
       <h2 class="font-heading text-base text-charcoal">Route Fitness Scores</h2>
