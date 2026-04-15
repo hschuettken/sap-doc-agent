@@ -158,6 +158,23 @@ def _decide_artifact_type(dashboard_need: dict) -> tuple[str, str, float]:
     )
 
 
+def _enforce_widget_types(pages: list[dict]) -> list[dict]:
+    """Post-process LLM output to enforce KPI-to-widget type mapping.
+
+    If a widget has metric_binding with a kpi_type hint, ensure the widget
+    type matches the canonical mapping.
+    """
+    for page in pages:
+        for widget in page.get("widgets", []):
+            binding = widget.get("metric_binding") or {}
+            kpi_type = binding.get("kpi_type", "").lower()
+            if kpi_type and kpi_type in _KPI_TO_WIDGET:
+                canonical = _KPI_TO_WIDGET[kpi_type]
+                if widget.get("type") != canonical:
+                    widget["type"] = canonical
+    return pages
+
+
 def _apply_style_tokens(widget: dict, design_tokens: list[dict]) -> dict:
     """Attach style_tokens to a widget dict based on customer design tokens."""
     if not design_tokens:
@@ -451,7 +468,7 @@ async def generate_blueprint(
                 },
             }
 
-        # --- 4. Apply design tokens to widgets ---
+        # --- 4. Apply design tokens to widgets and enforce KPI-to-widget mapping ---
         pages: list[dict] = blueprint_data.get("pages") or []
         for page in pages:
             updated_widgets = []
@@ -459,6 +476,8 @@ async def generate_blueprint(
                 widget = _apply_style_tokens(widget, design_tokens)
                 updated_widgets.append(widget)
             page["widgets"] = updated_widgets
+
+        pages = _enforce_widget_types(pages)
 
         interactions: dict = blueprint_data.get("interactions") or {
             "global_filters": [],

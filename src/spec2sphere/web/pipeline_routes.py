@@ -632,47 +632,64 @@ def create_pipeline_routes() -> APIRouter:
         if diff is None and not error:
             error = "Select two HLA versions to compare (pass ?a=<id>&b=<id>)."
 
-        # Render inline HTML fragment
+        # Render inline HTML fragment for errors
         if error:
             return HTMLResponse(
                 f'<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">'
                 f'<p class="text-sm text-yellow-700">{error}</p></div>'
             )
 
-        views_added = diff.get("views", {}).get("added", [])
-        views_removed = diff.get("views", {}).get("removed", [])
-        views_changed = diff.get("views", {}).get("changed", [])
-        decisions_added = diff.get("key_decisions", {}).get("added", [])
-        decisions_removed = diff.get("key_decisions", {}).get("removed", [])
+        # Build flat added/removed/changed lists for the diff_viewer partial
+        diff_added: list[dict] = []
+        diff_removed: list[dict] = []
+        diff_changed: list[dict] = []
 
-        rows = ""
-        for v in views_added:
-            rows += f'<tr class="bg-green-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-green-700">Added</td></tr>'
-        for v in views_removed:
-            rows += f'<tr class="bg-red-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-red-700">Removed</td></tr>'
-        for v in views_changed:
-            rows += f'<tr class="bg-amber-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-amber-700">Changed</td></tr>'
-        for d in decisions_added:
-            rows += f'<tr class="bg-green-50"><td class="px-3 py-1.5 text-xs">Decision</td><td class="px-3 py-1.5 text-xs font-medium">{d}</td><td class="px-3 py-1.5 text-xs text-green-700">Added</td></tr>'
-        for d in decisions_removed:
-            rows += f'<tr class="bg-red-50"><td class="px-3 py-1.5 text-xs">Decision</td><td class="px-3 py-1.5 text-xs font-medium">{d}</td><td class="px-3 py-1.5 text-xs text-red-700">Removed</td></tr>'
-
-        if not rows:
-            rows = (
-                '<tr><td colspan="3" class="px-3 py-4 text-center text-xs text-gray-400">No differences found</td></tr>'
+        for v in diff.get("views", {}).get("added", []):
+            diff_added.append({"field": "View", "value": str(v)})
+        for v in diff.get("views", {}).get("removed", []):
+            diff_removed.append({"field": "View", "value": str(v)})
+        for v in diff.get("views", {}).get("changed", []):
+            name = v.get("name", str(v)) if isinstance(v, dict) else str(v)
+            diff_changed.append(
+                {
+                    "field": "View",
+                    "name": name,
+                    "before": str(v.get("before", "")) if isinstance(v, dict) else "",
+                    "after": str(v.get("after", "")) if isinstance(v, dict) else "",
+                }
             )
 
-        html = (
-            f'<div class="bg-white rounded-lg shadow-sm p-6">'
-            f'<h3 class="font-heading text-lg mb-4">HLA Version Comparison</h3>'
-            f'<p class="text-xs text-gray-500 mb-3">Version {diff.get("version_a", "?")} vs {diff.get("version_b", "?")}</p>'
-            f'<table class="w-full text-left"><thead><tr>'
-            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Type</th>'
-            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Name</th>'
-            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Change</th>'
-            f"</tr></thead><tbody>{rows}</tbody></table></div>"
+        for d in diff.get("key_decisions", {}).get("added", []):
+            diff_added.append({"field": "Decision", "value": str(d)})
+        for d in diff.get("key_decisions", {}).get("removed", []):
+            diff_removed.append({"field": "Decision", "value": str(d)})
+        for d in diff.get("key_decisions", {}).get("changed", []):
+            name = d.get("name", str(d)) if isinstance(d, dict) else str(d)
+            diff_changed.append(
+                {
+                    "field": "Decision",
+                    "name": name,
+                    "before": str(d.get("before", "")) if isinstance(d, dict) else "",
+                    "after": str(d.get("after", "")) if isinstance(d, dict) else "",
+                }
+            )
+
+        version_a = diff.get("version_a", "?")
+        version_b = diff.get("version_b", "?")
+
+        return _render(
+            request,
+            "partials/diff_viewer.html",
+            {
+                "diff": {
+                    "added": diff_added,
+                    "removed": diff_removed,
+                    "changed": diff_changed,
+                },
+                "title": f"HLA Comparison: v{version_a} → v{version_b}",
+                "mode": "inline",
+            },
         )
-        return HTMLResponse(html)
 
     # ── Approvals ─────────────────────────────────────────────────────────────
 
@@ -1363,6 +1380,101 @@ def create_pipeline_routes() -> APIRouter:
             return HTMLResponse('<p class="text-xs text-green-600 font-medium">Tolerance rules saved.</p>')
         except Exception as exc:
             logger.error("Update tolerances for test spec %s failed: %s", ts_id, exc)
+            return HTMLResponse(f'<p class="text-xs text-red-500">Save failed: {exc}</p>')
+
+    @router.put("/ui/pipeline/testspec/{ts_id}/mode", response_class=HTMLResponse)
+    async def update_testspec_mode(ts_id: str, request: Request):
+        """Toggle test mode between preservation and improvement."""
+        try:
+            form = await request.form()
+            new_mode = str(form.get("test_mode", "preservation"))
+            if new_mode not in ("preservation", "improvement"):
+                new_mode = "preservation"
+
+            import os
+            import asyncpg  # noqa: PLC0415
+
+            db_url = os.environ.get("DATABASE_URL", "")
+            pg_url = db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                "postgresql+asyncpg://", "postgresql://"
+            )
+            conn = await asyncpg.connect(pg_url)
+            try:
+                await conn.execute(
+                    "UPDATE test_specs SET test_mode = $1 WHERE id = $2::uuid",
+                    new_mode,
+                    ts_id,
+                )
+            finally:
+                await conn.close()
+
+            active_pres = new_mode == "preservation"
+            pres_cls = "bg-blue-600 text-white" if active_pres else "bg-white text-gray-500 hover:bg-gray-50"
+            impr_cls = "bg-purple-600 text-white" if not active_pres else "bg-white text-gray-500 hover:bg-gray-50"
+            html = (
+                f'<div id="test-mode-toggle" '
+                f'class="inline-flex rounded-full border border-gray-200 overflow-hidden text-xs font-medium">'
+                f'<form hx-put="/ui/pipeline/testspec/{ts_id}/mode" '
+                f'hx-target="#test-mode-toggle" hx-swap="outerHTML" class="inline">'
+                f'<input type="hidden" name="test_mode" value="preservation">'
+                f'<button type="submit" class="px-3 py-1 flex items-center gap-1.5 transition-colors {pres_cls}">'
+                f'<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+                f'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" '
+                f'd="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 '
+                f"01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 "
+                f'5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
+                f"</svg>Preservation</button></form>"
+                f'<form hx-put="/ui/pipeline/testspec/{ts_id}/mode" '
+                f'hx-target="#test-mode-toggle" hx-swap="outerHTML" class="inline">'
+                f'<input type="hidden" name="test_mode" value="improvement">'
+                f'<button type="submit" class="px-3 py-1 flex items-center gap-1.5 transition-colors {impr_cls}">'
+                f'<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+                f'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" '
+                f'd="M13 10V3L4 14h7v7l9-11h-7z"/>'
+                f"</svg>Improvement</button></form>"
+                f"</div>"
+            )
+            return HTMLResponse(html)
+        except Exception as exc:
+            logger.error("Update test mode for test spec %s failed: %s", ts_id, exc)
+            return HTMLResponse(f'<div class="p-2 text-xs text-red-500">Failed: {exc}</div>')
+
+    @router.put("/ui/pipeline/testspec/{ts_id}/deltas", response_class=HTMLResponse)
+    async def update_testspec_deltas(ts_id: str, request: Request):
+        """Update expected deltas for improvement mode."""
+        try:
+            form = await request.form()
+            deltas = []
+            idx = 0
+            while True:
+                name = form.get(f"delta_name_{idx}")
+                if name is None:
+                    break
+                desc = str(form.get(f"delta_desc_{idx}", ""))
+                if str(name).strip():
+                    deltas.append({"name": str(name).strip(), "description": desc.strip()})
+                idx += 1
+
+            import os
+            import asyncpg  # noqa: PLC0415
+
+            db_url = os.environ.get("DATABASE_URL", "")
+            pg_url = db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+                "postgresql+asyncpg://", "postgresql://"
+            )
+            conn = await asyncpg.connect(pg_url)
+            try:
+                await conn.execute(
+                    "UPDATE test_specs SET expected_deltas = $1::jsonb WHERE id = $2::uuid",
+                    json.dumps(deltas),
+                    ts_id,
+                )
+            finally:
+                await conn.close()
+
+            return HTMLResponse(f'<p class="text-xs text-green-600 font-medium">{len(deltas)} delta(s) saved.</p>')
+        except Exception as exc:
+            logger.error("Update deltas for test spec %s failed: %s", ts_id, exc)
             return HTMLResponse(f'<p class="text-xs text-red-500">Save failed: {exc}</p>')
 
     return router

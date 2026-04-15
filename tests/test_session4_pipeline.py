@@ -844,6 +844,74 @@ class TestSQLValidation:
         assert result.is_valid is False
         assert result.error_count > 0
 
+    def test_sql_validation_union_without_aliases(self):
+        """UNION ALL where second leg has no AS aliases should be flagged."""
+        from spec2sphere.migration.sql_validator import validate_dsp_sql
+
+        sql = (
+            'SELECT "VKORG" AS ORG, "NETWR" AS REVENUE FROM "01_LT_VBAP" '
+            "UNION ALL "
+            'SELECT "VKORG", "NETWR" FROM "01_LT_VBAP_HIST"'
+        )
+
+        result = validate_dsp_sql(sql)
+
+        # Second leg has no AS aliases — union_aliases rule fires
+        assert result.is_valid is False
+        assert result.error_count > 0
+        rule_ids = [v.rule_id for v in result.violations]
+        assert "union_aliases" in rule_ids
+
+    def test_sql_validation_select_star_cross_space(self):
+        """SQL with SELECT * and cross-space quoted reference should be flagged."""
+        from spec2sphere.migration.sql_validator import validate_dsp_sql
+
+        sql = 'SELECT * FROM "OTHER_SPACE"."RV_SALES"'
+
+        result = validate_dsp_sql(sql)
+
+        # SELECT * + cross-space ref triggers no_select_star_cross_space
+        assert result.is_valid is False
+        assert result.error_count > 0
+        rule_ids = [v.rule_id for v in result.violations]
+        assert "no_select_star_cross_space" in rule_ids
+
+    def test_sql_validation_varchar_date(self):
+        """SQL comparing unquoted DATAB to CURRENT_DATE should be flagged as a warning."""
+        from spec2sphere.migration.sql_validator import validate_dsp_sql
+
+        # DSP stores DATAB as VARCHAR YYYYMMDD; comparing against CURRENT_DATE is invalid.
+        # The rule matches unquoted DATAB (the field is typically unquoted in WHERE clauses
+        # after being projected; the regex uses \b which won't cross a quote boundary).
+        sql = 'SELECT "KUNNR", "DATAB" FROM "02_RV_KNA1" WHERE DATAB <= CURRENT_DATE'
+
+        result = validate_dsp_sql(sql)
+
+        # varchar_date_comparison is a warning, not an error
+        rule_ids = [v.rule_id for v in result.violations]
+        assert "varchar_date_comparison" in rule_ids
+        warning_rules = [v.rule_id for v in result.violations if v.severity == "warning"]
+        assert "varchar_date_comparison" in warning_rules
+
+    def test_sql_validation_complex_valid(self):
+        """A complex but valid DSP SQL with JOINs, quoted identifiers, and aliases passes."""
+        from spec2sphere.migration.sql_validator import validate_dsp_sql
+
+        sql = (
+            'SELECT a."VKORG" AS SALES_ORG, a."KUNNR" AS CUSTOMER, '
+            'SUM(a."NETWR") AS TOTAL_REVENUE, b."NAME1" AS CUSTOMER_NAME '
+            'FROM "02_RV_VBAP" a '
+            'JOIN "02_RV_KNA1" b ON a."KUNNR" = b."KUNNR" '
+            "WHERE a.\"DATAB\" <= '20261231' "
+            'GROUP BY a."VKORG", a."KUNNR", b."NAME1"'
+        )
+
+        result = validate_dsp_sql(sql)
+
+        assert result.is_valid is True
+        assert result.error_count == 0
+        assert result.warning_count == 0
+
 
 # ---------------------------------------------------------------------------
 # Approval Checklist Tests

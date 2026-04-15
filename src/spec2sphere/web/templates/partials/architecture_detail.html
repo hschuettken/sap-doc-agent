@@ -85,6 +85,21 @@
             {% endfor %}
           </div>
         </details>
+        <!-- Compare versions -->
+        <div class="flex items-center gap-2">
+          <select id="compare-version-select-{{ hla.id }}"
+                  class="bg-white border border-gray-300 text-gray-700 text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-petrol focus:border-petrol">
+            <option value="">Compare with…</option>
+            {% for v in versions %}
+            <option value="{{ v.id }}">v{{ v.version or '?' }} — {{ (v.created_at or '')[:10] }}</option>
+            {% endfor %}
+          </select>
+          <button type="button"
+                  onclick="triggerHlaCompare('{{ hla.id }}')"
+                  class="bg-petrol text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-petrol/90 disabled:opacity-50">
+            Compare
+          </button>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -393,7 +408,21 @@
   </div>
   {% endif %}
 
+  <!-- ── Version diff result ──────────────────────────────────────── -->
+  <div id="hla-diff-result"></div>
+
   {% endif %}{# end if hla #}
 
 </div>
+
+<script>
+function triggerHlaCompare(hlaId) {
+  var select = document.getElementById('compare-version-select-' + hlaId);
+  if (!select || !select.value) return;
+  var url = '/ui/pipeline/architecture/compare?a=' + encodeURIComponent(hlaId) + '&b=' + encodeURIComponent(select.value);
+  htmx.ajax('GET', url, {target: '#hla-diff-result', swap: 'innerHTML'});
+  document.getElementById('hla-diff-result').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+</script>
+
 {% endblock %}
