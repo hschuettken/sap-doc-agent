@@ -18,6 +18,7 @@ celery_app.conf.update(
         "spec2sphere.tasks.chain_tasks.build_chains": {"queue": "scan"},
         "spec2sphere.tasks.chain_tasks.analyze_single_chain": {"queue": "llm"},
         "spec2sphere.tasks.migration_tasks.*": {"queue": "llm"},
+        "spec2sphere.tasks.pipeline_tasks.*": {"queue": "llm"},
     },
     worker_prefetch_multiplier=1,
 )

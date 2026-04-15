@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Requirements — Spec2Sphere{% endblock %}
+{% block page_title %}Requirements{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-6">
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- ── Upload card ────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-700 mb-3">Upload BRS Document</h3>
+    <form id="brs-upload-form"
+          hx-post="/ui/pipeline/requirements/upload"
+          hx-target="#upload-result"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          class="space-y-4">
+
+      <!-- Drop zone -->
+      <div id="brs-drop-zone"
+           class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer
+                  hover:border-petrol hover:bg-petrol/5 transition-colors"
+           ondragover="event.preventDefault(); this.classList.add('border-petrol','bg-petrol/5')"
+           ondragleave="this.classList.remove('border-petrol','bg-petrol/5')"
+           ondrop="event.preventDefault(); this.classList.remove('border-petrol','bg-petrol/5');
+                   document.getElementById('brs-file-input').files = event.dataTransfer.files;
+                   document.getElementById('brs-file-name').textContent = event.dataTransfer.files[0].name;
+                   document.getElementById('brs-drop-text').classList.add('hidden');
+                   document.getElementById('brs-file-info').classList.remove('hidden');">
+        <input type="file" id="brs-file-input" name="file"
+               accept=".pdf,.docx,.doc,.md,.txt,.yaml,.yml"
+               class="hidden"
+               onchange="if(this.files[0]){
+                 document.getElementById('brs-file-name').textContent=this.files[0].name;
+                 document.getElementById('brs-drop-text').classList.add('hidden');
+                 document.getElementById('brs-file-info').classList.remove('hidden');
+               }">
+        <div id="brs-drop-text">
+          <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <p class="text-sm text-gray-500">
+            Drag &amp; drop your BRS document, or
+            <span class="text-petrol font-medium cursor-pointer hover:text-petrol-light"
+                  onclick="document.getElementById('brs-file-input').click()">browse</span>
+          </p>
+          <p class="text-xs text-gray-400 mt-1">PDF, Word, Markdown, YAML — up to 50 MB</p>
+        </div>
+        <div id="brs-file-info" class="hidden">
+          <svg class="mx-auto h-10 w-10 text-petrol mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm text-petrol font-medium" id="brs-file-name"></p>
+          <p class="text-xs text-gray-400 mt-1">Ready to upload</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="submit"
+                hx-indicator="#upload-spinner"
+                class="bg-petrol text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-petrol-light flex items-center gap-2">
+          <svg id="upload-spinner" class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Ingest BRS
+        </button>
+        <p class="text-xs text-gray-400">The AI will extract business requirements, entities, KPIs and grain.</p>
+      </div>
+    </form>
+    <div id="upload-result" class="mt-3"></div>
+  </div>
+
+  <!-- ── Filter bar ─────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-4">
+    <form hx-get="/ui/pipeline/requirements"
+          hx-target="#req-list"
+          hx-select="#req-list"
+          hx-push-url="true"
+          class="flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+        <select name="status" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <option value="" {{ 'selected' if not status_filter }}>All Statuses</option>
+          <option value="draft" {{ 'selected' if status_filter == 'draft' }}>Draft</option>
+          <option value="ingested" {{ 'selected' if status_filter == 'ingested' }}>Ingested</option>
+          <option value="parsed" {{ 'selected' if status_filter == 'parsed' }}>Parsed</option>
+          <option value="pending_review" {{ 'selected' if status_filter == 'pending_review' }}>Pending Review</option>
+          <option value="approved" {{ 'selected' if status_filter == 'approved' }}>Approved</option>
+          <option value="rejected" {{ 'selected' if status_filter == 'rejected' }}>Rejected</option>
+          <option value="rework" {{ 'selected' if status_filter == 'rework' }}>Rework</option>
+        </select>
+      </div>
+      <button type="submit"
+              class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
+        Filter
+      </button>
+    </form>
+  </div>
+
+  <!-- ── Requirements list ─────────────────────────────────────────── -->
+  <div id="req-list">
+    {% if requirements %}
+    <div class="space-y-3">
+      {% for req in requirements %}
+      {% set status = req.status or 'draft' %}
+      <div class="bg-white rounded-lg shadow-sm p-4 border-l-4
+        {% if status == 'approved' %}border-green-400
+        {% elif status == 'pending_review' %}border-amber-400
+        {% elif status == 'rejected' %}border-red-400
+        {% elif status == 'rework' %}border-blue-400
+        {% elif status == 'parsed' %}border-teal-400
+        {% else %}border-gray-200{% endif %}
+        hover:shadow-md transition-shadow cursor-pointer"
+           hx-get="/ui/pipeline/requirements/{{ req.id }}"
+           hx-target="#content"
+           hx-push-url="true"
+           hx-select="#content-inner">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="font-semibold text-sm text-gray-900 truncate">
+                {{ req.title or req.filename or 'Untitled Requirement' }}
+              </h3>
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium
+                {% if status == 'approved' %}bg-green-100 text-green-700
+                {% elif status == 'pending_review' %}bg-amber-100 text-amber-700
+                {% elif status == 'rejected' %}bg-red-100 text-red-700
+                {% elif status == 'rework' %}bg-blue-100 text-blue-700
+                {% elif status == 'parsed' %}bg-teal-100 text-teal-700
+                {% elif status == 'ingested' %}bg-indigo-100 text-indigo-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ status }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+              {% if req.business_domain %}
+              <span>Domain: {{ req.business_domain }}</span>
+              {% endif %}
+              {% if req.confidence is not none %}
+              <span>Confidence:
+                <strong class="
+                  {% if req.confidence >= 0.8 %}text-green-600
+                  {% elif req.confidence >= 0.5 %}text-amber-500
+                  {% else %}text-red-500{% endif %}">
+                  {{ (req.confidence * 100) | int }}%
+                </strong>
+              </span>
+              {% endif %}
+              {% if req.created_at %}
+              <span class="text-gray-400">{{ req.created_at[:10] }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm p-10 text-center text-gray-400">
+      <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <p class="text-sm font-medium">No requirements yet</p>
+      <p class="text-xs mt-1">Upload a BRS document above to get started</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

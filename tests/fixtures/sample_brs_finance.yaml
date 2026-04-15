@@ -1,0 +1,167 @@
+title: "Financial Close Reporting"
+version: "1.0"
+business_domain: "Finance & Controlling"
+status: "approved"
+author: "Finance Controlling - Central Reporting"
+date: "2026-01-20"
+
+description: >
+  Monthly and quarterly financial close reporting for management reporting
+  and statutory consolidation. Covers P&L, Balance Sheet, and Cost Centre
+  analysis. Data sourced from SAP ECC FI/CO modules.
+
+entities:
+  - name: "G/L Account"
+    type: "dimension"
+    description: "Chart of accounts dimension with account group hierarchy"
+    attributes:
+      - SAKNR (G/L account number)
+      - TXTMD (account description)
+      - KTOKS (account group)
+      - XBILK (balance sheet indicator)
+    source_table: "SKA1"
+
+  - name: "Cost Centre"
+    type: "dimension"
+    description: "Cost controlling unit for expense allocation"
+    attributes:
+      - KOSTL (cost centre)
+      - KTEXT (name)
+      - ABTEI (department)
+      - VERAK (person responsible)
+    source_table: "CSKS"
+
+  - name: "Profit Centre"
+    type: "dimension"
+    description: "Profit centre for internal management reporting"
+    attributes:
+      - PRCTR (profit centre)
+      - KTEXT (name)
+      - SEGMENT (segment assignment)
+    source_table: "CEPC"
+
+  - name: "Company Code"
+    type: "dimension"
+    description: "Legal entity dimension"
+    attributes:
+      - BUKRS (company code)
+      - BUTXT (company name)
+      - LAND1 (country)
+      - WAERS (currency)
+    source_table: "T001"
+
+  - name: "FI Document Line"
+    type: "fact"
+    description: "Accounting document line items — the primary fact"
+    attributes:
+      - BELNR (document number)
+      - GJAHR (fiscal year)
+      - BUZEI (line item)
+      - DMBTR (amount in local currency)
+      - WRBTR (amount in document currency)
+    source_table: "BSEG"
+
+measures:
+  - name: "Debit Amount"
+    type: "measure"
+    aggregation: "SUM"
+    description: "Sum of debit postings in local currency (DMBTR where SHKZG=S)"
+    unit: "Local currency"
+
+  - name: "Credit Amount"
+    type: "measure"
+    aggregation: "SUM"
+    description: "Sum of credit postings in local currency (DMBTR where SHKZG=H)"
+    unit: "Local currency"
+
+  - name: "Net Balance"
+    type: "calculated_measure"
+    formula: "Debit Amount - Credit Amount"
+    description: "Net account balance (debit minus credit)"
+    unit: "Local currency"
+
+  - name: "Headcount Costs"
+    type: "restricted_measure"
+    description: "Personnel cost lines only (cost element group PERS)"
+    aggregation: "SUM"
+    unit: "Local currency"
+
+kpis:
+  - name: "EBITDA"
+    formula: "Operating Revenue - Operating Expenses + Depreciation + Amortisation"
+    description: "Earnings before interest, taxes, depreciation, amortisation"
+    target_value: "As per annual budget"
+    unit: "EUR"
+
+  - name: "Cost Centre Variance"
+    formula: "(Actual Costs - Planned Costs) / Planned Costs"
+    description: "Variance between actual and plan for cost centres"
+    target_value: "< 5% deviation"
+    unit: "Percentage"
+
+  - name: "DSO (Days Sales Outstanding)"
+    formula: "(Accounts Receivable / Revenue) * Days in Period"
+    description: "Average collection period for receivables"
+    target_value: "< 45 days"
+    unit: "Days"
+
+grain:
+  dimensions:
+    - Company Code
+    - Fiscal Year
+    - Fiscal Period
+    - G/L Account
+    - Cost Centre
+    - Profit Centre
+  time_granularity: "Fiscal period (monthly)"
+  version_semantics: "Actuals vs Plan vs Forecast in separate fact tables"
+
+time_semantics:
+  type: "accumulating"
+  fiscal_variants:
+    - "K4 (calendar year)"
+    - "V3 (April start)"
+  comparison_periods:
+    - "Prior period (MoM)"
+    - "Prior year same period (YoY)"
+    - "YTD vs Prior YTD"
+    - "Actual vs Plan"
+    - "Actual vs Forecast"
+
+source_systems:
+  - name: "SAP ECC 6.0"
+    type: "ERP"
+    tables:
+      - BSEG (FI document line items)
+      - BKPF (FI document header)
+      - SKA1 (G/L account master)
+      - T001 (company codes)
+      - CSKS (cost centre master)
+      - CEPC (profit centre master)
+      - FAGLFLEXA (new GL line items)
+
+  - name: "SAP BPC (Business Planning and Consolidation)"
+    type: "Planning"
+    tables:
+      - UJT_FACT (plan data)
+      - UJKT_DIM (dimension members)
+
+non_functional:
+  expected_volume_rows: 5000000
+  expected_query_latency_seconds: 8.0
+  refresh_frequency: "Monthly close + daily delta"
+  retention_period: "7 years (statutory)"
+
+security:
+  row_level: true
+  column_level: true
+  roles:
+    - "FI_ANALYST — read access, own company code only"
+    - "FI_CONTROLLER — read all company codes, see margin data"
+    - "FI_MANAGEMENT — read + export, aggregated only"
+    - "AUDIT — read-only full access including line items"
+
+open_questions:
+  - "Plan data integration: pull from BPC or use CO internal orders table?"
+  - "Intercompany eliminations: in scope or out of scope for this BRS?"
+  - "Currency translation: should we expose both local and group currency (EUR) in the same model?"

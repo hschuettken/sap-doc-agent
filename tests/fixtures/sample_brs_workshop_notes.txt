@@ -1,0 +1,57 @@
+Sales Analytics Workshop - Requirements Capture Notes
+Date: 2026-01-10
+Attendees: Marcus (Sales Controlling), Anja (IT Architect), Frank (BW Team Lead), Priya (SAP DSP Lead)
+
+=== MEETING NOTES ===
+
+Started at 09:00. Marcus presented the current Excel-based process - takes 3 days per month to produce the board pack.
+
+KEY REQUIREMENT: Sales leadership wants a live dashboard by Q2 2026. "Live" means same-day data, not real-time.
+
+DISCUSSION: Source system access
+- Frank confirmed VBAK and VBAP are the main tables. Delta-enabled via SLT.
+- Priya asked about KONV for pricing conditions - Marcus said YES, we need discounts split out
+  ACTION: Priya to check if KONV replication is feasible at volume (estimated 50M rows)
+
+TOP 10 CUSTOMER REQUIREMENT:
+- Marcus wants to see top 10 customers by revenue with drill-down to order level
+- Priya: this is fine in SAC with ranked measures
+- Frank flagged: "active customer" definition needs to be in writing before we build
+  ACTION: Marcus to get sign-off from sales director on "active customer" definition by 2026-01-20
+
+GRAIN DISCUSSION:
+- Section 4 says item-level. Marketing team separately asked for customer-day aggregation.
+- Anja: these are two different use cases, we might need two separate views
+  OPEN QUESTION: Do we build one unified model or two separate consumption views?
+
+SECURITY:
+- Anja confirmed row-level security is mandatory - sales reps should only see their own SalesOrg
+- Finance wants margins hidden from standard sales users
+  ACTION: Anja to document roles and security concept in architecture doc
+
+TIME INTELLIGENCE:
+- Need YoY comparison with fiscal year V3 (April-March)
+- Board pack uses both calendar year AND fiscal year - dashboard must support both
+- Rolling 12 months is nice-to-have, not must-have for go-live
+
+NON-FUNCTIONAL:
+- Frank: current BW query takes 45 seconds. Target is under 5 seconds for SAC story.
+- Volume: ~2M new order lines per year. 3-year history = ~6M rows initially.
+- Priya: 6M rows is fine without persistence view. Above 50M we would need one.
+
+SAP BW MIGRATION:
+- Existing InfoCube 0SD_C03 in BW/4HANA has been maintained for 10 years
+- Frank wants to decommission it once DSP is live - needs parallel run period of 3 months
+  ACTION: Frank to propose parallel run governance process
+
+OPEN ITEMS / ACTION LIST:
+[ ] Marcus: "active customer" definition sign-off (due 2026-01-20)
+[ ] Priya: KONV replication feasibility check (due 2026-01-15)
+[ ] Anja: security concept document (due 2026-01-25)
+[ ] Frank: parallel run governance process proposal (due 2026-01-30)
+[ ] Priya + Frank: grain decision - one model or two (resolve in next workshop)
+
+NEXT WORKSHOP: 2026-01-22 at 10:00
+Agenda: Review security concept + resolve grain conflict + sign off BRS v1.0
+
+Meeting closed 11:30.

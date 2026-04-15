@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Approval — Spec2Sphere{% endblock %}
+{% block page_title %}Approval Gate{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-5">
+
+  <!-- Back link -->
+  <a href="/ui/pipeline"
+     hx-get="/ui/pipeline"
+     hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+     class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-petrol">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Pipeline
+  </a>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if approval %}
+  {% set status = approval.status or 'pending_review' %}
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5 border-l-4
+    {% if status == 'approved' %}border-green-400
+    {% elif status == 'rejected' %}border-red-400
+    {% elif status == 'rework' %}border-blue-400
+    {% else %}border-amber-400{% endif %}">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h2 class="font-heading text-xl text-charcoal">Approval Gate</h2>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+            {% if status == 'approved' %}bg-green-100 text-green-700
+            {% elif status == 'rejected' %}bg-red-100 text-red-700
+            {% elif status == 'rework' %}bg-blue-100 text-blue-700
+            {% else %}bg-amber-100 text-amber-700{% endif %}">
+            {{ status | replace('_', ' ') }}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-1.5 text-sm text-gray-500">
+          <span>Type: <strong class="text-gray-700">{{ approval.artifact_type | replace('_', ' ') }}</strong></span>
+          <span>Artifact: <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{{ approval.artifact_id }}</code></span>
+          {% if approval.submitted_at %}
+          <span class="text-gray-400">Submitted: {{ approval.submitted_at[:10] }}</span>
+          {% endif %}
+          {% if approval.reviewed_at %}
+          <span class="text-gray-400">Reviewed: {{ approval.reviewed_at[:10] }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Link back to artifact -->
+    <div class="mt-3">
+      {% if approval.artifact_type == 'requirement' %}
+      <a href="/ui/pipeline/requirements/{{ approval.artifact_id }}"
+         hx-get="/ui/pipeline/requirements/{{ approval.artifact_id }}"
+         hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+         class="text-sm text-petrol hover:text-petrol-light inline-flex items-center gap-1">
+        View Requirement →
+      </a>
+      {% elif approval.artifact_type == 'hla_document' %}
+      <a href="/ui/pipeline/architecture/{{ approval.artifact_id }}"
+         hx-get="/ui/pipeline/architecture/{{ approval.artifact_id }}"
+         hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+         class="text-sm text-petrol hover:text-petrol-light inline-flex items-center gap-1">
+        View HLA Document →
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Artifact summary ──────────────────────────────────────────── -->
+  {% if artifact %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-3">Artifact Summary</h3>
+    {% if approval.artifact_type == 'requirement' %}
+    <dl class="space-y-2 text-sm">
+      {% if artifact.title %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Title</dt>
+        <dd class="text-gray-800 font-medium">{{ artifact.title }}</dd>
+      </div>
+      {% endif %}
+      {% if artifact.business_domain %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Domain</dt>
+        <dd class="text-gray-800">{{ artifact.business_domain }}</dd>
+      </div>
+      {% endif %}
+      {% if artifact.confidence is not none %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Confidence</dt>
+        <dd class="font-medium
+          {% set conf = (artifact.confidence * 100) | int if artifact.confidence <= 1 else artifact.confidence | int %}
+          {% if conf >= 80 %}text-green-600{% elif conf >= 50 %}text-amber-500{% else %}text-red-500{% endif %}">
+          {{ conf }}%
+        </dd>
+      </div>
+      {% endif %}
+    </dl>
+    {% elif approval.artifact_type == 'hla_document' %}
+    <dl class="space-y-2 text-sm">
+      {% if artifact.title %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Title</dt>
+        <dd class="text-gray-800 font-medium">{{ artifact.title }}</dd>
+      </div>
+      {% endif %}
+      {% if artifact.version %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Version</dt>
+        <dd class="text-gray-800">{{ artifact.version }}</dd>
+      </div>
+      {% endif %}
+      {% set content = artifact.content if artifact.content is mapping else {} %}
+      {% if content.get('architecture_decisions') %}
+      <div class="flex gap-3">
+        <dt class="text-gray-500 w-32 flex-shrink-0">Decisions</dt>
+        <dd class="text-gray-800">{{ content.architecture_decisions | length }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Checklist ─────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-gray-800">Review Checklist</h3>
+      {% set total = checklist_template | length %}
+      {% set checked_count = namespace(n=0) %}
+      {% for item in checklist_template %}
+        {% if approval.checklist and approval.checklist.get(item.key) %}
+          {% set checked_count.n = checked_count.n + 1 %}
+        {% endif %}
+      {% endfor %}
+      <span class="text-xs text-gray-500">{{ checked_count.n }} / {{ total }} completed</span>
+    </div>
+
+    {% if status == 'pending_review' %}
+    <form hx-put="/ui/pipeline/approvals/{{ approval.id }}/checklist"
+          hx-target="#checklist-save-msg"
+          hx-swap="innerHTML"
+          class="space-y-3">
+      {% for item in checklist_template %}
+      {% set checked = approval.checklist.get(item.key, False) if approval.checklist else False %}
+      <label class="flex items-start gap-3 cursor-pointer group">
+        <input type="checkbox" name="{{ item.key }}" {{ 'checked' if checked }}
+               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-petrol focus:ring-petrol flex-shrink-0">
+        <div>
+          <span class="text-sm text-gray-700 group-hover:text-charcoal">{{ item.label }}</span>
+          {% if item.required %}
+          <span class="text-red-500 text-xs ml-1">required</span>
+          {% endif %}
+        </div>
+      </label>
+      {% endfor %}
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit"
+                class="bg-petrol text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-petrol-light">
+          Save Checklist
+        </button>
+        <span id="checklist-save-msg" class="text-xs text-gray-500"></span>
+      </div>
+    </form>
+    {% else %}
+    <!-- Read-only checklist view -->
+    <ul class="space-y-2">
+      {% for item in checklist_template %}
+      {% set checked = approval.checklist.get(item.key, False) if approval.checklist else False %}
+      <li class="flex items-center gap-3 text-sm">
+        {% if checked %}
+        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span class="text-gray-700">{{ item.label }}</span>
+        {% else %}
+        <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" stroke-width="2"/>
+        </svg>
+        <span class="text-gray-400 {{ 'text-red-400' if item.required else '' }}">{{ item.label }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <!-- ── Decision panel (only if pending) ──────────────────────────── -->
+  {% if status == 'pending_review' %}
+  <div class="bg-white rounded-lg shadow-sm p-5 border border-amber-200">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Make Decision</h3>
+    <form hx-post="/ui/pipeline/approvals/{{ approval.id }}/decide"
+          hx-target="#decision-result"
+          hx-swap="innerHTML"
+          class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Comments <span class="text-gray-400">(optional)</span></label>
+        <textarea name="comments" rows="4"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol"
+                  placeholder="Enter review notes, concerns, or rationale for your decision…"></textarea>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button type="submit" name="decision" value="approve"
+                class="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-green-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+          Approve
+        </button>
+        <button type="submit" name="decision" value="rework"
+                class="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Request Rework
+        </button>
+        <button type="submit" name="decision" value="reject"
+                class="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-red-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Reject
+        </button>
+      </div>
+      <div id="decision-result"></div>
+    </form>
+  </div>
+  {% else %}
+  <!-- Decision summary (already decided) -->
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-3">Decision Summary</h3>
+    <div class="flex items-center gap-3 mb-3">
+      <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold
+        {% if status == 'approved' %}bg-green-100 text-green-700
+        {% elif status == 'rejected' %}bg-red-100 text-red-700
+        {% elif status == 'rework' %}bg-blue-100 text-blue-700
+        {% else %}bg-gray-100 text-gray-600{% endif %}">
+        {{ status | upper | replace('_', ' ') }}
+      </span>
+      {% if approval.get('reviewer_id') %}
+      <span class="text-sm text-gray-500">by {{ approval.reviewer_id }}</span>
+      {% endif %}
+      {% if approval.get('reviewed_at') %}
+      <span class="text-sm text-gray-400">on {{ approval.reviewed_at[:10] }}</span>
+      {% endif %}
+    </div>
+    {% if approval.get('comments') %}
+    <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 leading-relaxed">
+      {{ approval.comments }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% endif %}{# end if approval #}
+
+</div>
+{% endblock %}

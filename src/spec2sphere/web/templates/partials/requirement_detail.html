@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}{{ req.title if req else 'Requirement' }} — Spec2Sphere{% endblock %}
+{% block page_title %}Requirement Detail{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="p-6 space-y-5">
+
+  <!-- Back link -->
+  <a href="/ui/pipeline/requirements"
+     hx-get="/ui/pipeline/requirements"
+     hx-target="#content" hx-push-url="true" hx-select="#content-inner"
+     class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-petrol">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back to Requirements
+  </a>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if req %}
+  {% set status = req.status or 'draft' %}
+
+  <!-- ── Header card ────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-lg shadow-sm p-5 border-l-4
+    {% if status == 'approved' %}border-green-400
+    {% elif status == 'pending_review' %}border-amber-400
+    {% elif status == 'rejected' %}border-red-400
+    {% elif status == 'rework' %}border-blue-400
+    {% elif status == 'parsed' %}border-teal-400
+    {% else %}border-petrol{% endif %}">
+
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div class="flex-1 min-w-0">
+        <!-- Editable title / domain -->
+        <div id="req-header-view">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h2 class="font-heading text-xl text-charcoal">
+              {{ req.title or req.filename or 'Untitled Requirement' }}
+            </h2>
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-sm font-medium
+              {% if status == 'approved' %}bg-green-100 text-green-700
+              {% elif status == 'pending_review' %}bg-amber-100 text-amber-700
+              {% elif status == 'rejected' %}bg-red-100 text-red-700
+              {% elif status == 'rework' %}bg-blue-100 text-blue-700
+              {% elif status == 'parsed' %}bg-teal-100 text-teal-700
+              {% elif status == 'ingested' %}bg-indigo-100 text-indigo-700
+              {% else %}bg-gray-100 text-gray-600{% endif %}">
+              {{ status }}
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
+            {% if req.business_domain %}<span><strong>Domain:</strong> {{ req.business_domain }}</span>{% endif %}
+            {% if req.filename %}<span><strong>Source:</strong> {{ req.filename }}</span>{% endif %}
+            {% if req.created_at %}<span class="text-gray-400">{{ req.created_at[:10] }}</span>{% endif %}
+          </div>
+        </div>
+        <button onclick="document.getElementById('req-edit-form').classList.toggle('hidden');
+                         document.getElementById('req-header-view').classList.toggle('hidden');"
+                class="text-xs text-petrol hover:text-petrol-light mt-2 inline-flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          Edit
+        </button>
+        <!-- Inline edit form (hidden by default) -->
+        <form id="req-edit-form"
+              hx-put="/ui/pipeline/requirements/{{ req.id }}"
+              hx-target="#req-edit-result"
+              hx-swap="innerHTML"
+              class="hidden mt-3 space-y-2">
+          <div class="flex flex-wrap gap-3">
+            <div class="flex-1 min-w-48">
+              <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+              <input type="text" name="title" value="{{ req.title or '' }}"
+                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol">
+            </div>
+            <div class="min-w-48">
+              <label class="block text-xs font-medium text-gray-500 mb-1">Business Domain</label>
+              <input type="text" name="business_domain" value="{{ req.business_domain or '' }}"
+                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol">
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="bg-petrol text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-petrol-light">
+              Save
+            </button>
+            <button type="button"
+                    onclick="document.getElementById('req-edit-form').classList.add('hidden');
+                             document.getElementById('req-header-view').classList.remove('hidden');"
+                    class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-300">
+              Cancel
+            </button>
+          </div>
+        </form>
+        <div id="req-edit-result" class="mt-2"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex flex-wrap gap-2" id="req-action-result">
+        {% if status in ('ingested', 'draft') %}
+        <button hx-post="/ui/pipeline/requirements/{{ req.id }}/parse"
+                hx-target="#req-action-result"
+                hx-swap="innerHTML"
+                hx-indicator="#parse-spinner"
+                class="inline-flex items-center gap-2 bg-petrol text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-petrol-light">
+          <svg id="parse-spinner" class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Parse with AI
+        </button>
+        {% endif %}
+
+        {% if status == 'parsed' %}
+        <button hx-post="/ui/pipeline/requirements/{{ req.id }}/submit-review"
+                hx-target="#req-action-result"
+                hx-swap="innerHTML"
+                class="bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent/90">
+          Submit for Review
+        </button>
+        {% endif %}
+
+        {% if status == 'approved' %}
+        <button hx-post="/ui/pipeline/requirements/{{ req.id }}/generate-hla"
+                hx-target="#req-action-result"
+                hx-swap="innerHTML"
+                hx-indicator="#hla-spinner"
+                class="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+          <svg id="hla-spinner" class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Generate HLA
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Approval panel (if pending) ───────────────────────────────── -->
+  {% if approval and approval.status == 'pending_review' %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-5">
+    <h3 class="font-semibold text-sm text-amber-800 mb-4">Review Checklist</h3>
+    <form hx-put="/ui/pipeline/approvals/{{ approval.id }}/checklist"
+          hx-target="#checklist-save-result"
+          hx-swap="innerHTML"
+          class="space-y-3 mb-4">
+      {% for item in checklist_template %}
+      {% set checked = approval.checklist.get(item.key, False) if approval.checklist else False %}
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" name="{{ item.key }}" {{ 'checked' if checked }}
+               class="mt-0.5 w-4 h-4 rounded border-gray-300 text-petrol focus:ring-petrol">
+        <span class="text-sm text-gray-700">
+          {{ item.label }}
+          {% if item.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+      <button type="submit" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-300 mt-2">
+        Save Checklist
+      </button>
+      <span id="checklist-save-result" class="ml-2 text-xs"></span>
+    </form>
+
+    <form hx-post="/ui/pipeline/approvals/{{ approval.id }}/decide"
+          hx-target="#approval-decision-result"
+          hx-swap="innerHTML"
+          class="border-t border-amber-200 pt-4 space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Comments</label>
+        <textarea name="comments" rows="2"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol"
+                  placeholder="Optional review comments…"></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" name="decision" value="approve"
+                class="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+          Approve
+        </button>
+        <button type="submit" name="decision" value="rework"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+          Request Rework
+        </button>
+        <button type="submit" name="decision" value="reject"
+                class="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700">
+          Reject
+        </button>
+      </div>
+      <div id="approval-decision-result"></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- ── Parsed entities ────────────────────────────────────────────── -->
+  {% if req.parsed_entities %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Parsed Entities</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Description</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Layer</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% if req.parsed_entities is iterable and req.parsed_entities is not string %}
+          {% for entity in req.parsed_entities %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-medium text-gray-900">{{ entity.name or entity.get('name', '—') }}</td>
+            <td class="px-4 py-2.5">
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-petrol/10 text-petrol">
+                {{ entity.type or entity.get('type', '—') }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-gray-600 max-w-xs truncate">{{ entity.description or entity.get('description', '—') }}</td>
+            <td class="px-4 py-2.5 text-xs text-gray-400">{{ entity.layer or entity.get('layer', '—') }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr><td colspan="4" class="px-4 py-3 text-gray-400 text-xs">No entity data available</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── KPIs ───────────────────────────────────────────────────────── -->
+  {% if req.parsed_kpis %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Key Performance Indicators</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Formula</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Unit</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Target</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% if req.parsed_kpis is iterable and req.parsed_kpis is not string %}
+          {% for kpi in req.parsed_kpis %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-medium text-gray-900">{{ kpi.name or kpi.get('name', '—') }}</td>
+            <td class="px-4 py-2.5 text-gray-600 font-mono text-xs">{{ kpi.formula or kpi.get('formula', '—') }}</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ kpi.unit or kpi.get('unit', '—') }}</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ kpi.target or kpi.get('target', '—') }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr><td colspan="4" class="px-4 py-3 text-gray-400 text-xs">No KPI data available</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Grain + Confidence ─────────────────────────────────────────── -->
+  {% if req.parsed_grain or req.confidence is not none %}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+    {% if req.parsed_grain %}
+    <div class="bg-white rounded-lg shadow-sm p-5">
+      <h3 class="font-semibold text-sm text-gray-800 mb-3">Grain / Dimensionality</h3>
+      {% if req.parsed_grain is mapping %}
+      <dl class="space-y-2">
+        {% for k, v in req.parsed_grain.items() %}
+        <div class="flex gap-3">
+          <dt class="text-xs font-medium text-gray-500 uppercase w-28 flex-shrink-0">{{ k | replace('_', ' ') }}</dt>
+          <dd class="text-sm text-gray-700">{{ v }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}
+      <p class="text-sm text-gray-700">{{ req.parsed_grain }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if req.confidence is not none %}
+    <div class="bg-white rounded-lg shadow-sm p-5">
+      <h3 class="font-semibold text-sm text-gray-800 mb-3">Parsing Confidence</h3>
+      {% set conf_pct = (req.confidence * 100) | int if req.confidence <= 1 else req.confidence | int %}
+      {% set conf_cls = 'text-green-600' if conf_pct >= 80 else 'text-amber-500' if conf_pct >= 50 else 'text-red-500' %}
+      {% set bar_cls = 'bg-green-500' if conf_pct >= 80 else 'bg-amber-400' if conf_pct >= 50 else 'bg-red-400' %}
+      <div class="flex items-end gap-3 mb-3">
+        <span class="text-3xl font-bold {{ conf_cls }}">{{ conf_pct }}%</span>
+        <span class="text-sm text-gray-500 pb-1">overall confidence</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="{{ bar_cls }} h-2 rounded-full transition-all" style="width: {{ conf_pct }}%"></div>
+      </div>
+      {% if conf_pct < 80 %}
+      <p class="text-xs text-gray-500 mt-2">
+        {% if conf_pct < 50 %}Low confidence — manual review strongly recommended.
+        {% else %}Moderate confidence — verify entities and KPIs before proceeding.
+        {% endif %}
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+  <!-- ── Open questions ─────────────────────────────────────────────── -->
+  {% if req.open_questions %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">Open Questions</h3>
+    {% set questions = req.open_questions %}
+    {% if questions is iterable and questions is not string %}
+    <ul class="space-y-2">
+      {% for q in questions %}
+      {% set severity = q.severity if q is mapping else 'medium' %}
+      <li class="flex items-start gap-3 p-3 rounded-lg
+        {% if severity == 'high' %}bg-red-50 border border-red-100
+        {% elif severity == 'low' %}bg-gray-50 border border-gray-100
+        {% else %}bg-amber-50 border border-amber-100{% endif %}">
+        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 mt-0.5
+          {% if severity == 'high' %}bg-red-100 text-red-700
+          {% elif severity == 'low' %}bg-gray-100 text-gray-600
+          {% else %}bg-amber-100 text-amber-700{% endif %}">
+          {{ severity }}
+        </span>
+        <span class="text-sm text-gray-700">
+          {{ q.question if q is mapping else q }}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-gray-600">{{ questions }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── BW migration objects (if present) ─────────────────────────── -->
+  {% if req.migration_objects %}
+  <div class="bg-white rounded-lg shadow-sm p-5">
+    <h3 class="font-semibold text-sm text-gray-800 mb-4">BW Migration Objects</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Object</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Debt Class</th>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Strategy</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% if req.migration_objects is iterable and req.migration_objects is not string %}
+          {% for obj in req.migration_objects %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-800">{{ obj.name or obj.get('name', '—') }}</td>
+            <td class="px-4 py-2.5">
+              <span class="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                {{ obj.type or obj.get('type', '—') }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5">
+              {% set debt = obj.debt_class or obj.get('debt_class', '') %}
+              <span class="inline-block px-2 py-0.5 rounded text-xs
+                {% if debt == 'critical' %}bg-red-100 text-red-700
+                {% elif debt == 'high' %}bg-amber-100 text-amber-700
+                {% elif debt == 'medium' %}bg-yellow-100 text-yellow-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ debt or '—' }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-xs text-gray-600">{{ obj.strategy or obj.get('strategy', '—') }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr><td colspan="4" class="px-4 py-3 text-gray-400 text-xs">No migration objects</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Raw content preview ─────────────────────────────────────────── -->
+  {% if req.raw_content %}
+  <details class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <summary class="px-5 py-3 cursor-pointer text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Raw Source Document
+    </summary>
+    <div class="px-5 py-4 border-t border-gray-100">
+      <pre class="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">{{ req.raw_content[:2000] }}{% if req.raw_content | length > 2000 %}
+… (truncated){% endif %}</pre>
+    </div>
+  </details>
+  {% endif %}
+
+  {% endif %}{# end if req #}
+
+</div>
+{% endblock %}

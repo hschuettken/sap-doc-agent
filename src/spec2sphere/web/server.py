@@ -169,6 +169,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount core routes: %s", exc)
 
+    # Mount pipeline routes (requirements, HLA, approvals, notifications)
+    try:
+        from spec2sphere.web.pipeline_routes import create_pipeline_routes
+
+        app.include_router(create_pipeline_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount pipeline routes: %s", exc)
+
     # Mount migration routers
     try:
         from spec2sphere.web.migration_routes import (
