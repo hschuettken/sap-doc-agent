@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from sap_doc_agent.cli import main
+from spec2sphere.cli import main
 
 
 def test_cli_help(capsys):

@@ -8,7 +8,7 @@ import pytest
 import respx
 import httpx
 
-from sap_doc_agent.scanner.dsp_auth import DSPAuth
+from spec2sphere.scanner.dsp_auth import DSPAuth
 
 TOKEN_URL = "https://auth.example.com/oauth/token"
 

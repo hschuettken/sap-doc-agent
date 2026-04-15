@@ -1,14 +1,14 @@
 """Tests for before/after migration diagrams (Mermaid syntax)."""
 
-from sap_doc_agent.migration.diagram import generate_chain_diagram, generate_project_diagrams
-from sap_doc_agent.migration.models import (
+from spec2sphere.migration.diagram import generate_chain_diagram, generate_project_diagrams
+from spec2sphere.migration.models import (
     ClassifiedChain,
     IntentCard,
     MigrationClassification,
     TransformationIntent,
     ViewSpec,
 )
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_chain() -> DataFlowChain:

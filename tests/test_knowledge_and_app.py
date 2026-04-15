@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
-from sap_doc_agent.knowledge.seed import seed_knowledge, SEED_FILES
-from sap_doc_agent.app import SAPDocAgent
-from sap_doc_agent.llm.noop import NoopLLMProvider
+from spec2sphere.knowledge.seed import seed_knowledge, SEED_FILES
+from spec2sphere.app import SAPDocAgent
+from spec2sphere.llm.noop import NoopLLMProvider
 
 
 # --- Knowledge seeding tests ---
@@ -73,7 +73,7 @@ def test_create_agent(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("GIT_TOKEN", "ghp_test")
     cfg = tmp_path / "config.yaml"
     cfg.write_text(MINIMAL_YAML)
-    with patch("sap_doc_agent.git_backend.github_backend.Github"):
+    with patch("spec2sphere.git_backend.github_backend.Github"):
         agent = SAPDocAgent.from_config(cfg)
     assert isinstance(agent.llm, NoopLLMProvider)
     assert agent.config.sap_systems[0].name == "Test BW"

@@ -1,16 +1,16 @@
 """Tests for the migration assessment report generator."""
 
-from sap_doc_agent.migration.diagram import generate_chain_diagram
-from sap_doc_agent.migration.effort import EffortEstimate, EffortCategory
-from sap_doc_agent.migration.models import (
+from spec2sphere.migration.diagram import generate_chain_diagram
+from spec2sphere.migration.effort import EffortEstimate, EffortCategory
+from spec2sphere.migration.models import (
     ClassifiedChain,
     IntentCard,
     MigrationClassification,
     TargetArchitecture,
     ViewSpec,
 )
-from sap_doc_agent.migration.report import ReportData, generate_report_html
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.migration.report import ReportData, generate_report_html
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_report_data() -> ReportData:

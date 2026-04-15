@@ -1,5 +1,5 @@
 import pytest
-from sap_doc_agent.agents.pdf_ingest import PDFIngestor
+from spec2sphere.agents.pdf_ingest import PDFIngestor
 
 
 @pytest.fixture

@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from sap_doc_agent.migration.brs_reconciler import reconcile_brs, reconcile_brs_folder
-from sap_doc_agent.migration.models import BRSDelta, BRSReference, IntentCard, TransformationIntent
+from spec2sphere.migration.brs_reconciler import reconcile_brs, reconcile_brs_folder
+from spec2sphere.migration.models import BRSDelta, BRSReference, IntentCard, TransformationIntent
 
 
 def _make_intent_card():

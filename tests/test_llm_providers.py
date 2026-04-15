@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from sap_doc_agent.llm.base import LLMProvider
+from spec2sphere.llm.base import LLMProvider
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def router_provider(monkeypatch):
     monkeypatch.setenv("LLM_ROUTER_URL", "http://router-test:8070/v1")
     monkeypatch.setenv("LLM_ROUTER_API_KEY", "router-key")
     monkeypatch.setenv("LLM_ROUTER_MODEL", "default")
-    from sap_doc_agent.llm.router import RouterLLMProvider
+    from spec2sphere.llm.router import RouterLLMProvider
 
     return RouterLLMProvider()
 
@@ -82,7 +82,7 @@ async def test_router_handles_error(router_provider):
 def openai_provider(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
-    from sap_doc_agent.llm.openai import OpenAIProvider
+    from spec2sphere.llm.openai import OpenAIProvider
 
     return OpenAIProvider()
 
@@ -133,7 +133,7 @@ def azure_provider(monkeypatch):
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-key-123")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://myresource.openai.azure.com")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4-deployment")
-    from sap_doc_agent.llm.azure_openai import AzureOpenAIProvider
+    from spec2sphere.llm.azure_openai import AzureOpenAIProvider
 
     return AzureOpenAIProvider()
 
@@ -210,7 +210,7 @@ def vllm_provider(monkeypatch):
     monkeypatch.setenv("VLLM_BASE_URL", "http://vllm-server:8000")
     monkeypatch.setenv("VLLM_MODEL", "mistral-7b")
     monkeypatch.setenv("VLLM_API_KEY", "vllm-key")
-    from sap_doc_agent.llm.vllm import VLLMProvider
+    from spec2sphere.llm.vllm import VLLMProvider
 
     return VLLMProvider()
 
@@ -262,7 +262,7 @@ async def test_vllm_handles_error(vllm_provider):
 def ollama_provider(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama-server:11434")
     monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:14b")
-    from sap_doc_agent.llm.ollama import OllamaProvider
+    from spec2sphere.llm.ollama import OllamaProvider
 
     return OllamaProvider()
 
@@ -314,7 +314,7 @@ async def test_ollama_handles_error(ollama_provider):
 def anthropic_provider(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "anthro-key-123")
     monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-4-6")
-    from sap_doc_agent.llm.anthropic import AnthropicProvider
+    from spec2sphere.llm.anthropic import AnthropicProvider
 
     return AnthropicProvider()
 
@@ -329,7 +329,7 @@ def test_anthropic_is_llm_provider(anthropic_provider):
 
 def test_anthropic_raises_without_api_key(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    from sap_doc_agent.llm.anthropic import AnthropicProvider
+    from spec2sphere.llm.anthropic import AnthropicProvider
 
     with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
         AnthropicProvider()
@@ -370,7 +370,7 @@ async def test_anthropic_handles_error(anthropic_provider):
 def gemini_provider(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-key-123")
     monkeypatch.setenv("GEMINI_MODEL", "gemini-2.5-flash")
-    from sap_doc_agent.llm.gemini import GeminiProvider
+    from spec2sphere.llm.gemini import GeminiProvider
 
     return GeminiProvider()
 
@@ -385,7 +385,7 @@ def test_gemini_is_llm_provider(gemini_provider):
 
 def test_gemini_raises_without_api_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    from sap_doc_agent.llm.gemini import GeminiProvider
+    from spec2sphere.llm.gemini import GeminiProvider
 
     with pytest.raises(ValueError, match="GEMINI_API_KEY"):
         GeminiProvider()

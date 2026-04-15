@@ -3,18 +3,18 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from sap_doc_agent.migration.classifier import (
+from spec2sphere.migration.classifier import (
     ActivityData,
     classify_by_rules,
     classify_chain,
     classify_with_llm,
 )
-from sap_doc_agent.migration.models import (
+from spec2sphere.migration.models import (
     ClassifiedChain,
     IntentCard,
     MigrationClassification,
 )
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_chain(steps=None):
@@ -296,7 +296,7 @@ def test_migrate_classification_not_in_rule_patterns():
     This is by design (spec §5.3): rules handle SIMPLIFY/REPLACE/DROP/CLARIFY,
     LLM handles 'real business need, design fresh for DSP' (MIGRATE).
     """
-    from sap_doc_agent.migration.bw_patterns import BW_PATTERNS
+    from spec2sphere.migration.bw_patterns import BW_PATTERNS
 
     rule_classifications = {p.classification for p in BW_PATTERNS}
     assert MigrationClassification.MIGRATE not in rule_classifications

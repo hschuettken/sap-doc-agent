@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sample_bw_scan"
 
@@ -73,7 +73,7 @@ def test_chain_step_count():
 
 
 def test_build_chains_finds_three_chains():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -81,7 +81,7 @@ def test_build_chains_finds_three_chains():
 
 
 def test_revenue_chain_has_correct_structure():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -92,7 +92,7 @@ def test_revenue_chain_has_correct_structure():
 
 
 def test_inventory_chain_is_simple():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -102,7 +102,7 @@ def test_inventory_chain_is_simple():
 
 
 def test_dead_chain_detected():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -111,7 +111,7 @@ def test_dead_chain_detected():
 
 
 def test_chain_steps_ordered_by_position():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -121,7 +121,7 @@ def test_chain_steps_ordered_by_position():
 
 
 def test_inter_step_objects_populated():
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -133,7 +133,7 @@ def test_inter_step_objects_populated():
 
 def test_shared_dependencies_not_in_steps():
     """InfoObjects used by transformations are shared deps, not chain steps."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -147,7 +147,7 @@ def test_shared_dependencies_not_in_steps():
 
 def test_source_code_enriched_when_objects_dir_provided():
     """When objects_dir is given, transformation steps get ABAP source."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     objects_dir = FIXTURE_DIR / "objects"
@@ -160,7 +160,7 @@ def test_source_code_enriched_when_objects_dir_provided():
 
 def test_source_code_empty_without_objects_dir():
     """Without objects_dir, source_code stays empty."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -171,7 +171,7 @@ def test_source_code_empty_without_objects_dir():
 
 def test_all_transformation_steps_get_source():
     """Every transformation in the revenue chain should have source code."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     objects_dir = FIXTURE_DIR / "objects"
@@ -183,7 +183,7 @@ def test_all_transformation_steps_get_source():
 
 def test_shared_dependencies_have_rich_info():
     """shared_dependencies should contain name and type from graph nodes."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = load_fixture_graph()
     chains = build_chains_from_graph(graph)
@@ -200,7 +200,7 @@ def test_shared_dependencies_have_rich_info():
 
 def test_fan_out_shared_adso_appears_in_multiple_chains():
     """When one ADSO feeds two terminals, it appears in both chains."""
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
 
     graph = {
         "nodes": [

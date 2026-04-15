@@ -3,12 +3,12 @@ import pytest
 import respx
 from pathlib import Path
 
-from sap_doc_agent.config import LLMConfig
-from sap_doc_agent.llm import create_llm_provider
-from sap_doc_agent.llm.base import LLMProvider
-from sap_doc_agent.llm.direct import DirectLLMProvider
-from sap_doc_agent.llm.noop import NoopLLMProvider
-from sap_doc_agent.llm.passthrough import CopilotPassthroughProvider
+from spec2sphere.config import LLMConfig
+from spec2sphere.llm import create_llm_provider
+from spec2sphere.llm.base import LLMProvider
+from spec2sphere.llm.direct import DirectLLMProvider
+from spec2sphere.llm.noop import NoopLLMProvider
+from spec2sphere.llm.passthrough import CopilotPassthroughProvider
 
 
 # --- Noop tests ---
@@ -156,7 +156,7 @@ def test_factory_gemini_via_env(monkeypatch):
     """Factory resolves LLM_PROVIDER=gemini to GeminiProvider."""
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    from sap_doc_agent.llm.gemini import GeminiProvider
+    from spec2sphere.llm.gemini import GeminiProvider
 
     provider = create_llm_provider(LLMConfig())
     assert isinstance(provider, GeminiProvider)

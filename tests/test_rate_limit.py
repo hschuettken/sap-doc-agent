@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 
 def test_acquire_allows_under_limit():
-    from sap_doc_agent.tasks.rate_limit import SAPRateLimiter
+    from spec2sphere.tasks.rate_limit import SAPRateLimiter
 
     mock_redis = MagicMock()
     mock_pipe = MagicMock()
@@ -14,7 +14,7 @@ def test_acquire_allows_under_limit():
 
 
 def test_acquire_blocks_over_limit():
-    from sap_doc_agent.tasks.rate_limit import SAPRateLimiter
+    from spec2sphere.tasks.rate_limit import SAPRateLimiter
 
     mock_redis = MagicMock()
     mock_pipe = MagicMock()

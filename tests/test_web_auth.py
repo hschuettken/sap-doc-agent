@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sap_doc_agent.web.auth import AuthMiddleware, verify_password, hash_password
+from spec2sphere.web.auth import AuthMiddleware, verify_password, hash_password
 
 
 def test_hash_and_verify():

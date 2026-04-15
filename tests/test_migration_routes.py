@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 def _get_client(output_dir="tests/fixtures/sample_bw_scan"):
     import os
 
-    from sap_doc_agent.web.auth import hash_password
-    from sap_doc_agent.web.server import create_app
+    from spec2sphere.web.auth import hash_password
+    from spec2sphere.web.server import create_app
 
     pw_hash = hash_password("testpass")
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash
@@ -113,7 +113,7 @@ def test_review_request_rejects_invalid_decision():
     """ReviewRequest should only accept approve/reject/clarify."""
     from pydantic import ValidationError
 
-    from sap_doc_agent.web.migration_routes import ReviewRequest
+    from spec2sphere.web.migration_routes import ReviewRequest
 
     # Valid decisions work
     ReviewRequest(decision="approve", reviewer="test")
@@ -132,7 +132,7 @@ def test_review_request_rejects_invalid_decision():
 
 
 def test_migration_routes_registered():
-    from sap_doc_agent.web.server import create_app
+    from spec2sphere.web.server import create_app
 
     app = create_app()
     route_paths = [r.path for r in app.routes]

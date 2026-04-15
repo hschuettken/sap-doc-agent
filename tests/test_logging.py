@@ -1,7 +1,7 @@
 import json
 import logging
 
-from sap_doc_agent.logging import JSONFormatter
+from spec2sphere.logging import JSONFormatter
 
 
 def test_json_formatter_output():

@@ -1,8 +1,8 @@
 import pytest
-from sap_doc_agent.agents.report_generator import ReportGenerator
-from sap_doc_agent.agents.doc_qa import QAReport, QualityIssue
-from sap_doc_agent.agents.code_quality import CodeIssue
-from sap_doc_agent.agents.brs_traceability import TraceReport, Requirement
+from spec2sphere.agents.report_generator import ReportGenerator
+from spec2sphere.agents.doc_qa import QAReport, QualityIssue
+from spec2sphere.agents.code_quality import CodeIssue
+from spec2sphere.agents.brs_traceability import TraceReport, Requirement
 
 
 @pytest.fixture

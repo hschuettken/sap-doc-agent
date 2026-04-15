@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from sap_doc_agent.config import load_config, AppConfig
+from spec2sphere.config import load_config, AppConfig
 
 
 MINIMAL_YAML = """\

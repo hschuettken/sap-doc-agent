@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from sap_doc_agent.scanner.chain_analyzer import analyze_chain_steps, summarize_chain
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.scanner.chain_analyzer import analyze_chain_steps, summarize_chain
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_chain(steps):

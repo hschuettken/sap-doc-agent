@@ -1,7 +1,7 @@
 import pytest
 import json
 from fastapi.testclient import TestClient
-from sap_doc_agent.web.server import create_app
+from spec2sphere.web.server import create_app
 
 
 @pytest.fixture
@@ -137,7 +137,7 @@ def test_openapi_spec(client):
     resp = client.get("/openapi.json")
     assert resp.status_code == 200
     spec = resp.json()
-    assert spec["info"]["title"] == "SAP Doc Agent API"
+    assert spec["info"]["title"] == "Spec2Sphere API"
     paths = spec["paths"]
     assert "/api/audit" in paths
     assert "/api/objects" in paths

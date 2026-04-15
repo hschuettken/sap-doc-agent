@@ -1,5 +1,5 @@
 import pytest
-from sap_doc_agent.agents.doc_qa import (
+from spec2sphere.agents.doc_qa import (
     DocQAAgent,
     QualityStandard,
     QualityRule,
@@ -7,7 +7,7 @@ from sap_doc_agent.agents.doc_qa import (
     QualityIssue,
     load_standard,
 )
-from sap_doc_agent.scanner.models import ScannedObject, ScanResult, ObjectType
+from spec2sphere.scanner.models import ScannedObject, ScanResult, ObjectType
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from sap_doc_agent.tasks.job_state import JobState
+from spec2sphere.tasks.job_state import JobState
 
 
 @pytest.fixture

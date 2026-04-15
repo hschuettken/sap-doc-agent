@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from sap_doc_agent.config import GitConfig
-from sap_doc_agent.git_backend import create_git_backend
-from sap_doc_agent.git_backend.base import GitBackend
-from sap_doc_agent.git_backend.github_backend import GitHubBackend
+from spec2sphere.config import GitConfig
+from spec2sphere.git_backend import create_git_backend
+from spec2sphere.git_backend.base import GitBackend
+from spec2sphere.git_backend.github_backend import GitHubBackend
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def mock_repo():
 
 @pytest.fixture
 def backend(mock_repo):
-    with patch("sap_doc_agent.git_backend.github_backend.Github") as mock_gh:
+    with patch("spec2sphere.git_backend.github_backend.Github") as mock_gh:
         mock_gh.return_value.get_repo.return_value = mock_repo
         return GitHubBackend(token="test-token", repo_name="user/sap-docs")
 
@@ -65,7 +65,7 @@ def test_list_files(backend, mock_repo):
 def test_factory_github(monkeypatch):
     monkeypatch.setenv("GIT_REPO_URL", "user/repo")
     monkeypatch.setenv("GIT_TOKEN", "ghp_test")
-    with patch("sap_doc_agent.git_backend.github_backend.Github"):
+    with patch("spec2sphere.git_backend.github_backend.Github"):
         assert isinstance(
             create_git_backend(GitConfig(type="github", url_env="GIT_REPO_URL", token_env="GIT_TOKEN")), GitHubBackend
         )

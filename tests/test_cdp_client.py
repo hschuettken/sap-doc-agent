@@ -1,7 +1,7 @@
 import pytest
 import httpx
 import respx
-from sap_doc_agent.scanner.cdp_client import CDPClient
+from spec2sphere.scanner.cdp_client import CDPClient
 
 
 @pytest.fixture

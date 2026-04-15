@@ -2,12 +2,12 @@ import pytest
 import httpx
 import respx
 from unittest.mock import MagicMock, patch
-from sap_doc_agent.config import DocPlatformConfig, AuthConfig
-from sap_doc_agent.doc_platform import create_doc_adapter
-from sap_doc_agent.doc_platform.base import DocPlatformAdapter
-from sap_doc_agent.doc_platform.bookstack import BookStackAdapter
-from sap_doc_agent.doc_platform.outline import OutlineAdapter
-from sap_doc_agent.doc_platform.confluence import ConfluenceAdapter
+from spec2sphere.config import DocPlatformConfig, AuthConfig
+from spec2sphere.doc_platform import create_doc_adapter
+from spec2sphere.doc_platform.base import DocPlatformAdapter
+from spec2sphere.doc_platform.bookstack import BookStackAdapter
+from spec2sphere.doc_platform.outline import OutlineAdapter
+from spec2sphere.doc_platform.confluence import ConfluenceAdapter
 
 
 # --- BookStack tests ---
@@ -148,7 +148,7 @@ def mock_confluence():
 
 @pytest.fixture
 def confluence(mock_confluence):
-    with patch("sap_doc_agent.doc_platform.confluence.Confluence", return_value=mock_confluence):
+    with patch("spec2sphere.doc_platform.confluence.Confluence", return_value=mock_confluence):
         return ConfluenceAdapter(url="https://conf.test", token="tok")
 
 
@@ -199,7 +199,7 @@ def test_factory_confluence(monkeypatch):
     cfg = DocPlatformConfig(
         type="confluence", url="https://conf.test", auth=AuthConfig(type="api_token", token_env="CONF_TOKEN")
     )
-    with patch("sap_doc_agent.doc_platform.confluence.Confluence"):
+    with patch("spec2sphere.doc_platform.confluence.Confluence"):
         assert isinstance(create_doc_adapter(cfg), ConfluenceAdapter)
 
 

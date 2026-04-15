@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 
-from sap_doc_agent.scanner.models import (
+from spec2sphere.scanner.models import (
     Dependency,
     DependencyType,
     ObjectType,

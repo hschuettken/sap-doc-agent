@@ -5,14 +5,14 @@ from pathlib import Path
 
 import yaml
 
-from sap_doc_agent.scanner.models import (
+from spec2sphere.scanner.models import (
     Dependency,
     DependencyType,
     ObjectType,
     ScanResult,
     ScannedObject,
 )
-from sap_doc_agent.scanner.output import render_object_markdown, write_scan_output
+from spec2sphere.scanner.output import render_object_markdown, write_scan_output
 
 
 class TestRenderObjectMarkdown:

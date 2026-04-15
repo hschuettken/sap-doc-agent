@@ -1,13 +1,13 @@
 """Tests for BW pattern knowledge base detection."""
 
-from sap_doc_agent.migration.bw_patterns import (
+from spec2sphere.migration.bw_patterns import (
     BW_PATTERNS,
     PATTERNS_BY_NAME,
     BWPattern,
     detect_pattern_names,
     detect_patterns,
 )
-from sap_doc_agent.migration.models import MigrationClassification
+from spec2sphere.migration.models import MigrationClassification
 
 
 def test_at_least_30_patterns():

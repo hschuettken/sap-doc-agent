@@ -3,12 +3,12 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from sap_doc_agent.migration.generator import (
+from spec2sphere.migration.generator import (
     generate_sql_for_view,
     generate_sql_for_architecture,
     GeneratedSQL,
 )
-from sap_doc_agent.migration.models import (
+from spec2sphere.migration.models import (
     ColumnSpec,
     TargetArchitecture,
     ViewSpec,

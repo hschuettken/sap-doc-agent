@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from sap_doc_agent.agents.doc_review import (
+from spec2sphere.agents.doc_review import (
     DocReviewAgent,
     StandardDefinition,
     load_documentation_standard,

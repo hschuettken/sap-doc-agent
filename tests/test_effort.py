@@ -1,13 +1,13 @@
 """Tests for migration effort estimation."""
 
-from sap_doc_agent.migration.effort import (
+from spec2sphere.migration.effort import (
     EffortCategory,
     EffortThresholds,
     estimate_chain_effort,
     estimate_project_effort,
 )
-from sap_doc_agent.migration.models import ClassifiedChain, IntentCard, MigrationClassification
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.migration.models import ClassifiedChain, IntentCard, MigrationClassification
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_chain(step_count: int, abap_lines: int = 0) -> DataFlowChain:

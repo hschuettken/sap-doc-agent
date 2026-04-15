@@ -1,6 +1,6 @@
 """Tests for the DSP Pattern Knowledge Base."""
 
-from sap_doc_agent.migration.dsp_patterns import (
+from spec2sphere.migration.dsp_patterns import (
     DSP_SQL_RULES,
     LAYER_PREFIXES,
     PERSISTENCE_THRESHOLDS,

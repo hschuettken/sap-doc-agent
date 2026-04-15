@@ -6,7 +6,7 @@ version: "3.9"
 services:
   web:
     image: ghcr.io/atlas/sap-doc-agent:latest
-    command: uvicorn sap_doc_agent.web.server:create_app --factory --host 0.0.0.0 --port 8080
+    command: uvicorn spec2sphere.web.server:create_app --factory --host 0.0.0.0 --port 8080
     ports:
       - "8080:8080"
     env_file: .env
@@ -21,7 +21,7 @@ services:
 
   worker:
     image: ghcr.io/atlas/sap-doc-agent:latest
-    command: celery -A sap_doc_agent.tasks.celery_app worker -Q scan,llm -c 4 --loglevel=info
+    command: celery -A spec2sphere.tasks.celery_app worker -Q scan,llm -c 4 --loglevel=info
     env_file: .env
     depends_on:
       redis:
@@ -32,7 +32,7 @@ services:
 
   worker-chrome:
     image: ghcr.io/atlas/sap-doc-agent:latest
-    command: celery -A sap_doc_agent.tasks.celery_app worker -Q chrome -c 1 --loglevel=info
+    command: celery -A spec2sphere.tasks.celery_app worker -Q chrome -c 1 --loglevel=info
     env_file: .env
     depends_on:
       redis:
@@ -43,7 +43,7 @@ services:
 
   scheduler:
     image: ghcr.io/atlas/sap-doc-agent:latest
-    command: celery -A sap_doc_agent.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    command: celery -A spec2sphere.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     env_file: .env
     depends_on:
       redis:

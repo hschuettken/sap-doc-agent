@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from sap_doc_agent.web.server import create_app
+from spec2sphere.web.server import create_app
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sample_bw_scan"
 
@@ -19,8 +19,8 @@ def output_with_chains(tmp_path):
     shutil.copytree(FIXTURE_DIR, fixture_copy)
 
     # Build chains from fixture graph
-    from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
-    from sap_doc_agent.scanner.output import render_chain_markdown
+    from spec2sphere.scanner.chain_builder import build_chains_from_graph
+    from spec2sphere.scanner.output import render_chain_markdown
 
     with open(fixture_copy / "graph.json") as f:
         graph = json.load(f)
@@ -39,7 +39,7 @@ def client(output_with_chains):
     """Authenticated test client with session cookie."""
     import os
 
-    from sap_doc_agent.web.auth import hash_password
+    from spec2sphere.web.auth import hash_password
 
     pw_hash = hash_password("testpass")
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash

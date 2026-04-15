@@ -13,16 +13,16 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from sap_doc_agent.migration.architect import design_chain_views
-from sap_doc_agent.migration.classifier import classify_chain
-from sap_doc_agent.migration.diagram import generate_chain_diagram
-from sap_doc_agent.migration.effort import estimate_project_effort
-from sap_doc_agent.migration.generator import generate_sql_for_view
-from sap_doc_agent.migration.interpreter import interpret_chain
-from sap_doc_agent.migration.models import ClassifiedChain, MigrationClassification
-from sap_doc_agent.migration.report import ReportData, generate_report_html
-from sap_doc_agent.scanner.chain_builder import build_chains_from_graph
-from sap_doc_agent.scanner.models import DataFlowChain
+from spec2sphere.migration.architect import design_chain_views
+from spec2sphere.migration.classifier import classify_chain
+from spec2sphere.migration.diagram import generate_chain_diagram
+from spec2sphere.migration.effort import estimate_project_effort
+from spec2sphere.migration.generator import generate_sql_for_view
+from spec2sphere.migration.interpreter import interpret_chain
+from spec2sphere.migration.models import ClassifiedChain, MigrationClassification
+from spec2sphere.migration.report import ReportData, generate_report_html
+from spec2sphere.scanner.chain_builder import build_chains_from_graph
+from spec2sphere.scanner.models import DataFlowChain
 
 _FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sample_bw_scan"
 
@@ -105,7 +105,7 @@ async def test_full_pipeline(chains):
         intent = intent_cards[chain.chain_id]
 
         # Build activity data from chain metadata
-        from sap_doc_agent.migration.classifier import ActivityData
+        from spec2sphere.migration.classifier import ActivityData
 
         activity = None
         for step in chain.steps:
@@ -170,7 +170,7 @@ async def test_full_pipeline(chains):
     assert len(diagrams) == 3
 
     # --- Phase D3: Report ---
-    from sap_doc_agent.migration.models import TargetArchitecture
+    from spec2sphere.migration.models import TargetArchitecture
 
     architecture = TargetArchitecture(project_name="E2E Test", views=all_views)
     generated_sql = {r.technical_name: r.sql for r in sql_results}

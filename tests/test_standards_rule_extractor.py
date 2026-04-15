@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from sap_doc_agent.standards.rule_extractor import extract_rules
+from spec2sphere.standards.rule_extractor import extract_rules
 
 
 @pytest.mark.asyncio
 async def test_extract_rules_with_noop_llm():
-    from sap_doc_agent.llm.noop import NoopLLMProvider
+    from spec2sphere.llm.noop import NoopLLMProvider
 
     result = await extract_rules("Some documentation text", NoopLLMProvider())
     assert isinstance(result, dict)
@@ -27,7 +27,7 @@ async def test_extract_rules_returns_structure():
 
 @pytest.mark.asyncio
 async def test_extract_rules_large_doc_chunks():
-    from sap_doc_agent.llm.noop import NoopLLMProvider
+    from spec2sphere.llm.noop import NoopLLMProvider
 
     large_text = "Rule: " + "x" * 15000
     result = await extract_rules(large_text, NoopLLMProvider())

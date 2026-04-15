@@ -1,11 +1,11 @@
 import pytest
-from sap_doc_agent.scanner.cdp_client import CDPClient
-from sap_doc_agent.scanner.cdp_scanner import (
+from spec2sphere.scanner.cdp_client import CDPClient
+from spec2sphere.scanner.cdp_scanner import (
     DSPCDPScanner,
     infer_layer,
     map_dsp_type,
 )
-from sap_doc_agent.scanner.models import ObjectType, DependencyType
+from spec2sphere.scanner.models import ObjectType, DependencyType
 
 
 # --- CDPClient tests ---

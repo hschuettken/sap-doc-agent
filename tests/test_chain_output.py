@@ -1,11 +1,11 @@
 """Tests for chain markdown rendering."""
 
-from sap_doc_agent.scanner.models import (
+from spec2sphere.scanner.models import (
     ChainStep,
     DataFlowChain,
     ObjectType,
 )
-from sap_doc_agent.scanner.output import render_chain_markdown
+from spec2sphere.scanner.output import render_chain_markdown
 
 
 def test_render_chain_markdown_has_frontmatter():
@@ -135,7 +135,7 @@ def test_render_chain_markdown_no_analyzed_at():
 
 
 def test_render_chain_markdown_rich_shared_deps():
-    from sap_doc_agent.scanner.models import SharedDependency
+    from spec2sphere.scanner.models import SharedDependency
 
     chain = DataFlowChain(
         chain_id="chain_007",

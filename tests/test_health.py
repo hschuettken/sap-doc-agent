@@ -3,11 +3,11 @@ from fastapi.testclient import TestClient
 
 def get_test_client():
     try:
-        from sap_doc_agent.web.server import create_app
+        from spec2sphere.web.server import create_app
 
         return TestClient(create_app())
     except Exception:
-        from sap_doc_agent.web.server import app
+        from spec2sphere.web.server import app
 
         return TestClient(app)
 

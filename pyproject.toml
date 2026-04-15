@@ -1,7 +1,7 @@
 [project]
-name = "sap-doc-agent"
-version = "1.1.0"
-description = "Automated SAP BW/4HANA and Datasphere documentation, quality assurance, and code audit"
+name = "spec2sphere"
+version = "2.0.0"
+description = "Spec2Sphere — Horvath Analytics Delivery Factory: AI-Governed SAP Datasphere + SAC Delivery Accelerator"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",
@@ -19,10 +19,14 @@ dependencies = [
     "pdfplumber>=0.11",
     "python-docx>=1.1",
     "asyncpg>=0.29",
+    "alembic>=1.13",
+    "psycopg2-binary>=2.9",
+    "redis>=5.0",
 ]
 
 [project.scripts]
-sap-doc-agent = "sap_doc_agent.cli:cli_main"
+spec2sphere = "spec2sphere.cli:cli_main"
+sap-doc-agent = "spec2sphere.cli:cli_main"
 
 [project.optional-dependencies]
 dev = [
@@ -43,12 +47,14 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"sap_doc_agent" = [
+"spec2sphere" = [
     "web/templates/*.html",
     "web/templates/**/*.html",
     "web/static/*.css",
     "web/static/*.js",
     "migration/templates/*.html",
+    "tenant/templates/*.html",
+    "tenant/templates/**/*.html",
 ]
 
 [tool.pytest.ini_options]

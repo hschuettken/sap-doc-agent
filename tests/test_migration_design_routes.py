@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 def _get_client(output_dir="tests/fixtures/sample_bw_scan"):
     import os
 
-    from sap_doc_agent.web.auth import hash_password
-    from sap_doc_agent.web.server import create_app
+    from spec2sphere.web.auth import hash_password
+    from spec2sphere.web.server import create_app
 
     pw_hash = hash_password("testpass")
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash
@@ -137,8 +137,8 @@ def test_api_report_with_chain_data(tmp_path):
     chains_dir = tmp_path / "chains"
     chains_dir.mkdir()
 
-    from sap_doc_agent.migration.models import ClassifiedChain, IntentCard, MigrationClassification
-    from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+    from spec2sphere.migration.models import ClassifiedChain, IntentCard, MigrationClassification
+    from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
     chain = DataFlowChain(
         chain_id="c1",

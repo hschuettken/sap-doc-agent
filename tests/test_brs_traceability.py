@@ -1,9 +1,9 @@
 import pytest
-from sap_doc_agent.agents.brs_traceability import (
+from spec2sphere.agents.brs_traceability import (
     BRSTraceabilityAgent,
     Requirement,
 )
-from sap_doc_agent.scanner.models import ScannedObject, ScanResult, ObjectType
+from spec2sphere.scanner.models import ScannedObject, ScanResult, ObjectType
 
 
 @pytest.fixture

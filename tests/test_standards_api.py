@@ -4,18 +4,18 @@ from unittest.mock import patch, AsyncMock
 
 def get_client():
     try:
-        from sap_doc_agent.web.server import create_app
+        from spec2sphere.web.server import create_app
 
         return TestClient(create_app())
     except Exception:
-        from sap_doc_agent.web.server import app
+        from spec2sphere.web.server import app
 
         return TestClient(app)
 
 
 def test_list_standards_returns_200():
     client = get_client()
-    with patch("sap_doc_agent.standards.db.list_standards", new=AsyncMock(return_value=[])):
+    with patch("spec2sphere.standards.db.list_standards", new=AsyncMock(return_value=[])):
         resp = client.get("/api/standards")
     assert resp.status_code == 200
     assert "standards" in resp.json()
@@ -30,7 +30,7 @@ def test_list_standards_handles_db_error():
 
 def test_get_knowledge_returns_200():
     client = get_client()
-    with patch("sap_doc_agent.standards.db.list_knowledge", new=AsyncMock(return_value=[])):
+    with patch("spec2sphere.standards.db.list_knowledge", new=AsyncMock(return_value=[])):
         resp = client.get("/api/knowledge")
     assert resp.status_code == 200
 

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Reports — SAP Doc Agent{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+{% if reports %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for report in reports %}
+    <div class="card">
+        <div class="flex items-start justify-between mb-2">
+            <h3 class="font-heading text-sm text-[#1a2332]">{{ report.name }}</h3>
+            <span class="text-xs text-gray-400">{{ (report.size / 1024)|round(1) }} KB</span>
+        </div>
+        <div class="flex gap-2 mt-3">
+            <a href="{{ report.url }}" class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark">View</a>
+            <a href="{{ report.url }}" download class="px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Download</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card text-center py-12">
+    <p class="text-gray-400 mb-2">No reports generated yet.</p>
+    <p class="text-sm text-gray-400">Run <code class="bg-gray-100 px-1 rounded">sap-doc-agent platform --report</code> to generate reports.</p>
+</div>
+{% endif %}
+{% endblock %}

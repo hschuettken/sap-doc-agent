@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Generated SQL — SAP Doc Agent{% endblock %}
+{% block page_title %}Generated SQL{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="font-heading text-2xl text-[#1a2332]">Generated SQL</h1>
+      {% if project_id %}
+      <p class="text-sm text-gray-500 mt-1">Project: {{ project_id }}</p>
+      {% endif %}
+    </div>
+    {% if project_id %}
+    <button
+      hx-post="/api/migration/projects/{{ project_id }}/generate"
+      hx-swap="none"
+      class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
+    >
+      Generate SQL
+    </button>
+    {% endif %}
+  </div>
+
+  {% if sql_results %}
+  <div class="space-y-4">
+    {% for result in sql_results %}
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
+      <div class="px-4 py-3 bg-[#F5F5F5] border-b border-[#E5E5E5] flex justify-between items-center">
+        <div>
+          <span class="font-mono text-petrol font-medium">{{ result.technical_name or result.get('technical_name', '') }}</span>
+          <span class="ml-3 px-2 py-1 rounded text-xs font-medium
+            {% if result.layer == 'staging' %}bg-petrol/10 text-petrol
+            {% elif result.layer == 'harmonization' %}bg-green-100 text-green-700
+            {% elif result.layer == 'mart' %}bg-amber-100 text-amber-700
+            {% else %}bg-accent/10 text-accent{% endif %}">
+            {{ result.layer or result.get('layer', '') }}
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          {% if result.needs_manual_edit or result.get('needs_manual_edit', false) %}
+          <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">Needs Review</span>
+          {% else %}
+          <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">Ready</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="p-4">
+        <pre class="bg-[#F5F5F5] border border-[#E5E5E5] rounded p-4 text-sm text-[#1a2332] overflow-x-auto"><code>{{ result.sql or result.get('sql', '-- No SQL generated') }}</code></pre>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-8 text-center">
+    <p class="text-[#1a2332]">No SQL generated yet.</p>
+    <p class="text-sm text-gray-500 mt-2">Design target architecture first, then trigger code generation.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

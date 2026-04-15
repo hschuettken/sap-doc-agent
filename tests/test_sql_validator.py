@@ -1,6 +1,6 @@
 """Tests for the DSP SQL Validator — one test per rule."""
 
-from sap_doc_agent.migration.sql_validator import (
+from spec2sphere.migration.sql_validator import (
     SQLValidationResult,
     SQLViolation,
     validate_dsp_sql,

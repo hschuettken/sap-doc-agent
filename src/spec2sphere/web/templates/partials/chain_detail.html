@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ chain.name or chain.chain_id }} — SAP Doc Agent{% endblock %}
+{% block page_title %}Chain: {{ chain.name or chain.chain_id }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/ui/chains" class="text-sm text-blue-600 hover:underline">&larr; All Chains</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="card">
+        <p class="text-xs text-gray-500 uppercase">Chain ID</p>
+        <p class="font-mono text-sm">{{ chain.chain_id }}</p>
+    </div>
+    <div class="card">
+        <p class="text-xs text-gray-500 uppercase">Steps</p>
+        <p class="text-2xl font-bold">{{ chain.step_count }}</p>
+    </div>
+    <div class="card">
+        <p class="text-xs text-gray-500 uppercase">Objects</p>
+        <p class="text-2xl font-bold">{{ chain.all_object_ids|length }}</p>
+    </div>
+    <div class="card">
+        <p class="text-xs text-gray-500 uppercase">Confidence</p>
+        <p class="text-2xl font-bold">{{ (chain.confidence * 100)|round(0)|int }}%</p>
+    </div>
+</div>
+
+{% if chain.summary %}
+<div class="card mb-6">
+    <h2 class="text-lg font-semibold mb-2">Overview</h2>
+    <p class="text-gray-600">{{ chain.summary }}</p>
+</div>
+{% endif %}
+
+<!-- Data flow visualization -->
+<div class="card mb-6">
+    <h2 class="text-lg font-semibold mb-3">Data Flow</h2>
+    <div class="flex items-center gap-2 overflow-x-auto py-2">
+        {% for source_id in chain.source_object_ids %}
+        <div class="flex-shrink-0 px-3 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+            {{ source_id }}
+        </div>
+        {% endfor %}
+        {% for step in chain.steps %}
+        <span class="text-gray-400 text-xl">&rarr;</span>
+        <div class="flex-shrink-0 px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
+            <div class="font-medium">{{ step.name }}</div>
+            {% if step.inter_step_object_name %}
+            <div class="text-xs text-blue-500 mt-0.5">&darr; {{ step.inter_step_object_name }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <span class="text-gray-400 text-xl">&rarr;</span>
+        <div class="flex-shrink-0 px-3 py-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-medium">
+            {{ chain.terminal_object_id }}
+        </div>
+    </div>
+</div>
+
+<!-- Step details -->
+{% if chain.steps %}
+<div class="card mb-6">
+    <h2 class="text-lg font-semibold mb-3">Step Details</h2>
+    {% for step in chain.steps %}
+    <div class="border-b last:border-b-0 py-4">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-mono">Step {{ step.position }}</span>
+            <h3 class="font-medium">{{ step.name }}</h3>
+            <span class="text-xs text-gray-400">({{ step.object_id }})</span>
+        </div>
+        {% if step.step_summary %}
+        <p class="text-sm text-gray-600 mb-2">{{ step.step_summary }}</p>
+        {% endif %}
+        {% if step.inter_step_object_name %}
+        <p class="text-xs text-gray-500 mb-2">
+            <strong>Writes to:</strong> {{ step.inter_step_object_name }}
+            {% if step.inter_step_fields %}
+            ({{ step.inter_step_fields|join(', ') }})
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if step.source_code %}
+        <details class="mt-2">
+            <summary class="text-xs text-blue-600 cursor-pointer">View ABAP source</summary>
+            <pre class="mt-2 text-xs"><code>{{ step.source_code }}</code></pre>
+        </details>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Shared dependencies -->
+{% if chain.shared_dependency_ids %}
+<div class="card mb-6">
+    <h2 class="text-lg font-semibold mb-2">Shared Dependencies</h2>
+    <div class="flex flex-wrap gap-2">
+        {% for dep_id in chain.shared_dependency_ids %}
+        <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-sm">{{ dep_id }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Observations -->
+{% if chain.observations %}
+<div class="card mb-6">
+    <h2 class="text-lg font-semibold mb-2">Observations</h2>
+    <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+        {% for obs in chain.observations %}
+        <li>{{ obs }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

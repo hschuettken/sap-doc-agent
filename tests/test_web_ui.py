@@ -4,7 +4,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from sap_doc_agent.web.server import create_app
+from spec2sphere.web.server import create_app
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def client(output_dir):
 @pytest.fixture
 def authed_client(output_dir):
     """Client with a valid session cookie obtained via login."""
-    from sap_doc_agent.web.auth import hash_password
+    from spec2sphere.web.auth import hash_password
 
     pw_hash = hash_password("testpass")
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash

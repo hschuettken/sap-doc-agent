@@ -6,15 +6,15 @@ import json
 from pathlib import Path
 
 
-from sap_doc_agent.scanner.models import (
+from spec2sphere.scanner.models import (
     Dependency,
     DependencyType,
     ObjectType,
     ScanResult,
     ScannedObject,
 )
-from sap_doc_agent.scanner.orchestrator import ScannerOrchestrator
-from sap_doc_agent.scanner.output import write_scan_output
+from spec2sphere.scanner.orchestrator import ScannerOrchestrator
+from spec2sphere.scanner.output import write_scan_output
 
 
 def _make_obj(object_id: str, name: str, description: str = "") -> ScannedObject:

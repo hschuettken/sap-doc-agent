@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import pytest
 
-from sap_doc_agent.llm.chunking import chunk_and_aggregate, chunk_text
+from spec2sphere.llm.chunking import chunk_and_aggregate, chunk_text
 
 
 # ---------------------------------------------------------------------------

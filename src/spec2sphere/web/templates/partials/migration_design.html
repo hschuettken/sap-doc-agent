@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Target Architecture — SAP Doc Agent{% endblock %}
+{% block page_title %}Target Architecture{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="font-heading text-2xl text-[#1a2332]">Target Architecture</h1>
+      {% if project_id %}
+      <p class="text-sm text-gray-500 mt-1">Project: {{ project_id }}</p>
+      {% endif %}
+    </div>
+    {% if project_id %}
+    <button
+      hx-post="/api/migration/projects/{{ project_id }}/design"
+      hx-swap="none"
+      class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
+    >
+      Design Target
+    </button>
+    {% endif %}
+  </div>
+
+  {% if views %}
+  <!-- Layer summary -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    {% set staging = views | selectattr('layer', 'equalto', 'staging') | list %}
+    {% set harmonization = views | selectattr('layer', 'equalto', 'harmonization') | list %}
+    {% set mart = views | selectattr('layer', 'equalto', 'mart') | list %}
+    {% set consumption = views | selectattr('layer', 'equalto', 'consumption') | list %}
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-petrol">{{ staging | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Staging (01_)</div>
+    </div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-green-600">{{ harmonization | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Harmonization (02_)</div>
+    </div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-amber-600">{{ mart | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Mart (03_)</div>
+    </div>
+    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 text-center">
+      <div class="text-2xl font-bold text-accent">{{ consumption | length }}</div>
+      <div class="text-xs text-gray-500 mt-1">Consumption</div>
+    </div>
+  </div>
+
+  <!-- View list -->
+  <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-[#F5F5F5] border-b border-[#E5E5E5]">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technical Name</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Layer</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Persist</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[#E5E5E5]">
+        {% for view in views %}
+        <tr class="hover:bg-[#F5F5F5]">
+          <td class="px-4 py-3 font-mono text-petrol text-sm">{{ view.technical_name or view.get('technical_name', '') }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded text-xs font-medium
+              {% if view.layer == 'staging' %}bg-petrol/10 text-petrol
+              {% elif view.layer == 'harmonization' %}bg-green-100 text-green-700
+              {% elif view.layer == 'mart' %}bg-amber-100 text-amber-700
+              {% else %}bg-accent/10 text-accent{% endif %}">
+              {{ view.layer or '' }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-600">{{ view.semantic_usage or view.get('semantic_usage', '') }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ view.description or view.get('description', '') }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if view.persistence or view.get('persistence', false) %}
+            <span class="text-accent">●</span>
+            {% else %}
+            <span class="text-gray-300">○</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-8 text-center">
+    <p class="text-[#1a2332]">No target views designed yet.</p>
+    <p class="text-sm text-gray-500 mt-2">Classify chains first, then trigger target design.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

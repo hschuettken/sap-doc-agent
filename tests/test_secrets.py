@@ -1,7 +1,7 @@
 import pytest
 import os
-from sap_doc_agent.secrets.env_backend import EnvBackend
-from sap_doc_agent.secrets.vault_backend import VaultBackend
+from spec2sphere.secrets.env_backend import EnvBackend
+from spec2sphere.secrets.vault_backend import VaultBackend
 
 
 def test_env_backend_reads_env(monkeypatch):
@@ -25,7 +25,7 @@ def test_get_secret_dispatches_to_env(monkeypatch):
     monkeypatch.setenv("SECRETS_BACKEND", "env")
     monkeypatch.setenv("TEST_SECRET_VAL", "hello")
     # Reset the global backend
-    import sap_doc_agent.secrets as secrets_mod
+    import spec2sphere.secrets as secrets_mod
     secrets_mod._backend = None
     result = secrets_mod.get_secret("TEST_SECRET_VAL")
     assert result == "hello"

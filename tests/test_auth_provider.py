@@ -1,7 +1,7 @@
 import pytest
 import bcrypt
 
-from sap_doc_agent.web.auth_provider import OIDCAuthProvider, PasswordAuthProvider
+from spec2sphere.web.auth_provider import OIDCAuthProvider, PasswordAuthProvider
 
 
 @pytest.fixture

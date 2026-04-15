@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import pytest
 
-from sap_doc_agent.llm.structured import extract_json_from_response, generate_json_with_retry
+from spec2sphere.llm.structured import extract_json_from_response, generate_json_with_retry
 
 
 # ---------------------------------------------------------------------------

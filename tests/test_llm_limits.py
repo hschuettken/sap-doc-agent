@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from sap_doc_agent.llm.limits import ProviderRateLimiter, TokenBudgetCircuitBreaker
+from spec2sphere.llm.limits import ProviderRateLimiter, TokenBudgetCircuitBreaker
 
 
 # ---------------------------------------------------------------------------

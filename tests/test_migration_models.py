@@ -1,6 +1,6 @@
 """Tests for Migration Accelerator Pydantic models."""
 
-from sap_doc_agent.migration.models import (
+from spec2sphere.migration.models import (
     BRSDelta,
     BRSReference,
     ClassifiedChain,

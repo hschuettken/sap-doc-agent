@@ -1,7 +1,7 @@
 import pytest
-from sap_doc_agent.agents.doc_sync import DocSyncAgent, SyncReport
-from sap_doc_agent.doc_platform.base import DocPlatformAdapter, Page, Space
-from sap_doc_agent.scanner.models import ScannedObject, ScanResult, ObjectType
+from spec2sphere.agents.doc_sync import DocSyncAgent, SyncReport
+from spec2sphere.doc_platform.base import DocPlatformAdapter, Page, Space
+from spec2sphere.scanner.models import ScannedObject, ScanResult, ObjectType
 
 
 class MockDocPlatform(DocPlatformAdapter):

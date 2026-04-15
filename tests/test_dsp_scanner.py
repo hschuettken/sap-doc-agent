@@ -5,9 +5,9 @@ from __future__ import annotations
 import respx
 import httpx
 
-from sap_doc_agent.scanner.dsp_auth import DSPAuth
-from sap_doc_agent.scanner.dsp_scanner import DSPScanner
-from sap_doc_agent.scanner.models import ObjectType
+from spec2sphere.scanner.dsp_auth import DSPAuth
+from spec2sphere.scanner.dsp_scanner import DSPScanner
+from spec2sphere.scanner.models import ObjectType
 
 BASE_URL = "https://dsp.example.com"
 TOKEN_URL = "https://auth.example.com/oauth/token"

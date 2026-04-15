@@ -1,6 +1,6 @@
 import pytest
 
-from sap_doc_agent.standards.extractor import UnsupportedFileType, extract_text
+from spec2sphere.standards.extractor import UnsupportedFileType, extract_text
 
 
 def test_extract_yaml_text():

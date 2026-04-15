@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from sap_doc_agent.migration.interpreter import interpret_chain
-from sap_doc_agent.migration.models import IntentCard
-from sap_doc_agent.scanner.models import ChainStep, DataFlowChain, ObjectType
+from spec2sphere.migration.interpreter import interpret_chain
+from spec2sphere.migration.models import IntentCard
+from spec2sphere.scanner.models import ChainStep, DataFlowChain, ObjectType
 
 
 def _make_chain(steps=None, summary=""):

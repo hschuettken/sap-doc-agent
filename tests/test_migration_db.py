@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 
-from sap_doc_agent.migration import db as migration_db
+from spec2sphere.migration import db as migration_db
 
 
 def test_db_module_has_project_functions():
