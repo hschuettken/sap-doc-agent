@@ -123,8 +123,8 @@ async def submit_for_review(
         async with conn.transaction():
             row = await conn.fetchrow(
                 """
-                INSERT INTO approvals (project_id, artifact_type, artifact_id, status, reviewer_id, checklist)
-                VALUES ($1, $2, $3::uuid, 'pending', $4::uuid, $5::jsonb)
+                INSERT INTO approvals (project_id, artifact_type, artifact_id, status, reviewer_id, checklist, comments)
+                VALUES ($1, $2, $3::uuid, 'pending', $4::uuid, $5::jsonb, $6)
                 RETURNING *
                 """,
                 ctx.project_id,
@@ -132,6 +132,7 @@ async def submit_for_review(
                 artifact_id,
                 reviewer_id,
                 json.dumps(checklist),
+                json.dumps({"submitter_id": str(ctx.user_id)}),
             )
             approval = _row_to_dict(row)
 
@@ -248,16 +249,29 @@ async def review_artifact(
             artifact_id,
         )
 
-        # Notify artifact creator — best-effort, non-blocking
+        # Notify artifact submitter — best-effort, non-blocking
         if ctx.project_id:
             try:
                 from spec2sphere.governance.notifications import create_notification
+
+                # Resolve submitter from the initial submission metadata
+                submit_meta = approval.get("comments")
+                submitter_id = None
+                if isinstance(submit_meta, str):
+                    try:
+                        submitter_id = json.loads(submit_meta).get("submitter_id")
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+                elif isinstance(submit_meta, dict):
+                    submitter_id = submit_meta.get("submitter_id")
+                # Fallback: notify all project users by using a well-known UUID
+                notify_user = submitter_id or str(ctx.user_id)
 
                 verb = {"approve": "approved", "reject": "rejected", "rework": "sent back for rework"}[decision]
                 ntype = "approval_decision"
                 await create_notification(
                     project_id=str(ctx.project_id),
-                    user_id=str(ctx.user_id),
+                    user_id=notify_user,
                     title=f"Review decision: {verb}",
                     message=(
                         f"Your {artifact_type.replace('_', ' ')} was {verb}."
@@ -274,14 +288,21 @@ async def review_artifact(
         await conn.close()
 
 
-async def get_approval(approval_id: str) -> Optional[dict]:
-    """Get a single approval record by ID."""
+async def get_approval(approval_id: str, project_id=None) -> Optional[dict]:
+    """Get a single approval record by ID, optionally scoped to a project."""
     conn = await _get_conn()
     try:
-        row = await conn.fetchrow(
-            "SELECT * FROM approvals WHERE id = $1::uuid",
-            approval_id,
-        )
+        if project_id is not None:
+            row = await conn.fetchrow(
+                "SELECT * FROM approvals WHERE id = $1::uuid AND project_id = $2",
+                approval_id,
+                project_id,
+            )
+        else:
+            row = await conn.fetchrow(
+                "SELECT * FROM approvals WHERE id = $1::uuid",
+                approval_id,
+            )
         return _row_to_dict(row) if row else None
     finally:
         await conn.close()

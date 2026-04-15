@@ -340,14 +340,21 @@ async def generate_hla(
     return {"hla_id": str(hla_id), "decisions_count": decisions_count, "status": "draft"}
 
 
-async def get_hla(hla_id: str) -> Optional[dict]:
-    """Fetch HLA document by ID."""
+async def get_hla(hla_id: str, project_id=None) -> Optional[dict]:
+    """Fetch HLA document by ID, optionally scoped to a project."""
     conn = await _get_conn()
     try:
-        row = await conn.fetchrow(
-            "SELECT * FROM hla_documents WHERE id = $1::uuid",
-            hla_id,
-        )
+        if project_id is not None:
+            row = await conn.fetchrow(
+                "SELECT * FROM hla_documents WHERE id = $1::uuid AND project_id = $2",
+                hla_id,
+                project_id,
+            )
+        else:
+            row = await conn.fetchrow(
+                "SELECT * FROM hla_documents WHERE id = $1::uuid",
+                hla_id,
+            )
         return _row_to_dict(row) if row else None
     finally:
         await conn.close()

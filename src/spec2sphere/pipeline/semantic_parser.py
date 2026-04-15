@@ -350,19 +350,27 @@ async def parse_requirement(
     return result
 
 
-async def detect_ambiguities(requirement_id: str, llm: LLMProvider) -> list[dict]:
+async def detect_ambiguities(requirement_id: str, llm: LLMProvider, project_id=None) -> list[dict]:
     """Re-run ambiguity detection on an already-parsed requirement.
 
     Returns the ambiguities list (also persisted to the requirement's parsed_entities).
+    If project_id is provided, the requirement must belong to that project.
     """
     from spec2sphere.pipeline.intake import _row_to_dict
 
     conn = await _get_conn()
     try:
-        row = await conn.fetchrow(
-            "SELECT id, source_documents, parsed_entities FROM requirements WHERE id = $1::uuid",
-            requirement_id,
-        )
+        if project_id is not None:
+            row = await conn.fetchrow(
+                "SELECT id, source_documents, parsed_entities FROM requirements WHERE id = $1::uuid AND project_id = $2",
+                requirement_id,
+                project_id,
+            )
+        else:
+            row = await conn.fetchrow(
+                "SELECT id, source_documents, parsed_entities FROM requirements WHERE id = $1::uuid",
+                requirement_id,
+            )
         if row is None:
             raise ValueError(f"Requirement {requirement_id} not found")
         req = _row_to_dict(row)

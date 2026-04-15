@@ -55,7 +55,7 @@ class PlacementDecision:
 
 def _is_reusable(d: dict) -> bool:
     return bool(
-        d.get("reuse") or d.get("reusable") or d.get("shared") or d.get("sources") and len(d.get("sources", [])) > 1
+        d.get("reuse") or d.get("reusable") or d.get("shared") or (d.get("sources") and len(d.get("sources", [])) > 1)
     )
 
 

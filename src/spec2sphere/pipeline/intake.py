@@ -151,14 +151,21 @@ async def ingest_requirement(
     return {"requirement_id": str(req_id), "title": title, "status": "draft"}
 
 
-async def get_requirement(requirement_id: str) -> Optional[dict]:
-    """Fetch a single requirement by ID."""
+async def get_requirement(requirement_id: str, project_id=None) -> Optional[dict]:
+    """Fetch a single requirement by ID, optionally scoped to a project."""
     conn = await _get_conn()
     try:
-        row = await conn.fetchrow(
-            "SELECT * FROM requirements WHERE id = $1::uuid",
-            requirement_id,
-        )
+        if project_id is not None:
+            row = await conn.fetchrow(
+                "SELECT * FROM requirements WHERE id = $1::uuid AND project_id = $2",
+                requirement_id,
+                project_id,
+            )
+        else:
+            row = await conn.fetchrow(
+                "SELECT * FROM requirements WHERE id = $1::uuid",
+                requirement_id,
+            )
         return _row_to_dict(row) if row else None
     finally:
         await conn.close()
@@ -250,3 +257,112 @@ async def update_requirement(requirement_id: str, **fields) -> dict:
         return _row_to_dict(row)
     finally:
         await conn.close()
+
+
+async def ingest_from_bw_migration(
+    intent_cards: list[dict],
+    classified_chains: list[dict],
+    ctx: ContextEnvelope,
+) -> dict:
+    """Create a requirement from BW migration module output.
+
+    Takes IntentCard dicts (from interpreter.py) and ClassifiedChain dicts
+    (from classifier.py) and produces the same structured requirement output
+    as the BRS parser, so the rest of the pipeline is identical.
+
+    Returns: {"requirement_id": str, "title": str, "status": "draft"}
+    """
+    if not intent_cards:
+        raise ValueError("At least one IntentCard is required")
+
+    # Derive title from the first intent card's business purpose
+    first = intent_cards[0]
+    title = f"BW Migration: {first.get('business_purpose', 'Unknown domain')}"
+    business_domain = first.get("data_domain", "")
+
+    # Aggregate entities, measures, KPIs, grain, sources across all cards
+    all_entities = []
+    all_measures = []
+    all_sources = set()
+    grains = []
+    for card in intent_cards:
+        for entity in card.get("key_entities", []):
+            all_entities.append({"name": entity, "type": "dimension", "description": "", "source": "bw_migration"})
+        for measure in card.get("key_measures", []):
+            all_measures.append({"name": measure, "type": "measure", "description": "", "source": "bw_migration"})
+        all_sources.update(card.get("source_systems", []))
+        if card.get("grain"):
+            grains.append(card["grain"])
+
+    # Classify chains as debt/workaround/business_rule/obsolete/unclear
+    migration_objects = []
+    for chain in classified_chains:
+        classification = chain.get("classification", "clarify")
+        strategy = {
+            "migrate": "replicate",
+            "simplify": "clean",
+            "replace": "redesign",
+            "drop": "obsolete",
+            "clarify": "unclear",
+        }.get(classification, "unclear")
+        migration_objects.append(
+            {
+                "chain_id": chain.get("chain_id", ""),
+                "classification": classification,
+                "rationale": chain.get("rationale", ""),
+                "strategy": strategy,
+                "effort": chain.get("effort_category", ""),
+                "confidence": chain.get("confidence", 0),
+            }
+        )
+
+    # Build source_documents equivalent
+    bw_text = f"BW Migration Analysis\n\nDomain: {business_domain}\n\n"
+    for card in intent_cards:
+        bw_text += f"## {card.get('business_purpose', '')}\n"
+        bw_text += f"Grain: {card.get('grain', '')}\n"
+        bw_text += f"Entities: {', '.join(card.get('key_entities', []))}\n"
+        bw_text += f"Measures: {', '.join(card.get('key_measures', []))}\n\n"
+
+    source_doc = {
+        "filename": "bw_migration_analysis",
+        "content_type": "application/x-bw-migration",
+        "text": bw_text,
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "intent_cards_count": len(intent_cards),
+        "classified_chains_count": len(classified_chains),
+    }
+
+    parsed_entities = {
+        "entities": all_entities,
+        "facts_and_measures": all_measures,
+        "source_systems": [{"name": s, "type": "SAP BW"} for s in sorted(all_sources)],
+        "migration_objects": migration_objects,
+    }
+
+    conn = await _get_conn()
+    try:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO requirements
+                (project_id, title, business_domain, description, source_documents,
+                 parsed_entities, parsed_grain, status)
+            VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, 'draft')
+            RETURNING id
+            """,
+            ctx.project_id,
+            title,
+            business_domain,
+            f"Auto-generated from BW migration analysis of {len(intent_cards)} chain(s)",
+            json.dumps([source_doc]),
+            json.dumps(parsed_entities),
+            json.dumps({"dimensions": grains, "source": "bw_migration"}),
+        )
+        req_id = str(row["id"])
+    finally:
+        await conn.close()
+
+    logger.info(
+        "Created BW migration requirement %s (%d cards, %d chains)", req_id, len(intent_cards), len(classified_chains)
+    )
+    return {"requirement_id": req_id, "title": title, "status": "draft"}

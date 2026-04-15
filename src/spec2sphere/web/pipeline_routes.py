@@ -332,7 +332,17 @@ def create_pipeline_routes() -> APIRouter:
 
             req = await parse_requirement(requirement_id=req_id, ctx=ctx, llm=llm)
             _str_ids(req)
-            confidence = req.get("confidence") or 0
+            confidence_raw = req.get("confidence") or {}
+            if isinstance(confidence_raw, dict):
+                # Average confidence from per-category scores (each has a "level" key)
+                levels = {"high": 0.9, "medium": 0.6, "low": 0.3}
+                scores = [
+                    levels.get(v.get("level", "low") if isinstance(v, dict) else "low", 0.3)
+                    for v in confidence_raw.values()
+                ]
+                confidence = sum(scores) / len(scores) if scores else 0
+            else:
+                confidence = float(confidence_raw) if confidence_raw else 0
             conf_pct = int(confidence * 100) if confidence <= 1 else int(confidence)
             conf_cls = "text-green-600" if conf_pct >= 80 else "text-amber-500" if conf_pct >= 50 else "text-red-500"
 
@@ -714,12 +724,14 @@ def create_pipeline_routes() -> APIRouter:
         try:
             from spec2sphere.governance.notifications import list_notifications, get_unread_count
 
+            ctx = await _get_ctx()
+            uid = str(ctx.user_id)
             notifications = await list_notifications(
-                user_id="default",
+                user_id=uid,
                 unread_only=unread_only,
                 limit=30,
             )
-            unread_count = await get_unread_count("default")
+            unread_count = await get_unread_count(uid)
             for n in notifications:
                 _str_ids(n)
         except Exception as exc:
@@ -744,7 +756,8 @@ def create_pipeline_routes() -> APIRouter:
         try:
             from spec2sphere.governance.notifications import get_unread_count
 
-            count = await get_unread_count("default")
+            ctx = await _get_ctx()
+            count = await get_unread_count(str(ctx.user_id))
             if count > 0:
                 return HTMLResponse(
                     f'<a href="/ui/notifications" class="relative inline-flex">'
