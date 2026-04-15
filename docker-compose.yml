@@ -51,7 +51,7 @@ services:
       redis:
         condition: service_healthy
       chrome:
-        condition: service_healthy
+        condition: service_started
     networks:
       - app-network
 
