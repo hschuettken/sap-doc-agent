@@ -58,6 +58,25 @@ CHECKLISTS = {
         {"key": "design_tokens_applied", "label": "Design tokens applied correctly", "required": True},
         {"key": "performance_acceptable", "label": "Performance classification acceptable", "required": False},
     ],
+    "test_spec": [
+        {"key": "test_cases_comprehensive", "label": "Test cases cover all critical paths", "required": True},
+        {"key": "tolerance_rules_defined", "label": "Tolerance rules defined for each test", "required": True},
+        {
+            "key": "expected_deltas_documented",
+            "label": "Expected deltas documented (if improvement mode)",
+            "required": False,
+        },
+        {"key": "dev_copy_commands_valid", "label": "DEV copy commands are valid SQL", "required": True},
+        {"key": "golden_queries_included", "label": "Golden queries included for key KPIs", "required": False},
+    ],
+    "deployment": [
+        {"key": "sandbox_validated", "label": "Sandbox deployment successful", "required": True},
+        {"key": "reconciliation_passed", "label": "Reconciliation results acceptable", "required": True},
+        {"key": "visual_qa_passed", "label": "Visual QA passed or differences accepted", "required": True},
+        {"key": "interaction_qa_passed", "label": "Interaction tests passed", "required": False},
+        {"key": "design_score_acceptable", "label": "Design quality score meets threshold", "required": False},
+        {"key": "rollback_plan_documented", "label": "Rollback plan documented", "required": True},
+    ],
 }
 
 # Map artifact_type to the DB table that holds the artifact and its status column

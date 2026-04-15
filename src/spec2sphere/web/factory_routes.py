@@ -82,6 +82,7 @@ def create_factory_routes() -> APIRouter:
         """Factory monitor — list of recent deployment runs."""
         runs: list[dict] = []
         error: Optional[str] = None
+        active_run_id: Optional[str] = None
         conn = None
         try:
             conn = await _get_conn()
@@ -97,6 +98,12 @@ def create_factory_routes() -> APIRouter:
                 """
             )
             runs = [_str_record(r) for r in rows]
+            # Find active run for SSE stream
+            active_row = await conn.fetchrow(
+                "SELECT id FROM deployment_runs WHERE status = 'running' ORDER BY created_at DESC LIMIT 1"
+            )
+            if active_row:
+                active_run_id = str(active_row["id"])
         except Exception as exc:
             logger.warning("factory_monitor: %s", exc)
             error = str(exc)
@@ -112,6 +119,7 @@ def create_factory_routes() -> APIRouter:
                 "error": error,
                 "status_classes": RUN_STATUS_CLASSES,
                 "active_page": "factory",
+                "active_run_id": active_run_id,
             },
         )
 
@@ -257,35 +265,87 @@ def create_factory_routes() -> APIRouter:
             },
         )
 
-    @router.post("/api/reconciliation/approve/{result_id}")
-    async def reconciliation_approve(result_id: str, request: Request):
-        """Approve a reconciliation result."""
-        body: dict = {}
-        try:
-            body = await request.json()
-        except Exception:
-            pass
+    @router.get("/api/reconciliation/results/{result_id}", tags=["reconciliation"])
+    async def get_reconciliation_detail(result_id: str):
+        """Get detailed reconciliation result with full query results."""
+        from uuid import UUID
 
-        approved_by = body.get("approved_by", "system")
-        conn = None
+        conn = await _get_conn()
         try:
-            conn = await _get_conn()
+            row = await conn.fetchrow(
+                """
+                SELECT rr.*, ts.test_mode, ts.tolerance_rules,
+                       p.name as project_name
+                FROM reconciliation_results rr
+                LEFT JOIN test_specs ts ON ts.id = rr.test_spec_id
+                LEFT JOIN projects p ON p.id = rr.project_id
+                WHERE rr.id = $1
+                """,
+                UUID(result_id),
+            )
+        finally:
+            await conn.close()
+        if not row:
+            from fastapi import HTTPException
+
+            raise HTTPException(404, "Result not found")
+        return _str_record(dict(row))
+
+    @router.post("/api/reconciliation/approve/{result_id}", tags=["reconciliation"])
+    async def reconciliation_approve(result_id: str, comment: str = "", user_id: str = "admin"):
+        """Approve a reconciliation result with optional comment."""
+        from uuid import UUID
+
+        conn = await _get_conn()
+        try:
             await conn.execute(
                 """
                 UPDATE reconciliation_results
-                SET approved_by = $1, updated_at = NOW()
-                WHERE id = $2
+                SET approved_by = $1, explanation = COALESCE(explanation, '') || $2
+                WHERE id = $3
                 """,
-                approved_by,
-                result_id,
+                UUID(user_id) if user_id != "admin" else None,
+                ("\n--- Approved: " + comment) if comment else "",
+                UUID(result_id),
             )
-            return JSONResponse({"success": True, "result_id": result_id, "approved_by": approved_by})
-        except Exception as exc:
-            logger.warning("reconciliation_approve(%s): %s", result_id, exc)
-            return JSONResponse({"success": False, "error": str(exc)}, status_code=500)
         finally:
-            if conn:
-                await conn.close()
+            await conn.close()
+        return {"status": "approved"}
+
+    @router.get("/api/factory/progress/stream", tags=["factory"])
+    async def factory_progress_stream(run_id: str):
+        """SSE stream of deployment progress for a run."""
+        from starlette.responses import StreamingResponse
+        import asyncio
+        import json as _json
+        from uuid import UUID
+
+        async def event_generator():
+            while True:
+                conn = await _get_conn()
+                try:
+                    run = await conn.fetchrow(
+                        "SELECT status, summary FROM deployment_runs WHERE id = $1",
+                        UUID(run_id),
+                    )
+                    steps = await conn.fetch(
+                        "SELECT artifact_name, status, route_chosen, duration_seconds FROM deployment_steps WHERE run_id = $1 ORDER BY created_at",
+                        UUID(run_id),
+                    )
+                finally:
+                    await conn.close()
+
+                data = {
+                    "run_status": run["status"] if run else "unknown",
+                    "steps": [_str_record(dict(s)) for s in steps],
+                }
+                yield f"data: {_json.dumps(data)}\n\n"
+
+                if run and run["status"] in ("completed", "failed", "cancelled"):
+                    break
+                await asyncio.sleep(2)
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     # ── Visual QA ─────────────────────────────────────────────────────────────
 

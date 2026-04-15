@@ -35,7 +35,20 @@
         {% endif %}
       </div>
 
-      <!-- Screenshot placeholder -->
+      <!-- Screenshot comparison slider -->
+      {% if r.screenshot_path and r.expected_layout %}
+      <div class="relative overflow-hidden rounded" style="height: 200px;">
+        <img src="/output/screenshots/{{ r.screenshot_path }}" class="absolute inset-0 w-full h-full object-cover" id="after-{{ loop.index }}">
+        <div class="absolute inset-0 overflow-hidden" id="before-clip-{{ loop.index }}" style="clip-path: inset(0 50% 0 0);">
+          <img src="/output/screenshots/{{ r.expected_layout }}" class="w-full h-full object-cover">
+        </div>
+        <input type="range" min="0" max="100" value="50" class="absolute bottom-2 left-2 right-2 z-10"
+               oninput="document.getElementById('before-clip-{{ loop.index }}').style.clipPath = 'inset(0 ' + (100-this.value) + '% 0 0)'">
+        <div class="absolute top-1 left-1 text-xs bg-black/50 text-white px-1 rounded">Expected</div>
+        <div class="absolute top-1 right-1 text-xs bg-black/50 text-white px-1 rounded">Actual</div>
+      </div>
+      {% else %}
+      <!-- Screenshot placeholder (no comparison available) -->
       <div class="bg-gray-100 flex items-center justify-center" style="height: 160px;">
         {% if r.screenshot_path %}
         <img src="{{ r.screenshot_path }}"
@@ -57,6 +70,7 @@
         </div>
         {% endif %}
       </div>
+      {% endif %}
 
       <!-- Differences list -->
       <div class="px-4 py-3">

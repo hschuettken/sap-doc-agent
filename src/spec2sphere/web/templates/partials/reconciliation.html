@@ -50,7 +50,11 @@
         </thead>
         <tbody class="divide-y divide-gray-50">
           {% for r in results %}
-          <tr class="hover:bg-gray-50 transition" id="recon-row-{{ r.id }}">
+          <tr class="hover:bg-gray-50 transition cursor-pointer" id="recon-row-{{ r.id }}"
+              hx-get="/api/reconciliation/results/{{ r.id }}"
+              hx-target="#detail-{{ r.id }}"
+              hx-trigger="click once"
+              hx-swap="innerHTML">
             <td class="px-4 py-3 font-medium text-charcoal font-mono text-xs">
               {{ r.test_case_key or '—' }}
             </td>
@@ -81,19 +85,29 @@
             <td class="px-4 py-3 text-xs text-gray-500">
               {{ r.approved_by or '—' }}
             </td>
-            <td class="px-4 py-3">
+            <td class="px-4 py-3" onclick="event.stopPropagation()">
               {% if r.status in ('probable_defect', 'needs_review') and not r.approved_by %}
-              <button
-                hx-post="/api/reconciliation/approve/{{ r.id }}"
-                hx-vals='{"approved_by": "analyst"}'
-                hx-target="#recon-row-{{ r.id }}"
-                hx-swap="outerHTML"
-                class="px-2 py-1 text-xs bg-petrol text-white rounded hover:bg-petrol-dark transition font-medium">
-                Approve
-              </button>
+              <div class="flex flex-col gap-1">
+                <input type="text" id="comment-{{ r.id }}" placeholder="Comment (optional)"
+                       class="text-xs border border-gray-200 rounded px-2 py-0.5 w-32">
+                <button
+                  hx-post="/api/reconciliation/approve/{{ r.id }}"
+                  hx-include="#comment-{{ r.id }}"
+                  hx-vals='{"user_id": "admin"}'
+                  hx-target="#recon-row-{{ r.id }}"
+                  hx-swap="outerHTML"
+                  class="px-2 py-1 text-xs bg-petrol text-white rounded hover:bg-petrol-dark transition font-medium">
+                  Approve
+                </button>
+              </div>
               {% else %}
               <span class="text-xs text-gray-300">—</span>
               {% endif %}
+            </td>
+          </tr>
+          <tr id="detail-{{ r.id }}" class="hidden">
+            <td colspan="8" class="px-6 py-3 bg-gray-50 text-xs text-gray-500">
+              <!-- Drill-through detail loaded on row click -->
             </td>
           </tr>
           {% endfor %}

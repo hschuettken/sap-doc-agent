@@ -11,6 +11,44 @@
   </div>
   {% endif %}
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <div class="bg-white rounded-lg shadow p-4 mb-6">
+    <h2 class="text-lg font-medium text-gray-700 mb-3">Fitness Trend</h2>
+    <canvas id="fitness-chart" height="200"></canvas>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const routes = {{ fitness_rows | tojson }};
+    const routeNames = [...new Set(routes.map(r => r.route))];
+    const colors = {cdp: '#7c3aed', api: '#2563eb', csn_import: '#059669', click_guide: '#d97706', manifest: '#6b7280'};
+    const objectTypes = [...new Set(routes.map(r => r.object_type))];
+
+    new Chart(document.getElementById('fitness-chart'), {
+      type: 'bar',
+      data: {
+        labels: objectTypes,
+        datasets: routeNames.map(name => ({
+          label: name,
+          data: objectTypes.map(type => {
+            const match = routes.find(r => r.route === name && r.object_type === type);
+            return match ? match.fitness_score : 0;
+          }),
+          backgroundColor: (colors[name] || '#999') + '80',
+          borderColor: colors[name] || '#999',
+          borderWidth: 1,
+        })),
+      },
+      options: {
+        responsive: true,
+        plugins: {legend: {position: 'bottom'}},
+        scales: {y: {beginAtZero: true, max: 1.0, title: {display: true, text: 'Fitness Score'}}},
+      },
+    });
+  });
+  </script>
+
   <div class="bg-white rounded-lg shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
       <h2 class="font-heading text-base text-charcoal">Route Fitness Scores</h2>

@@ -31,6 +31,13 @@
     </span>
   </div>
 
+  <!-- ── SSE live steps for active run ─────────────────────────────────── -->
+  {% if active_run_id %}
+  <div id="live-steps" hx-ext="sse" sse-connect="/api/factory/progress/stream?run_id={{ active_run_id }}" sse-swap="message"
+       class="bg-white rounded-lg shadow-sm p-4 text-xs text-gray-600 space-y-1">
+  </div>
+  {% endif %}
+
   <!-- ── Progress view ───────────────────────────────────────────────────── -->
   <div id="view-progress">
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
