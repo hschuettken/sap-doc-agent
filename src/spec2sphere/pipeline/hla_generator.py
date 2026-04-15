@@ -152,6 +152,23 @@ _HLA_SCHEMA: dict = {
                 "required": ["existing_object", "reuse_type"],
             },
         },
+        "sac_reporting_strategy": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dashboard_need": {"type": "string"},
+                    "recommendation": {
+                        "type": "string",
+                        "enum": ["story", "analytic_application", "custom_widget"],
+                    },
+                    "rationale": {"type": "string"},
+                    "audience": {"type": "string"},
+                    "archetype": {"type": "string"},
+                },
+                "required": ["dashboard_need", "recommendation", "rationale"],
+            },
+        },
         "narrative": {"type": "string"},
     },
     "required": ["layered_architecture", "views", "key_decisions"],
@@ -259,7 +276,10 @@ async def generate_hla(
         "Design the full layered DSP architecture including: domain decomposition, "
         "layer-by-layer view/table design, star schema strategy, replication flows "
         "from source systems, key architectural decisions with platform placement (DSP/SAC/Both), "
-        "and reuse opportunities from the existing landscape. "
+        "reuse opportunities from the existing landscape, and SAC reporting strategy. "
+        "For SAC reporting strategy: recommend 'story' (standard dashboards), "
+        "'analytic_application' (complex interactivity, planning), or 'custom_widget' "
+        "(highly specialized, embeddable) for each dashboard need. Include audience and archetype. "
         "Provide a concise narrative summary."
     )
 

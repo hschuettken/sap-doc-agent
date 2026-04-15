@@ -1143,3 +1143,78 @@ class TestPipelineFlow:
         parsed = json.loads(json_str)
         assert parsed["platform"] == "dsp"
         assert parsed["confidence"] == 0.95
+
+    @pytest.mark.asyncio
+    async def test_bw_migration_feeds_pipeline(self):
+        """BW migration IntentCards + ClassifiedChains produce a standard requirement."""
+        from spec2sphere.pipeline.intake import ingest_from_bw_migration
+
+        ctx = make_ctx()
+        conn = make_mock_conn()
+        req_uuid = uuid.uuid4()
+        conn.fetchrow = AsyncMock(return_value=_DictRecord({"id": req_uuid}))
+
+        intent_cards = [
+            {
+                "chain_id": "CHAIN_01",
+                "business_purpose": "Sales Revenue Reporting",
+                "data_domain": "Sales & Distribution",
+                "source_systems": ["SAP ECC"],
+                "key_entities": ["Sales Order", "Customer", "Material"],
+                "key_measures": ["Net Revenue", "Quantity"],
+                "grain": "Sales Order Item",
+                "consumers": ["BW Query: ZQ_SALES_01"],
+                "confidence": 0.85,
+            }
+        ]
+        classified_chains = [
+            {
+                "chain_id": "CHAIN_01",
+                "classification": "simplify",
+                "rationale": "7-step chain can collapse to 3 DSP views",
+                "effort_category": "moderate",
+                "confidence": 0.8,
+            },
+            {
+                "chain_id": "CHAIN_02",
+                "classification": "drop",
+                "rationale": "Unused since 2023, zero query hits",
+                "effort_category": "trivial",
+                "confidence": 0.95,
+            },
+        ]
+
+        with patch("spec2sphere.pipeline.intake._get_conn", return_value=conn):
+            result = await ingest_from_bw_migration(intent_cards, classified_chains, ctx)
+
+        assert "requirement_id" in result
+        assert result["title"].startswith("BW Migration:")
+        assert result["status"] == "draft"
+
+        # Verify the INSERT was called with correct parsed_entities
+        insert_call = conn.fetchrow.call_args
+        args = insert_call[0]
+        # args[0] is SQL, args[6] is parsed_entities JSON (positional after project_id, title, domain, description, source_docs)
+        # Find the parsed_entities arg by scanning for the one containing "entities"
+        parsed = None
+        for arg in args[1:]:
+            if isinstance(arg, str) and '"entities"' in arg:
+                parsed = json.loads(arg)
+                break
+        assert parsed is not None, f"Could not find parsed_entities in INSERT args: {args[1:]}"
+        assert len(parsed["entities"]) == 3  # Sales Order, Customer, Material
+        assert len(parsed["facts_and_measures"]) == 2  # Net Revenue, Quantity
+        assert len(parsed["migration_objects"]) == 2  # CHAIN_01 + CHAIN_02
+        # Check strategy mapping
+        strategies = {m["chain_id"]: m["strategy"] for m in parsed["migration_objects"]}
+        assert strategies["CHAIN_01"] == "clean"  # simplify -> clean
+        assert strategies["CHAIN_02"] == "obsolete"  # drop -> obsolete
+
+    @pytest.mark.asyncio
+    async def test_bw_migration_requires_intent_cards(self):
+        """BW migration intake raises on empty intent cards."""
+        from spec2sphere.pipeline.intake import ingest_from_bw_migration
+
+        ctx = make_ctx()
+        with pytest.raises(ValueError, match="(?i)at least one IntentCard"):
+            await ingest_from_bw_migration([], [], ctx)

@@ -585,6 +585,68 @@ def create_pipeline_routes() -> APIRouter:
                 f"</div>"
             )
 
+    @router.get("/ui/pipeline/architecture/compare", response_class=HTMLResponse)
+    async def compare_hla_versions(request: Request):
+        """Compare two HLA versions side by side."""
+        hla_a = request.query_params.get("a", "")
+        hla_b = request.query_params.get("b", "")
+        diff: Optional[dict] = None
+        error: Optional[str] = None
+
+        if hla_a and hla_b:
+            try:
+                from spec2sphere.pipeline.hla_generator import compare_hla_versions as _compare
+
+                diff = await _compare(hla_a, hla_b)
+            except Exception as exc:
+                logger.warning("HLA compare error: %s", exc)
+                error = str(exc)
+
+        if diff is None and not error:
+            error = "Select two HLA versions to compare (pass ?a=<id>&b=<id>)."
+
+        # Render inline HTML fragment
+        if error:
+            return HTMLResponse(
+                f'<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">'
+                f'<p class="text-sm text-yellow-700">{error}</p></div>'
+            )
+
+        views_added = diff.get("views", {}).get("added", [])
+        views_removed = diff.get("views", {}).get("removed", [])
+        views_changed = diff.get("views", {}).get("changed", [])
+        decisions_added = diff.get("key_decisions", {}).get("added", [])
+        decisions_removed = diff.get("key_decisions", {}).get("removed", [])
+
+        rows = ""
+        for v in views_added:
+            rows += f'<tr class="bg-green-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-green-700">Added</td></tr>'
+        for v in views_removed:
+            rows += f'<tr class="bg-red-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-red-700">Removed</td></tr>'
+        for v in views_changed:
+            rows += f'<tr class="bg-amber-50"><td class="px-3 py-1.5 text-xs">View</td><td class="px-3 py-1.5 text-xs font-medium">{v}</td><td class="px-3 py-1.5 text-xs text-amber-700">Changed</td></tr>'
+        for d in decisions_added:
+            rows += f'<tr class="bg-green-50"><td class="px-3 py-1.5 text-xs">Decision</td><td class="px-3 py-1.5 text-xs font-medium">{d}</td><td class="px-3 py-1.5 text-xs text-green-700">Added</td></tr>'
+        for d in decisions_removed:
+            rows += f'<tr class="bg-red-50"><td class="px-3 py-1.5 text-xs">Decision</td><td class="px-3 py-1.5 text-xs font-medium">{d}</td><td class="px-3 py-1.5 text-xs text-red-700">Removed</td></tr>'
+
+        if not rows:
+            rows = (
+                '<tr><td colspan="3" class="px-3 py-4 text-center text-xs text-gray-400">No differences found</td></tr>'
+            )
+
+        html = (
+            f'<div class="bg-white rounded-lg shadow-sm p-6">'
+            f'<h3 class="font-heading text-lg mb-4">HLA Version Comparison</h3>'
+            f'<p class="text-xs text-gray-500 mb-3">Version {diff.get("version_a", "?")} vs {diff.get("version_b", "?")}</p>'
+            f'<table class="w-full text-left"><thead><tr>'
+            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Type</th>'
+            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Name</th>'
+            f'<th class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Change</th>'
+            f"</tr></thead><tbody>{rows}</tbody></table></div>"
+        )
+        return HTMLResponse(html)
+
     # ── Approvals ─────────────────────────────────────────────────────────────
 
     @router.get("/ui/pipeline/approvals/{approval_id}", response_class=HTMLResponse)
