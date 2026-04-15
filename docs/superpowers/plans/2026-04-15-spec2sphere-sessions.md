@@ -555,14 +555,43 @@ WHAT TO BUILD:
    - Produce per-page design score (reuse design scoring from Session 2)
    - Flag violations with specific recommendations
 
-7. FACTORY MONITOR UI
+7. noVNC LIVE BROWSER VIEWER (spec2sphere/browser/novnc.py)
+   - Add noVNC container to docker-compose.yml:
+     - Image: use official novnc/noVNC or build lightweight custom with websockify + noVNC static files
+     - Proxies WebSocket from :6080 to Chrome container VNC :5900
+     - Health check: websockify process alive
+   - Browser viewer route: /ui/browser-view?tenant={id}&env={env}
+     - Validates user's context envelope before allowing connection (no cross-tenant viewing)
+     - Renders noVNC client in a full page (used as iframe source)
+     - Connection params: WebSocket URL pointing to noVNC proxy
+   - Reusable Jinja2 partial: browser_viewer.html
+     - iframe pointing to /ui/browser-view with tenant/env params from current context
+     - Controls: fullscreen toggle, zoom slider, connection status indicator
+     - "Watching: [task name]" overlay when another user triggered the automation
+     - "Idle" state when no automation is running
+   - Floating mini-viewer component: collapsible PiP thumbnail (bottom-right corner)
+     - Toggle via button in top bar (visible when automation is running)
+     - Expands to inline viewer on click
+     - Collapses back to thumbnail
+     - Shows on any page while factory tasks are active
+   - Multi-user handling:
+     - Multiple users can watch the same tenant's automation (VNC supports concurrent read-only viewers)
+     - The Celery worker that triggered the task has exclusive input control
+     - Viewer count shown in UI ("3 watching")
+   - Multi-tenant isolation:
+     - Browser pool (from Session 1) manages one Chrome context per (tenant_id, environment)
+     - noVNC proxy connection gated by context envelope validation
+     - Workspace switch disconnects and reconnects to correct browser context
+
+8. FACTORY MONITOR UI
    - /ui/factory page: live build/deploy progress
    - Deployment queue: pending, running, completed, failed tasks
    - Per-artifact: route decision, execution status, duration
-   - Live VNC viewer embed: iframe to vnc_url for watching browser automation live (this is a demo killer feature)
+   - Live browser viewer: embedded noVNC iframe (primary viewer location, full-width during active deployment)
    - Route decision log: why each route was chosen
+   - Toggle between "Progress view" (task list) and "Live view" (browser viewer)
 
-8. RECONCILIATION UI
+9. RECONCILIATION UI
    - /ui/reconciliation page
    - Before/after comparison table (baseline vs candidate)
    - Delta classification badges (pass/tolerance/expected/defect/review)
@@ -570,26 +599,27 @@ WHAT TO BUILD:
    - Comment and approve workflow per delta
    - Aggregate summary: % pass, % tolerance, % defect
 
-9. VISUAL QA UI
-   - /ui/visual-qa page
+10. VISUAL QA UI
+    - /ui/visual-qa page
    - Screenshot slider: overlay before/after or blueprint vs actual
    - Design score breakdown per page
    - Interaction test results: pass/fail per test with screenshot evidence
    - Annotation: highlight differences on screenshots
 
-10. ROUTE FITNESS DASHBOARD
+11. ROUTE FITNESS DASHBOARD
     - /ui/lab/fitness page (or tab within factory page)
     - Per route, per object type: success rate, avg duration, failure reasons
     - Trend over time (chart)
     - Recommendations: which routes to prefer/avoid
 
-11. TESTS
+12. TESTS
     - Route router: test selection logic, fallback chains, fitness scoring
     - DSP deployer: test _dev copy SQL generation, readback diff
     - SAC click guide: test instruction generation from blueprint
     - Reconciliation: test delta classification (exact, tolerance, expected, defect)
     - Visual comparison: test screenshot diff engine
     - Design QA: test scoring against known good/bad examples
+    - noVNC: test context envelope validation for viewer access, multi-tenant isolation
     - Integration: end-to-end from tech spec -> deploy -> reconcile (can use mocked CDP for CI)
 
 COMPLETION:
@@ -597,7 +627,9 @@ COMPLETION:
 - Blueprint -> SAC Factory generates click guide + executes via CDP -> captures screenshots -> runs QA
 - Reconciliation engine compares before/after query results with delta classification
 - Visual QA shows screenshot comparison with design scores
-- Factory monitor shows live progress with VNC viewer
+- Factory monitor shows live progress with embedded noVNC browser viewer
+- noVNC iframe shows Chrome desktop, tenant-scoped, multi-user viewing works
+- Floating PiP mini-viewer available from any page during active automation
 - Route fitness tracked and displayed
 - All scoped to workspace
 - Create a git commit, push to Gitea, deploy via ops-bridge

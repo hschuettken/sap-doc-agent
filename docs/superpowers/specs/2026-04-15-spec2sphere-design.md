@@ -127,8 +127,9 @@ When a module is disabled, its routes are not registered, its Celery tasks are n
 | `postgres` | PostgreSQL 16 + pgvector | 5432 |
 | `redis` | Queue + cache + rate limiting | 6379 |
 | `chrome` | Xvfb + Chrome + VNC server | 5900 (VNC), 9222 (CDP) |
+| `novnc` | noVNC WebSocket proxy | 6080 (HTTP/WS) |
 
-**Total: 7 containers. One `docker compose up`.**
+**Total: 8 containers. One `docker compose up`.**
 
 The Win11 VM (192.168.0.70) remains as a fallback CDP target, configurable via:
 ```yaml
@@ -138,6 +139,47 @@ browser:
   vnc_enabled: true
   vnc_port: 5900
 ```
+
+### 4.2.1 Live Browser Viewer (noVNC)
+
+The containerized Chrome's desktop is viewable directly inside the Spec2Sphere cockpit UI via **noVNC** — a JavaScript VNC client that runs in the browser over WebSocket. This is a key demo feature: stakeholders watch the bot build their dashboard in real time.
+
+**Architecture:**
+
+```
+Spec2Sphere Cockpit (browser)
+  └─ <iframe src="/ui/browser-view?tenant=X&env=sandbox">
+       └─ noVNC JavaScript client (canvas element)
+            └─ WebSocket connection
+                 └─ websockify proxy (noVNC container, :6080)
+                      └─ VNC server (chrome container, :5900)
+                           └─ Xvfb :99 (Chrome desktop)
+```
+
+**noVNC container:** Uses the official `novnc/noVNC` image or a lightweight custom image with `websockify` + noVNC static files. Proxies WebSocket connections to the Chrome container's VNC port.
+
+**Multi-user viewing:**
+- Multiple users can watch the same automation session simultaneously (VNC supports multiple read-only viewers)
+- The Celery worker that triggered the automation "owns" the session (has input control)
+- Other users see a read-only live stream with a "Watching: [task name]" overlay
+- When no automation is running, the viewer shows an idle Chrome desktop
+
+**Multi-tenant isolation:**
+- Each tenant/environment gets a dedicated browser context in Chrome (separate profile, cookies, storage)
+- The noVNC viewer URL includes tenant + environment parameters
+- The web backend validates the user's context envelope before proxying the WebSocket connection — users can only view browser sessions belonging to their active workspace
+- On workspace switch, the iframe reconnects to the correct browser context
+
+**Scaling (future):**
+- Single Chrome container handles one active automation at a time per tenant
+- For parallel automations across tenants: spawn additional Chrome containers via browser pool manager
+- Each Chrome container gets its own VNC port; noVNC proxy routes by tenant ID
+
+**UI integration:**
+- Factory Monitor page: primary location for the live viewer (full-width iframe during active deployment)
+- Artifact Lab page: viewer for watching lab experiments
+- Floating mini-viewer: collapsible thumbnail in bottom-right corner (like a picture-in-picture) so users can monitor automation while working on other pages
+- View controls: fullscreen toggle, zoom, connection status indicator
 
 ### 4.3 Key Architectural Decisions
 
