@@ -50,24 +50,44 @@ async def _get_ctx():
     return await get_default_context()
 
 
-
 def _escape(s: str) -> str:
     """HTML-escape a string for safe inline embedding in generated fragments."""
     import html as _h
+
     return _h.escape(s)
+
+
+def _score_bar(label: str, value: float) -> str:
+    """Return a single mini progress bar row for a design score subcategory."""
+    color = "bg-green-400" if value >= 80 else "bg-amber-400" if value >= 50 else "bg-red-400"
+    return (
+        f'<div class="flex items-center gap-2">'
+        f'<span class="text-xs text-gray-500 w-16">{label}</span>'
+        f'<div class="flex-1 bg-gray-200 rounded-full h-1.5">'
+        f'<div class="{color} rounded-full h-1.5" style="width:{value:.0f}%"></div></div>'
+        f'<span class="text-xs text-gray-400 w-6 text-right">{value:.0f}</span></div>'
+    )
 
 
 def _category_options(selected: str) -> str:
     """Return <option> tags for the knowledge category selector."""
     cats = [
-        "naming", "layering", "anti_pattern", "template", "quality",
-        "governance", "standard", "pattern", "glossary", "document",
+        "naming",
+        "layering",
+        "anti_pattern",
+        "template",
+        "quality",
+        "governance",
+        "standard",
+        "pattern",
+        "glossary",
+        "document",
     ]
     return "".join(
-        f'<option value="{c}" {"selected" if c == selected else ""}>' +
-        f'{c.replace("_", " ").title()}</option>'
+        f'<option value="{c}" {"selected" if c == selected else ""}>' + f"{c.replace('_', ' ').title()}</option>"
         for c in cats
     )
+
 
 def create_core_routes() -> APIRouter:
     """Return an APIRouter with knowledge + landscape UI and API routes."""
@@ -209,8 +229,7 @@ def create_core_routes() -> APIRouter:
             item = await get_knowledge_item(item_id)
             if not item:
                 return HTMLResponse('<p class="text-red-500 text-sm">Item not found</p>')
-            html = (
-                f'''<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-petrol ring-2 ring-petrol/20">
+            html = f'''<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-petrol ring-2 ring-petrol/20">
           <form hx-put="/ui/knowledge/{item_id}" hx-target="closest div.bg-white" hx-swap="outerHTML">
             <div class="space-y-2">
               <input type="text" name="title" value="{_escape(str(item.get("title", "")))}"
@@ -231,7 +250,6 @@ def create_core_routes() -> APIRouter:
             </div>
           </form>
         </div>'''
-            )
             return HTMLResponse(html)
         except Exception as exc:
             return HTMLResponse(f'<p class="text-red-500 text-sm">Error: {exc}</p>')
@@ -256,15 +274,54 @@ def create_core_routes() -> APIRouter:
                 llm=llm,
             )
             return HTMLResponse(
-                '<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-400">' +
-                '<p class="text-sm text-green-600 font-medium">Updated successfully.</p>' +
-                '<p class="text-xs text-gray-400 mt-1">Refresh the page to see the updated item.</p>' +
-                '</div>'
+                '<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-400">'
+                + '<p class="text-sm text-green-600 font-medium">Updated successfully.</p>'
+                + '<p class="text-xs text-gray-400 mt-1">Refresh the page to see the updated item.</p>'
+                + "</div>"
             )
         except Exception as exc:
             logger.warning("Update knowledge item %s failed: %s", item_id, exc)
             return HTMLResponse(f'<p class="text-red-500 text-sm">Update failed: {exc}</p>')
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Design Token browser route
+    # ──────────────────────────────────────────────────────────────────────────
+
+    @router.get("/ui/design-tokens", response_class=HTMLResponse)
+    async def design_tokens_browser(request: Request):
+        """Design Token browser page — shows the merged token set grouped by type."""
+        profile: dict = {}
+        error: Optional[str] = None
+
+        try:
+            ctx = await _get_ctx()
+            from spec2sphere.core.design_system.tokens import resolve_design_profile
+
+            profile = await resolve_design_profile(ctx)
+        except Exception as exc:
+            logger.warning("Design token browser load error: %s", exc)
+            error = str(exc)
+
+        # Ensure consistent ordering of token types for rendering
+        TOKEN_TYPE_ORDER = ["color", "typography", "spacing", "density", "emphasis"]
+        ordered_profile: dict = {}
+        for ttype in TOKEN_TYPE_ORDER:
+            if ttype in profile:
+                ordered_profile[ttype] = profile[ttype]
+        # Include any unexpected token types at the end
+        for ttype, tokens in profile.items():
+            if ttype not in ordered_profile:
+                ordered_profile[ttype] = tokens
+
+        return _render(
+            request,
+            "partials/design_tokens.html",
+            {
+                "active_page": "design-tokens",
+                "profile": ordered_profile,
+                "error": error,
+            },
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # Landscape UI routes
@@ -371,6 +428,33 @@ def create_core_routes() -> APIRouter:
                 f"{'…' if len(str(obj.get('documentation', ''))) > 400 else ''}</p>"
             )
 
+        score_html = ""
+        if obj.get("platform") == "sac" and obj.get("object_type") in (
+            "story",
+            "analytic_application",
+            "optimized_story",
+        ):
+            try:
+                from spec2sphere.core.design_system.scorer import score_dashboard
+
+                score = await score_dashboard(obj.get("metadata", {}))
+                color = (
+                    "text-green-600" if score.total >= 80 else "text-amber-600" if score.total >= 50 else "text-red-600"
+                )
+                score_html = f"""
+        <h4 class='text-xs font-semibold text-gray-500 uppercase mt-3 mb-1'>Design Score</h4>
+        <p class='text-lg font-bold {color}'>{score.total:.0f}/100</p>
+        <div class='space-y-1 mt-1'>
+          {_score_bar("Archetype", score.archetype_compliance)}
+          {_score_bar("Layout", score.layout_readability)}
+          {_score_bar("Charts", score.chart_choice)}
+          {_score_bar("Titles", score.title_quality)}
+          {_score_bar("Filters", score.filter_usability)}
+          {_score_bar("Navigation", score.navigation_clarity)}
+        </div>"""
+            except Exception:
+                pass
+
         html = f"""
 <div class="space-y-1">
   <p class="font-semibold text-gray-900 text-sm">{obj.get("object_name", "")}</p>
@@ -383,6 +467,7 @@ def create_core_routes() -> APIRouter:
   {f'<p class="text-xs text-gray-400 mt-2">Scanned: {str(obj.get("last_scanned", ""))[:10]}</p>' if obj.get("last_scanned") else ""}
   {dep_html}
   {doc_preview}
+  {score_html}
 </div>
 """
         return HTMLResponse(html)

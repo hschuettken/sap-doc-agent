@@ -355,11 +355,135 @@ _HORVATH_ARCHETYPES: list[dict] = [
             "notes": "Each section must have an explanatory title and annotation.",
         },
     },
+    # ---------------------------------------------------------------------------
+    # Widget archetypes (Spec Section 8.3)
+    # ---------------------------------------------------------------------------
+    {
+        "name": "kpi_tile",
+        "description": "Single KPI with trend indicator.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["measure", "comparison_period"],
+            "recommended_size": {"cols": 1, "rows": 1},
+            "density_compatibility": ["dense", "medium", "sparse"],
+            "chart_type_rules": [],
+        },
+    },
+    {
+        "name": "trend_tile",
+        "description": "KPI with sparkline/trend chart.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["measure", "time_dimension"],
+            "recommended_size": {"cols": 2, "rows": 1},
+            "density_compatibility": ["medium", "sparse"],
+            "chart_type_rules": ["line", "area"],
+        },
+    },
+    {
+        "name": "variance_chart",
+        "description": "Plan vs actual visualization.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["actual_measure", "plan_measure", "dimension"],
+            "recommended_size": {"cols": 2, "rows": 2},
+            "density_compatibility": ["medium", "sparse"],
+            "chart_type_rules": ["waterfall", "bar", "stacked_bar"],
+        },
+    },
+    {
+        "name": "ranked_bar",
+        "description": "Horizontal bars ranked by value.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["measure", "dimension"],
+            "recommended_size": {"cols": 2, "rows": 2},
+            "density_compatibility": ["dense", "medium"],
+            "chart_type_rules": ["horizontal_bar"],
+        },
+    },
+    {
+        "name": "waterfall_view",
+        "description": "Bridge/waterfall visualization.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["measures_list", "labels"],
+            "recommended_size": {"cols": 3, "rows": 2},
+            "density_compatibility": ["medium", "sparse"],
+            "chart_type_rules": ["waterfall"],
+        },
+    },
+    {
+        "name": "driver_table",
+        "description": "KPI driver breakdown table.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["measures", "dimensions"],
+            "recommended_size": {"cols": 3, "rows": 2},
+            "density_compatibility": ["dense", "medium"],
+            "chart_type_rules": ["table"],
+        },
+    },
+    {
+        "name": "matrix_table",
+        "description": "Cross-tab matrix with conditional formatting.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["row_dimensions", "col_dimensions", "measures"],
+            "recommended_size": {"cols": 3, "rows": 3},
+            "density_compatibility": ["dense"],
+            "chart_type_rules": ["crosstab"],
+        },
+    },
+    {
+        "name": "detail_table",
+        "description": "Dense line-item table.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["dimensions", "measures"],
+            "recommended_size": {"cols": 4, "rows": 3},
+            "density_compatibility": ["dense"],
+            "chart_type_rules": ["table"],
+        },
+    },
+    {
+        "name": "commentary_panel",
+        "description": "Text/annotation area.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": [],
+            "recommended_size": {"cols": 1, "rows": 1},
+            "density_compatibility": ["medium", "sparse"],
+            "chart_type_rules": [],
+        },
+    },
+    {
+        "name": "navigation_button",
+        "description": "Drill/navigation button group.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["target_pages"],
+            "recommended_size": {"cols": 1, "rows": 1},
+            "density_compatibility": ["dense", "medium", "sparse"],
+            "chart_type_rules": [],
+        },
+    },
+    {
+        "name": "filter_sidebar",
+        "description": "Vertical filter panel.",
+        "archetype_type": "widget",
+        "definition": {
+            "required_bindings": ["filter_dimensions"],
+            "recommended_size": {"cols": 1, "rows": 4},
+            "density_compatibility": ["dense", "medium", "sparse"],
+            "chart_type_rules": [],
+        },
+    },
 ]
 
 
 async def seed_horvath_archetypes() -> int:
-    """Seed the nine standard Horvath layout archetypes.
+    """Seed Horvath layout archetypes (Spec Section 8.2) and widget archetypes (Spec Section 8.3).
 
     Uses name + customer_id IS NULL as the uniqueness check so it is safe
     to call multiple times (idempotent via ON CONFLICT DO NOTHING would

@@ -1167,3 +1167,143 @@ async def test_audit_documentation_summary_buckets():
     assert summary["good"] == 1  # 70
     assert summary["needs_work"] == 1  # 50
     assert summary["poor"] == 1  # 20
+
+
+# ---------------------------------------------------------------------------
+# Scanner — Hash-based incremental scan (Gap B4 tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_store_scan_results_unchanged_when_hash_matches():
+    """store_scan_results returns unchanged > 0 when content_hash already matches."""
+    from spec2sphere.core.scanner.landscape_store import store_scan_results
+    from spec2sphere.scanner.models import ObjectType, ScanResult, ScannedObject
+
+    ctx = make_ctx()
+    obj = ScannedObject(
+        object_id="OBJ_001",
+        object_type=ObjectType.VIEW,
+        name="Z_SALES_VIEW",
+        technical_name="Z_SALES_VIEW",
+    )
+    existing_hash = obj.compute_hash()  # pre-compute so mock can return the same value
+
+    scan_result = ScanResult(source_system="dsp_test", objects=[obj])
+
+    conn = make_mock_conn()
+    # fetchrow returns a row with the same content_hash → unchanged path
+    conn.fetchrow = AsyncMock(return_value={"id": uuid.uuid4(), "content_hash": existing_hash})
+
+    with patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn):
+        result = await store_scan_results(scan_result, ctx, platform="dsp")
+
+    assert result["unchanged"] > 0
+    assert result["stored"] == 0
+    assert result["updated"] == 0
+
+
+@pytest.mark.asyncio
+async def test_store_scan_results_stores_new_objects():
+    """store_scan_results stores objects when no existing row is found (fetchrow returns None)."""
+    from spec2sphere.core.scanner.landscape_store import store_scan_results
+    from spec2sphere.scanner.models import ObjectType, ScanResult, ScannedObject
+
+    ctx = make_ctx()
+    obj = ScannedObject(
+        object_id="OBJ_002",
+        object_type=ObjectType.VIEW,
+        name="Z_NEW_VIEW",
+        technical_name="Z_NEW_VIEW",
+    )
+    scan_result = ScanResult(source_system="dsp_test", objects=[obj])
+
+    conn = make_mock_conn()
+    # fetchrow returns None → new INSERT path
+    conn.fetchrow = AsyncMock(return_value=None)
+    conn.execute = AsyncMock(return_value="INSERT 0 1")
+
+    with patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn):
+        result = await store_scan_results(scan_result, ctx, platform="dsp")
+
+    assert result["stored"] > 0
+    assert result["unchanged"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Design System — Scorer (Gap B4 tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_score_dashboard_sac_object_has_all_six_subcategories():
+    """score_dashboard returns all 6 subcategory scores and a total for a SAC metadata dict."""
+    from spec2sphere.core.design_system.scorer import score_dashboard
+
+    sac_metadata = {
+        "title": "SAP Analytics Cloud Overview",
+        "archetype": "exec_overview",
+        "density": "sparse",
+        "widgets": [
+            {"title": "Revenue KPI", "chart_type": "kpi_tile"},
+            {"title": "Trend Line", "chart_type": "line_chart"},
+        ],
+        "filters": [{"type": "fiscal_period", "position": "header", "scope": "global"}],
+        "pages": [{"name": "Overview"}],
+        "breadcrumb": True,
+        "drill_paths": [{"from": "overview", "to": "region"}],
+    }
+
+    score = await score_dashboard(sac_metadata)
+
+    # All 6 subcategories must be present and numeric
+    assert isinstance(score.total, float)
+    assert isinstance(score.archetype_compliance, float)
+    assert isinstance(score.layout_readability, float)
+    assert isinstance(score.chart_choice, float)
+    assert isinstance(score.title_quality, float)
+    assert isinstance(score.filter_usability, float)
+    assert isinstance(score.navigation_clarity, float)
+    # Total should be in valid range
+    assert 0.0 <= score.total <= 100.0
+
+
+# ---------------------------------------------------------------------------
+# Design System — resolve_design_profile (Gap B4 tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_resolve_design_profile_accepts_context_envelope():
+    """resolve_design_profile works when passed a ContextEnvelope."""
+    from spec2sphere.core.design_system.tokens import resolve_design_profile
+
+    ctx = make_ctx()
+    conn = make_mock_conn()
+    conn.fetch = AsyncMock(return_value=[])  # no tokens — empty profile is fine
+
+    with patch("spec2sphere.core.design_system.tokens._get_conn", return_value=conn):
+        profile = await resolve_design_profile(ctx)
+
+    assert isinstance(profile, dict)
+    # Verify the correct customer_id was passed to the second DB query
+    second_call_args = conn.fetch.call_args_list[1][0]
+    assert str(ctx.customer_id) in second_call_args
+
+
+@pytest.mark.asyncio
+async def test_resolve_design_profile_accepts_raw_uuid():
+    """resolve_design_profile accepts a raw UUID (backward compat path)."""
+    from spec2sphere.core.design_system.tokens import resolve_design_profile
+
+    customer_id = uuid.uuid4()
+    conn = make_mock_conn()
+    conn.fetch = AsyncMock(return_value=[])
+
+    with patch("spec2sphere.core.design_system.tokens._get_conn", return_value=conn):
+        profile = await resolve_design_profile(customer_id)
+
+    assert isinstance(profile, dict)
+    # The second DB fetch call should include the raw UUID value
+    second_call_args = conn.fetch.call_args_list[1][0]
+    assert str(customer_id) in second_call_args
