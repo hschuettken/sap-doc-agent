@@ -80,7 +80,7 @@ _DEFAULT_MODULES = [
         name="dsp_factory",
         description="DSP artifact generation, deployment, reconciliation",
         ui_sections=["dsp_factory"],
-        celery_tasks_module="spec2sphere.tasks.chain_tasks",
+        celery_tasks_module="spec2sphere.tasks.factory_tasks",
     ),
     ModuleSpec(
         name="sac_factory",
