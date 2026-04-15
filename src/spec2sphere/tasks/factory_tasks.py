@@ -121,7 +121,7 @@ def run_dsp_deployment(
                 UPDATE deployment_runs
                 SET status = $1,
                     summary = $2::jsonb,
-                    finished_at = NOW()
+                    completed_at = NOW()
                 WHERE id = $3
                 """,
                 overall_status,
@@ -218,7 +218,7 @@ def run_sac_deployment(
                 UPDATE deployment_runs
                 SET status = $1,
                     summary = $2::jsonb,
-                    finished_at = NOW()
+                    completed_at = NOW()
                 WHERE id = $3
                 """,
                 overall_status,

@@ -88,7 +88,7 @@ def create_factory_routes() -> APIRouter:
             rows = await conn.fetch(
                 """
                 SELECT dr.id, dr.status, dr.started_at, dr.completed_at,
-                       dr.summary, dr.environment,
+                       dr.summary,
                        p.name AS project_name
                 FROM deployment_runs dr
                 LEFT JOIN projects p ON p.id = dr.project_id
@@ -124,11 +124,11 @@ def create_factory_routes() -> APIRouter:
             conn = await _get_conn()
             rows = await conn.fetch(
                 """
-                SELECT id, object_name, object_type, status, started_at,
-                       completed_at, error_message, step_order
+                SELECT id, artifact_name, artifact_type, status, started_at,
+                       completed_at, error_message
                 FROM deployment_steps
                 WHERE run_id = $1
-                ORDER BY step_order ASC, started_at ASC
+                ORDER BY started_at ASC
                 """,
                 run_id,
             )
@@ -228,8 +228,8 @@ def create_factory_routes() -> APIRouter:
             rows = await conn.fetch(
                 """
                 SELECT rr.id, rr.test_case_key, rr.baseline_value, rr.candidate_value,
-                       rr.delta, rr.status, rr.approved_by, rr.created_at,
-                       ts.name AS test_spec_name,
+                       rr.delta, rr.delta_status AS status, rr.approved_by, rr.created_at,
+                       ts.version AS test_spec_version,
                        p.name AS project_name
                 FROM reconciliation_results rr
                 LEFT JOIN test_specs ts ON ts.id = rr.test_spec_id
@@ -299,9 +299,9 @@ def create_factory_routes() -> APIRouter:
             conn = await _get_conn()
             rows = await conn.fetch(
                 """
-                SELECT vq.id, vq.title, vq.status, vq.screenshot_path,
+                SELECT vq.id, vq.page_id, vq.result AS status, vq.screenshot_path,
                        vq.differences, vq.created_at,
-                       sb.name AS blueprint_name,
+                       sb.title AS blueprint_name,
                        p.name AS project_name
                 FROM visual_qa_results vq
                 LEFT JOIN sac_blueprints sb ON sb.id = vq.blueprint_id
@@ -340,10 +340,13 @@ def create_factory_routes() -> APIRouter:
             conn = await _get_conn()
             rows = await conn.fetch(
                 """
-                SELECT rf.id, rf.route, rf.route_type, rf.object_type,
-                       rf.action, rf.success_count, rf.failure_count,
-                       rf.total_attempts, rf.avg_duration_ms, rf.fitness_score,
-                       rf.last_failure_at, rf.updated_at,
+                SELECT rf.id, rf.route, rf.platform AS route_type, rf.object_type,
+                       rf.action, rf.successes AS success_count,
+                       (rf.attempts - rf.successes) AS failure_count,
+                       rf.attempts AS total_attempts,
+                       (rf.avg_duration_seconds * 1000.0) AS avg_duration_ms,
+                       rf.fitness_score,
+                       rf.updated_at AS last_failure_at, rf.updated_at,
                        c.name AS customer_name
                 FROM route_fitness rf
                 LEFT JOIN customers c ON c.id = rf.customer_id

@@ -38,12 +38,11 @@ async def create_deployment_run(
         await conn.execute(
             """
             INSERT INTO deployment_runs
-                (id, tenant_id, customer_id, tech_spec_id, blueprint_id, status, created_at)
-            VALUES ($1, $2, $3, $4, $5, 'pending', NOW())
+                (id, project_id, tech_spec_id, blueprint_id, status, started_at, created_at)
+            VALUES ($1, $2, $3, $4, 'pending', NOW(), NOW())
             """,
             run_id,
-            str(ctx.tenant_id),
-            str(ctx.customer_id),
+            str(ctx.project_id),
             tech_spec_id,
             blueprint_id,
         )
@@ -79,13 +78,14 @@ async def deploy_object(
         await conn.execute(
             """
             INSERT INTO deployment_steps
-                (id, run_id, object_name, artifact_type, route_chosen, status, started_at)
-            VALUES ($1, $2, $3, $4, $5, 'running', NOW())
+                (id, run_id, artifact_name, artifact_type, platform, route_chosen, status, started_at)
+            VALUES ($1, $2, $3, $4, $5, $6, 'running', NOW())
             """,
             step_id,
             run_id,
             obj.get("name", "unknown"),
             artifact_type,
+            obj.get("platform", "dsp"),
             route_chain[0] if route_chain else "unknown",
         )
     finally:
@@ -119,7 +119,7 @@ async def deploy_object(
                     UPDATE deployment_steps
                     SET status = 'deployed',
                         route_chosen = $1,
-                        finished_at = NOW()
+                        completed_at = NOW()
                     WHERE id = $2
                     """,
                     route,
@@ -163,7 +163,7 @@ async def deploy_object(
             UPDATE deployment_steps
             SET status = 'failed',
                 error_message = $1,
-                finished_at = NOW()
+                completed_at = NOW()
             WHERE id = $2
             """,
             last_error,

@@ -27,11 +27,6 @@ class SACApiAdapter:
             List of story metadata dicts.
         """
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = client.get(
-                f"{self._base_url}/api/v1/stories",
-                headers=self._headers,
-                params={"folder": folder},
-            )
             resp = await client.get(
                 f"{self._base_url}/api/v1/stories",
                 headers=self._headers,
