@@ -161,6 +161,14 @@ def create_app(
     ui_router = create_ui_router(output_path, config_path=config_path)
     app.include_router(ui_router)
 
+    # Mount core routes (knowledge browser + landscape explorer)
+    try:
+        from spec2sphere.web.core_routes import create_core_routes
+
+        app.include_router(create_core_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount core routes: %s", exc)
+
     # Mount migration routers
     try:
         from spec2sphere.web.migration_routes import (

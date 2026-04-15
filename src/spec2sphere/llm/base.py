@@ -25,6 +25,14 @@ class LLMProvider(ABC):
     def is_available(self) -> bool:
         """Whether this provider can actually call an LLM."""
 
+    async def embed(self, texts: list[str]) -> Optional[list[list[float]]]:
+        """Generate embeddings for a list of texts. Returns None if not supported.
+
+        Override in providers that support embeddings (OpenAI, Ollama/nomic-embed).
+        Default implementation returns None (embeddings not supported).
+        """
+        return None
+
 
 class OpenAICompatibleAdapter(LLMProvider):
     """Base for providers that speak the OpenAI /chat/completions API shape."""
@@ -56,6 +64,22 @@ class OpenAICompatibleAdapter(LLMProvider):
 
     def is_available(self) -> bool:
         return True
+
+    async def embed(self, texts: list[str]) -> Optional[list[list[float]]]:
+        """Generate embeddings via the OpenAI-compatible /embeddings endpoint."""
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(
+                    f"{self._base_url}/embeddings",
+                    headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
+                    json={"model": self._model, "input": texts},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return [item["embedding"] for item in data["data"]]
+        except (httpx.HTTPError, KeyError, IndexError) as exc:
+            logger.warning("Embedding API call failed: %s", exc)
+            return None
 
     async def _chat(self, messages: list[dict]) -> Optional[str]:
         try:
