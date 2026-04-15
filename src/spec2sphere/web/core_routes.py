@@ -27,12 +27,47 @@ def _render(request: Request, template: str, ctx: dict) -> HTMLResponse:
     return templates.TemplateResponse(request, template, ctx)
 
 
+def _get_llm():
+    """Best-effort LLM provider creation. Returns None if unavailable."""
+    try:
+        import os
+
+        from spec2sphere.config import LLMConfig
+        from spec2sphere.llm import create_llm_provider
+
+        provider = os.environ.get("LLM_PROVIDER", "none")
+        if provider and provider != "none":
+            return create_llm_provider(LLMConfig(provider=provider))
+    except Exception:
+        pass
+    return None
+
+
 async def _get_ctx():
     """Return the default single-tenant ContextEnvelope."""
     from spec2sphere.tenant.context import get_default_context
 
     return await get_default_context()
 
+
+
+def _escape(s: str) -> str:
+    """HTML-escape a string for safe inline embedding in generated fragments."""
+    import html as _h
+    return _h.escape(s)
+
+
+def _category_options(selected: str) -> str:
+    """Return <option> tags for the knowledge category selector."""
+    cats = [
+        "naming", "layering", "anti_pattern", "template", "quality",
+        "governance", "standard", "pattern", "glossary", "document",
+    ]
+    return "".join(
+        f'<option value="{c}" {"selected" if c == selected else ""}>' +
+        f'{c.replace("_", " ").title()}</option>'
+        for c in cats
+    )
 
 def create_core_routes() -> APIRouter:
     """Return an APIRouter with knowledge + landscape UI and API routes."""
@@ -65,7 +100,7 @@ def create_core_routes() -> APIRouter:
                     query=q,
                     ctx=ctx,
                     top_k=30,
-                    llm=None,
+                    llm=_get_llm(),
                 )
                 # Post-filter by category/layer if set (search returns cross-layer)
                 if category:
@@ -132,20 +167,7 @@ def create_core_routes() -> APIRouter:
             ctx = await _get_ctx()
             from spec2sphere.core.knowledge.knowledge_service import ingest_documents
 
-            # Get LLM provider if available
-            llm = None
-            try:
-                import os
-
-                from spec2sphere.llm import create_llm_provider
-                from spec2sphere.config import LLMConfig
-
-                provider = os.environ.get("LLM_PROVIDER", "none")
-                if provider and provider != "none":
-                    llm = create_llm_provider(LLMConfig(provider=provider))
-            except Exception:
-                pass
-
+            llm = _get_llm()
             result = await ingest_documents(
                 files=[(file.filename or "upload", data, content_type)],
                 ctx=ctx,
@@ -177,6 +199,72 @@ def create_core_routes() -> APIRouter:
             logger.warning("Delete knowledge item %s failed: %s", item_id, exc)
         # Return empty — HTMX outerHTML swap will remove the element
         return HTMLResponse("")
+
+    @router.get("/ui/knowledge/{item_id}/edit", response_class=HTMLResponse)
+    async def edit_knowledge_form(item_id: str, request: Request):
+        """Return an inline edit form for a knowledge item (HTMX outerHTML swap)."""
+        try:
+            from spec2sphere.core.knowledge.knowledge_service import get_knowledge_item
+
+            item = await get_knowledge_item(item_id)
+            if not item:
+                return HTMLResponse('<p class="text-red-500 text-sm">Item not found</p>')
+            html = (
+                f'''<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-petrol ring-2 ring-petrol/20">
+          <form hx-put="/ui/knowledge/{item_id}" hx-target="closest div.bg-white" hx-swap="outerHTML">
+            <div class="space-y-2">
+              <input type="text" name="title" value="{_escape(str(item.get("title", "")))}"
+                     class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm" placeholder="Title">
+              <select name="category" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm">
+                {_category_options(str(item.get("category", "")))}
+              </select>
+              <textarea name="content" rows="4"
+                        class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm">{_escape(str(item.get("content", "")))}</textarea>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button type="submit" class="bg-petrol text-white px-3 py-1 rounded text-sm hover:bg-petrol-light">Save</button>
+              <button type="button"
+                      hx-get="/ui/knowledge"
+                      hx-target="#content-inner"
+                      hx-select="#content-inner"
+                      class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">Cancel</button>
+            </div>
+          </form>
+        </div>'''
+            )
+            return HTMLResponse(html)
+        except Exception as exc:
+            return HTMLResponse(f'<p class="text-red-500 text-sm">Error: {exc}</p>')
+
+    @router.put("/ui/knowledge/{item_id}", response_class=HTMLResponse)
+    async def update_knowledge(item_id: str, request: Request):
+        """Update a knowledge item from the inline edit form."""
+        try:
+            form = await request.form()
+            title = str(form.get("title", "")) or None
+            content = str(form.get("content", "")) or None
+            category = str(form.get("category", "")) or None
+
+            from spec2sphere.core.knowledge.knowledge_service import update_knowledge_item
+
+            llm = _get_llm()
+            await update_knowledge_item(
+                item_id,
+                title=title,
+                content=content,
+                category=category,
+                llm=llm,
+            )
+            return HTMLResponse(
+                '<div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-400">' +
+                '<p class="text-sm text-green-600 font-medium">Updated successfully.</p>' +
+                '<p class="text-xs text-gray-400 mt-1">Refresh the page to see the updated item.</p>' +
+                '</div>'
+            )
+        except Exception as exc:
+            logger.warning("Update knowledge item %s failed: %s", item_id, exc)
+            return HTMLResponse(f'<p class="text-red-500 text-sm">Update failed: {exc}</p>')
+
 
     # ──────────────────────────────────────────────────────────────────────────
     # Landscape UI routes
@@ -379,30 +467,32 @@ def create_core_routes() -> APIRouter:
 
     @router.get("/api/landscape/audit")
     async def landscape_audit(request: Request):
-        """Documentation coverage audit — returns total, documented, undocumented objects."""
+        """Full documentation audit with 4-dimension scoring per object."""
         try:
             ctx = await _get_ctx()
-            from spec2sphere.core.scanner.landscape_store import get_landscape_objects
+            from spec2sphere.core.audit.doc_audit import audit_documentation
 
-            objects = await get_landscape_objects(ctx=ctx, limit=1000)
-
-            documented = [o for o in objects if o.get("documentation")]
-            undocumented = [o for o in objects if not o.get("documentation")]
-
+            report = await audit_documentation(ctx)
             return JSONResponse(
                 {
-                    "total": len(objects),
-                    "with_documentation": len(documented),
-                    "without_documentation": len(undocumented),
-                    "undocumented": [
+                    "total_objects": report.total_objects,
+                    "audited_objects": report.audited_objects,
+                    "average_score": round(report.average_score, 1),
+                    "summary": report.summary,
+                    "recommendations": report.recommendations[:10],
+                    "scorecards": [
                         {
-                            "id": str(o["id"]),
-                            "object_name": o.get("object_name", ""),
-                            "object_type": o.get("object_type", ""),
-                            "platform": o.get("platform", ""),
-                            "layer": o.get("layer", ""),
+                            "object_id": sc.object_id,
+                            "object_name": sc.object_name,
+                            "platform": sc.platform,
+                            "total_score": round(sc.total_score, 1),
+                            "documented_fields": round(sc.documented_fields, 1),
+                            "naming_compliance": round(sc.naming_compliance, 1),
+                            "description_quality": round(sc.description_quality, 1),
+                            "cross_references": round(sc.cross_references, 1),
+                            "recommendations": sc.recommendations[:3],
                         }
-                        for o in undocumented[:100]
+                        for sc in report.scorecards[:50]
                     ],
                 }
             )

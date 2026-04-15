@@ -61,10 +61,12 @@ async def store_scan_results(
     JSONB field (keyed by source object_id).
     Updates last_scanned on every call.
 
-    Returns {"stored": int, "updated": int}.
+    Uses SHA-256 content hashing to skip rows whose content has not changed.
+
+    Returns {"stored": int, "updated": int, "unchanged": int}.
     """
     if not scan_result.objects:
-        return {"stored": 0, "updated": 0}
+        return {"stored": 0, "updated": 0, "unchanged": 0}
 
     # Build per-object dependency list: {object_id -> [dep dicts]}
     dep_map: dict[str, list[dict]] = {}
@@ -80,6 +82,7 @@ async def store_scan_results(
     conn = await _get_conn()
     stored = 0
     updated = 0
+    unchanged = 0
     now = datetime.now(timezone.utc)
 
     try:
@@ -88,11 +91,12 @@ async def store_scan_results(
                 tech_name = obj.technical_name or obj.object_id
                 obj_name = obj.name or tech_name
                 deps_json = json.dumps(dep_map.get(obj.object_id, []))
+                content_hash = obj.compute_hash()
 
                 # Check if row already exists for this scope + identity
                 existing = await conn.fetchrow(
                     """
-                    SELECT id FROM landscape_objects
+                    SELECT id, content_hash FROM landscape_objects
                     WHERE customer_id = $1
                       AND ($2::uuid IS NULL OR project_id = $2)
                       AND platform = $3
@@ -106,18 +110,24 @@ async def store_scan_results(
                 )
 
                 if existing:
+                    # Skip the upsert entirely if content has not changed
+                    if existing["content_hash"] == content_hash:
+                        unchanged += 1
+                        continue
+
                     await conn.execute(
                         """
                         UPDATE landscape_objects SET
-                            object_type   = $1,
-                            object_name   = $2,
+                            object_type    = $1,
+                            object_name    = $2,
                             technical_name = $3,
-                            layer         = $4,
-                            metadata      = $5::jsonb,
-                            documentation = $6,
-                            dependencies  = $7::jsonb,
-                            last_scanned  = $8
-                        WHERE id = $9
+                            layer          = $4,
+                            metadata       = $5::jsonb,
+                            documentation  = $6,
+                            dependencies   = $7::jsonb,
+                            last_scanned   = $8,
+                            content_hash   = $9
+                        WHERE id = $10
                         """,
                         obj.object_type.value,
                         obj_name,
@@ -127,6 +137,7 @@ async def store_scan_results(
                         obj.description or obj.source_code or None,
                         deps_json,
                         now,
+                        content_hash,
                         existing["id"],
                     )
                     updated += 1
@@ -136,10 +147,11 @@ async def store_scan_results(
                         INSERT INTO landscape_objects
                             (customer_id, project_id, platform, object_type,
                              object_name, technical_name, layer, metadata,
-                             documentation, dependencies, last_scanned)
+                             documentation, dependencies, last_scanned,
+                             content_hash)
                         VALUES
                             ($1, $2, $3, $4, $5, $6, $7, $8::jsonb,
-                             $9, $10::jsonb, $11)
+                             $9, $10::jsonb, $11, $12)
                         """,
                         ctx.customer_id,
                         ctx.project_id,
@@ -152,6 +164,7 @@ async def store_scan_results(
                         obj.description or obj.source_code or None,
                         deps_json,
                         now,
+                        content_hash,
                     )
                     stored += 1
 
@@ -159,14 +172,15 @@ async def store_scan_results(
         await conn.close()
 
     logger.info(
-        "landscape_store: stored=%d updated=%d platform=%s customer=%s project=%s",
+        "landscape_store: stored=%d updated=%d unchanged=%d platform=%s customer=%s project=%s",
         stored,
         updated,
+        unchanged,
         platform,
         ctx.customer_id,
         ctx.project_id,
     )
-    return {"stored": stored, "updated": updated}
+    return {"stored": stored, "updated": updated, "unchanged": unchanged}
 
 
 async def get_landscape_objects(

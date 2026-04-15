@@ -218,8 +218,10 @@ async def list_tokens(  # noqa: F811 — intentional redefinition
 # ---------------------------------------------------------------------------
 
 
-async def resolve_design_profile(customer_id: UUID) -> dict:
+async def resolve_design_profile(ctx) -> dict:
     """Merge Horvath defaults with customer overrides.
+
+    Accepts a ContextEnvelope or a raw UUID (backward compat).
 
     Returns a nested dict:
       { token_type: { token_name: token_value, ... }, ... }
@@ -227,6 +229,13 @@ async def resolve_design_profile(customer_id: UUID) -> dict:
     Customer rows override Horvath defaults when the same (type, name) key
     appears in both.
     """
+    from spec2sphere.tenant.context import ContextEnvelope
+
+    if isinstance(ctx, ContextEnvelope):
+        customer_id = ctx.customer_id
+    else:
+        customer_id = ctx  # backward compat: raw UUID
+
     conn = await _get_conn()
     try:
         # Fetch Horvath defaults (customer_id IS NULL)

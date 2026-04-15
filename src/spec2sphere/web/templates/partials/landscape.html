@@ -24,6 +24,10 @@
               class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-charcoal -mb-px">
         Audit
       </button>
+      <button onclick="switchTab('waves')" id="tab-waves"
+              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-charcoal -mb-px">
+        Waves
+      </button>
     </div>
   </div>
 
@@ -68,6 +72,16 @@
             {% for l in layers %}
             <option value="{{ l }}" {{ 'selected' if layer == l }}>{{ l }}</option>
             {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Scan Status</label>
+          <select id="scan-status-filter" onchange="filterByScanStatus(this.value)"
+                  class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <option value="">All</option>
+            <option value="scanned">Scanned</option>
+            <option value="unscanned">Unscanned</option>
+            <option value="stale">Stale (&gt;7d)</option>
           </select>
         </div>
         <button type="submit"
@@ -132,6 +146,7 @@
             {% if objects %}
             {% for obj in objects %}
             <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                data-last-scanned="{{ obj.last_scanned or '' }}"
                 hx-get="/ui/landscape/{{ obj.id }}"
                 hx-target="#object-detail-panel"
                 hx-swap="innerHTML"
@@ -230,7 +245,7 @@
       <div class="flex items-center justify-between mb-4">
         <div>
           <h3 class="font-semibold text-sm text-gray-800">Documentation Audit</h3>
-          <p class="text-xs text-gray-500 mt-0.5">Check which landscape objects lack documentation</p>
+          <p class="text-xs text-gray-500 mt-0.5">4-dimension scoring: fields, naming, description quality, cross-references</p>
         </div>
         <button onclick="runLandscapeAudit()"
                 class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
@@ -251,6 +266,37 @@
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
         </svg>
         <p class="text-sm">Click "Run Audit" to check documentation coverage</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WAVES TAB ─────────────────────────────────────────── -->
+  <div id="pane-waves" class="hidden space-y-4">
+    <div class="bg-white rounded-lg shadow-sm p-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-semibold text-sm text-gray-800">Migration Wave Grouping</h3>
+          <p class="text-xs text-gray-500 mt-0.5">Objects grouped by dependency order — Wave 1 has no upstream dependencies</p>
+        </div>
+        <button onclick="loadWaves()"
+                class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
+          Compute Waves
+        </button>
+      </div>
+      <div id="waves-loading" class="hidden text-center py-6">
+        <div class="inline-block w-6 h-6 border-2 border-petrol border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs text-gray-400 mt-2">Computing migration waves...</p>
+      </div>
+      <div id="waves-empty" class="text-center py-6 text-gray-400">
+        <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+        </svg>
+        <p class="text-sm">Click "Compute Waves" to group objects by dependency order</p>
+      </div>
+      <div id="waves-results" class="hidden space-y-4">
+        <div id="waves-stats" class="flex flex-wrap gap-3 mb-2"></div>
+        <div id="waves-content"></div>
       </div>
     </div>
   </div>
@@ -330,6 +376,21 @@ async function loadGraph() {
   }
 }
 
+// ── Scan status filter ────────────────────────────────────────
+function filterByScanStatus(status) {
+  const rows = document.querySelectorAll('#landscape-table-body tr');
+  const now = new Date();
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  rows.forEach(row => {
+    const scanned = row.dataset.lastScanned;
+    let show = true;
+    if (status === 'scanned') show = !!scanned;
+    else if (status === 'unscanned') show = !scanned;
+    else if (status === 'stale') show = !!(scanned && new Date(scanned) < sevenDaysAgo);
+    row.style.display = show ? '' : 'none';
+  });
+}
+
 // ── Landscape audit ───────────────────────────────────────────
 async function runLandscapeAudit() {
   document.getElementById('audit-empty').classList.add('hidden');
@@ -342,42 +403,68 @@ async function runLandscapeAudit() {
     document.getElementById('audit-loading').classList.add('hidden');
     document.getElementById('audit-results-panel').classList.remove('hidden');
 
-    const total   = data.total   || 0;
-    const withDoc = data.with_documentation || 0;
-    const pct     = total > 0 ? Math.round(withDoc / total * 100) : 0;
-    const color   = pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-amber-500' : 'text-red-500';
+    const total  = data.total_objects || 0;
+    const avg    = data.average_score || 0;
+    const sum    = data.summary || {};
+    const color  = avg >= 80 ? 'text-green-600' : avg >= 50 ? 'text-amber-500' : 'text-red-500';
+    const barCls = avg >= 80 ? 'bg-green-500' : avg >= 50 ? 'bg-amber-400' : 'bg-red-400';
+
+    const buckets = [
+      { label: 'Excellent ≥85', count: sum.excellent || 0, cls: 'bg-green-100 text-green-700' },
+      { label: 'Good ≥65',      count: sum.good      || 0, cls: 'bg-blue-100 text-blue-700' },
+      { label: 'Needs Work ≥40',count: sum.needs_work || 0, cls: 'bg-amber-100 text-amber-700' },
+      { label: 'Poor <40',      count: sum.poor      || 0, cls: 'bg-red-100 text-red-700' },
+    ];
+    const bucketHtml = buckets.map(b =>
+      `<span class="inline-block px-2 py-1 rounded text-xs font-medium ${b.cls}">${b.label}: ${b.count}</span>`
+    ).join('');
+
+    const recHtml = (data.recommendations || []).length > 0
+      ? `<div class="mt-3"><p class="text-xs font-semibold text-gray-500 uppercase mb-1">Top Recommendations</p><ul class="list-disc list-inside space-y-0.5">${
+          (data.recommendations || []).map(r => `<li class="text-xs text-gray-600">${r}</li>`).join('')
+        }</ul></div>`
+      : '';
 
     document.getElementById('audit-summary').innerHTML = `
-      <div class="flex items-end gap-3 mb-4">
-        <span class="text-3xl font-bold ${color}">${pct}%</span>
-        <span class="text-sm text-gray-500 pb-1">documentation coverage (${withDoc}/${total} objects)</span>
+      <div class="flex items-end gap-3 mb-3">
+        <span class="text-3xl font-bold ${color}">${avg}</span>
+        <span class="text-sm text-gray-500 pb-1">avg score across ${total} objects</span>
       </div>
-      <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-        <div class="h-2 rounded-full ${pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'}"
-             style="width: ${pct}%"></div>
+      <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+        <div class="h-2 rounded-full ${barCls}" style="width: ${Math.min(avg, 100)}%"></div>
       </div>
+      <div class="flex flex-wrap gap-2 mb-2">${bucketHtml}</div>
+      ${recHtml}
     `;
 
-    if (data.undocumented && data.undocumented.length > 0) {
+    const scorecards = data.scorecards || [];
+    if (scorecards.length > 0) {
       let rows = '';
-      data.undocumented.forEach(obj => {
+      scorecards.forEach(sc => {
+        const scoreColor = sc.total_score >= 80 ? 'text-green-600' : sc.total_score >= 50 ? 'text-amber-500' : 'text-red-500';
+        const platCls = sc.platform === 'dsp' ? 'text-blue-600' : sc.platform === 'sac' ? 'text-amber-600' : 'text-petrol';
         rows += `<tr class="border-b border-gray-100 last:border-0">
-          <td class="py-2 pr-4 text-sm text-gray-800">${obj.object_name}</td>
-          <td class="py-2 pr-4 text-xs text-gray-500">${obj.object_type}</td>
-          <td class="py-2 text-xs font-medium
-            ${obj.platform === 'dsp' ? 'text-blue-600' : obj.platform === 'sac' ? 'text-amber-600' : 'text-petrol'}">
-            ${(obj.platform || '').toUpperCase()}
-          </td>
+          <td class="py-2 pr-3 text-sm text-gray-800">${sc.object_name}</td>
+          <td class="py-2 pr-3 text-xs font-medium ${platCls}">${(sc.platform || '').toUpperCase()}</td>
+          <td class="py-2 pr-3 text-xs font-bold ${scoreColor}">${sc.total_score}</td>
+          <td class="py-2 pr-3 text-xs text-gray-500">${sc.documented_fields}</td>
+          <td class="py-2 pr-3 text-xs text-gray-500">${sc.naming_compliance}</td>
+          <td class="py-2 pr-3 text-xs text-gray-500">${sc.description_quality}</td>
+          <td class="py-2 text-xs text-gray-500">${sc.cross_references}</td>
         </tr>`;
       });
       document.getElementById('audit-details').innerHTML = `
-        <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Undocumented Objects</h4>
+        <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2 mt-4">Scorecards (top 50)</h4>
         <div class="overflow-x-auto">
-          <table class="w-full">
+          <table class="w-full text-left">
             <thead><tr class="text-xs text-gray-400 border-b border-gray-200">
-              <th class="pb-1 text-left font-medium">Name</th>
-              <th class="pb-1 text-left font-medium">Type</th>
-              <th class="pb-1 text-left font-medium">Platform</th>
+              <th class="pb-1 font-medium pr-3">Name</th>
+              <th class="pb-1 font-medium pr-3">Platform</th>
+              <th class="pb-1 font-medium pr-3">Score</th>
+              <th class="pb-1 font-medium pr-3">Fields</th>
+              <th class="pb-1 font-medium pr-3">Naming</th>
+              <th class="pb-1 font-medium pr-3">Desc</th>
+              <th class="pb-1 font-medium">XRefs</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -385,12 +472,122 @@ async function runLandscapeAudit() {
       `;
     } else {
       document.getElementById('audit-details').innerHTML =
-        '<p class="text-sm text-green-600">All objects have documentation.</p>';
+        '<p class="text-sm text-green-600 mt-4">No objects to score — run a scan first.</p>';
     }
   } catch (err) {
     document.getElementById('audit-loading').classList.add('hidden');
     document.getElementById('audit-empty').classList.remove('hidden');
     showToast('Audit failed: ' + err.message, 'error');
+  }
+}
+
+// ── Migration wave grouping ───────────────────────────────────
+async function loadWaves() {
+  document.getElementById('waves-empty').classList.add('hidden');
+  document.getElementById('waves-results').classList.add('hidden');
+  document.getElementById('waves-loading').classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/api/landscape/graph');
+    const graph = await resp.json();
+
+    // Compute waves: BFS from leaves (nodes with no incoming edges first)
+    const inDegree = {};
+    graph.nodes.forEach(n => { inDegree[n.id] = 0; });
+    graph.edges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; });
+
+    const nodeMap = {};
+    graph.nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    const waves = {};
+    let currentWave = 1;
+    let remaining = new Set(graph.nodes.map(n => n.id));
+
+    while (remaining.size > 0) {
+      const waveNodes = [];
+      remaining.forEach(id => {
+        const deps = graph.edges.filter(e => e.to === id).map(e => e.from);
+        if (deps.every(d => !remaining.has(d))) {
+          waveNodes.push(id);
+        }
+      });
+      if (waveNodes.length === 0) {
+        // Circular deps — dump remaining into current wave
+        remaining.forEach(id => { waves[id] = currentWave; });
+        break;
+      }
+      waveNodes.forEach(id => { waves[id] = currentWave; remaining.delete(id); });
+      currentWave++;
+    }
+
+    const totalWaves = Math.max(...Object.values(waves), 0);
+    const waveColors = ['bg-green-100 text-green-800 border-green-200',
+                        'bg-blue-100 text-blue-800 border-blue-200',
+                        'bg-amber-100 text-amber-800 border-amber-200'];
+
+    // Stats bar
+    document.getElementById('waves-stats').innerHTML = `
+      <div class="px-3 py-1.5 rounded bg-gray-100 text-xs text-gray-600 font-medium">
+        ${graph.nodes.length} objects across <strong>${totalWaves}</strong> wave${totalWaves !== 1 ? 's' : ''}
+      </div>
+    `;
+
+    // Group nodes by wave
+    const byWave = {};
+    Object.entries(waves).forEach(([id, w]) => {
+      if (!byWave[w]) byWave[w] = [];
+      byWave[w].push(id);
+    });
+
+    let html = '';
+    Object.keys(byWave).sort((a, b) => Number(a) - Number(b)).forEach(w => {
+      const wNum = Number(w);
+      const colorCls = wNum === 1 ? 'border-green-300 bg-green-50'
+                      : wNum === 2 ? 'border-blue-300 bg-blue-50'
+                      : wNum === 3 ? 'border-amber-300 bg-amber-50'
+                      : 'border-red-300 bg-red-50';
+      const headerCls = wNum === 1 ? 'text-green-700' : wNum === 2 ? 'text-blue-700'
+                        : wNum === 3 ? 'text-amber-700' : 'text-red-700';
+      const badgeCls = wNum === 1 ? 'bg-green-200 text-green-800'
+                      : wNum === 2 ? 'bg-blue-200 text-blue-800'
+                      : wNum === 3 ? 'bg-amber-200 text-amber-800'
+                      : 'bg-red-200 text-red-800';
+      const ids = byWave[w];
+      const items = ids.map(id => {
+        const n = nodeMap[id] || { label: id, title: '' };
+        const parts = (n.title || '').split('|');
+        const type = (parts[0] || '').trim();
+        const platform = (parts[1] || '').trim();
+        const platCls = platform === 'DSP' ? 'bg-blue-50 text-blue-700'
+                       : platform === 'SAC' ? 'bg-amber-50 text-amber-700'
+                       : 'bg-gray-100 text-gray-600';
+        return `<div class="flex items-center gap-2 py-1">
+          <span class="text-xs text-gray-800 flex-1 truncate">${n.label || id}</span>
+          ${type ? `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">${type}</span>` : ''}
+          ${platform ? `<span class="text-xs px-1.5 py-0.5 rounded ${platCls}">${platform}</span>` : ''}
+        </div>`;
+      }).join('');
+
+      html += `<div class="rounded-lg border ${colorCls} overflow-hidden mb-3">
+        <div class="px-4 py-2 flex items-center gap-3 border-b ${colorCls}">
+          <span class="font-semibold text-sm ${headerCls}">Wave ${w}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${badgeCls}">${ids.length} object${ids.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="px-4 py-2 divide-y divide-gray-100">${items}</div>
+      </div>`;
+    });
+
+    if (!html) {
+      html = '<p class="text-sm text-gray-400">No dependency data — run a scan to populate the landscape.</p>';
+    }
+
+    document.getElementById('waves-content').innerHTML = html;
+    document.getElementById('waves-loading').classList.add('hidden');
+    document.getElementById('waves-results').classList.remove('hidden');
+  } catch (err) {
+    document.getElementById('waves-loading').classList.add('hidden');
+    document.getElementById('waves-empty').classList.remove('hidden');
+    showToast('Wave computation failed: ' + err.message, 'error');
   }
 }
 </script>

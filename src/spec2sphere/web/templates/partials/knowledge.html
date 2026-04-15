@@ -45,28 +45,36 @@
 
   <!-- Upload area -->
   <div class="bg-white rounded-lg shadow-sm p-4">
-    <h3 class="text-sm font-semibold text-gray-700 mb-3">Ingest Standards Document</h3>
-    <form hx-post="/ui/knowledge/upload"
-          hx-target="#upload-result"
-          hx-encoding="multipart/form-data"
-          class="flex flex-wrap gap-3 items-end">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">File</label>
-        <input type="file" name="file" accept=".pdf,.docx,.md,.txt,.yaml"
-               class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+    <h3 class="text-sm font-semibold text-gray-700 mb-2">Upload Standards Document</h3>
+    <form id="upload-form" hx-post="/ui/knowledge/upload" hx-target="#upload-result" hx-encoding="multipart/form-data" class="space-y-3">
+      <div id="drop-zone"
+           class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-petrol hover:bg-petrol/5 transition-colors"
+           ondragover="event.preventDefault(); this.classList.add('border-petrol','bg-petrol/5')"
+           ondragleave="this.classList.remove('border-petrol','bg-petrol/5')"
+           ondrop="event.preventDefault(); this.classList.remove('border-petrol','bg-petrol/5'); document.getElementById('file-input').files = event.dataTransfer.files; document.getElementById('file-name').textContent = event.dataTransfer.files[0].name; document.getElementById('drop-text').classList.add('hidden'); document.getElementById('file-info').classList.remove('hidden');">
+        <input type="file" id="file-input" name="file" accept=".pdf,.docx,.md,.txt,.yaml" class="hidden"
+               onchange="if(this.files[0]){document.getElementById('file-name').textContent=this.files[0].name; document.getElementById('drop-text').classList.add('hidden'); document.getElementById('file-info').classList.remove('hidden')}">
+        <div id="drop-text">
+          <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          <p class="text-sm text-gray-500">Drag &amp; drop a file here, or <span class="text-petrol font-medium cursor-pointer" onclick="document.getElementById('file-input').click()">browse</span></p>
+          <p class="text-xs text-gray-400 mt-1">PDF, Word, Markdown, YAML, TXT</p>
+        </div>
+        <div id="file-info" class="hidden">
+          <p class="text-sm text-petrol font-medium"><span id="file-name"></span></p>
+          <p class="text-xs text-gray-400 mt-1">Ready to upload</p>
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Layer</label>
-        <select name="layer" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-          <option value="global">Global</option>
-          <option value="customer">Customer</option>
-          <option value="project">Project</option>
-        </select>
+      <div class="flex items-center gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Layer</label>
+          <select name="layer" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <option value="global">Global</option>
+            <option value="customer">Customer</option>
+            <option value="project">Project</option>
+          </select>
+        </div>
+        <button type="submit" class="mt-4 bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent/90">Ingest Document</button>
       </div>
-      <button type="submit"
-              class="px-4 py-2 bg-accent text-white rounded-md text-sm font-medium hover:bg-accent/90">
-        Ingest
-      </button>
     </form>
     <div id="upload-result" class="mt-2 text-sm"></div>
   </div>
@@ -138,13 +146,19 @@
               {% endif %}
             </div>
           </div>
-          <button hx-delete="/ui/knowledge/{{ item.id }}"
-                  hx-target="closest div.bg-white"
-                  hx-swap="outerHTML"
-                  hx-confirm="Delete this knowledge item?"
-                  class="flex-shrink-0 text-xs text-red-400 hover:text-red-600 transition-colors">
-            Delete
-          </button>
+          <div class="flex-shrink-0 flex items-center gap-2">
+            <button hx-get="/ui/knowledge/{{ item.id }}/edit"
+                    hx-target="closest div.bg-white"
+                    hx-swap="outerHTML"
+                    class="text-xs text-petrol hover:text-petrol-light transition-colors">Edit</button>
+            <button hx-delete="/ui/knowledge/{{ item.id }}"
+                    hx-target="closest div.bg-white"
+                    hx-swap="outerHTML"
+                    hx-confirm="Delete this knowledge item?"
+                    class="text-xs text-red-400 hover:text-red-600 transition-colors">
+              Delete
+            </button>
+          </div>
         </div>
         <p class="text-sm text-gray-600 mt-2 leading-relaxed">
           {{ item.content[:300] }}{% if item.content | length > 300 %}…{% endif %}
