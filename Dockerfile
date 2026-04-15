@@ -17,4 +17,4 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["uvicorn", "sap_doc_agent.web.server:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "spec2sphere.web.server:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080"]
