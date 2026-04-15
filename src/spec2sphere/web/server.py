@@ -209,6 +209,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount pipeline routes: %s", exc)
 
+    # Mount factory routes (factory monitor, reconciliation, visual QA, route fitness)
+    try:
+        from spec2sphere.web.factory_routes import create_factory_routes
+
+        app.include_router(create_factory_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount factory routes: %s", exc)
+
     # Mount migration routers
     try:
         from spec2sphere.web.migration_routes import (

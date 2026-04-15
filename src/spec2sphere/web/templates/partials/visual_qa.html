@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Visual QA — Spec2Sphere{% endblock %}
+{% block page_title %}Visual QA Results{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error loading visual QA results:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if results %}
+  <!-- 2-column grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for r in results %}
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <!-- Card header -->
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <p class="font-medium text-sm text-charcoal">{{ r.title or 'Untitled Check' }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ r.project_name or '' }}{% if r.blueprint_name %} · {{ r.blueprint_name }}{% endif %}
+          </p>
+        </div>
+        {% if r.status == 'pass' %}
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">pass</span>
+        {% elif r.status == 'fail' %}
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">fail</span>
+        {% elif r.status == 'warning' %}
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">warning</span>
+        {% else %}
+        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{{ r.status or 'unknown' }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Screenshot placeholder -->
+      <div class="bg-gray-100 flex items-center justify-center" style="height: 160px;">
+        {% if r.screenshot_path %}
+        <img src="{{ r.screenshot_path }}"
+             alt="Screenshot"
+             class="max-h-full max-w-full object-contain"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="hidden flex-col items-center text-gray-400 text-xs">
+          <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          Screenshot unavailable
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center text-gray-300 text-xs">
+          <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          No screenshot
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Differences list -->
+      <div class="px-4 py-3">
+        {% if r.differences %}
+        {% set diffs = r.differences if r.differences is iterable and r.differences is not string else [] %}
+        {% if diffs %}
+        <p class="text-xs font-medium text-gray-600 mb-2">Differences</p>
+        <ul class="space-y-1">
+          {% for diff in diffs %}
+          <li class="text-xs text-gray-500 flex items-start gap-1.5">
+            <span class="text-red-400 mt-0.5">&#8226;</span>
+            <span>{{ diff }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-xs text-gray-400">No differences recorded.</p>
+        {% endif %}
+        {% else %}
+        <p class="text-xs text-gray-400">No differences recorded.</p>
+        {% endif %}
+      </div>
+
+      <!-- Footer: timestamp -->
+      <div class="px-4 pb-3 text-xs text-gray-400">
+        {{ r.created_at or '' }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="bg-white rounded-lg shadow-sm">
+    <div class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+      <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      <p class="text-sm font-medium">No visual QA results yet</p>
+      <p class="text-xs mt-1">Run a visual QA check against an SAC blueprint to see results here.</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

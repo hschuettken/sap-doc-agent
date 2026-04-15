@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Route Fitness — Spec2Sphere{% endblock %}
+{% block page_title %}Route Fitness Lab{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error loading route fitness:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="font-heading text-base text-charcoal">Route Fitness Scores</h2>
+      <p class="text-xs text-gray-400">Sorted by fitness score ascending (worst first)</p>
+    </div>
+
+    {% if fitness_rows %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+            <th class="px-4 py-3">Route</th>
+            <th class="px-4 py-3">Type</th>
+            <th class="px-4 py-3">Object / Action</th>
+            <th class="px-4 py-3">Customer</th>
+            <th class="px-4 py-3">Success Rate</th>
+            <th class="px-4 py-3">Avg Duration</th>
+            <th class="px-4 py-3">Fitness</th>
+            <th class="px-4 py-3">Attempts</th>
+            <th class="px-4 py-3">Last Failure</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for row in fitness_rows %}
+          <tr class="hover:bg-gray-50 transition">
+            <td class="px-4 py-3 font-mono text-xs text-charcoal max-w-[12rem] truncate"
+                title="{{ row.route }}">
+              {{ row.route or '—' }}
+            </td>
+            <td class="px-4 py-3">
+              {% set rcls = route_type_classes.get(row.route_type, 'bg-gray-100 text-gray-500') %}
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {{ rcls }}">
+                {{ row.route_type or '?' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-600">
+              <div>{{ row.object_type or '—' }}</div>
+              {% if row.action %}
+              <div class="text-gray-400">{{ row.action }}</div>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-500">
+              {{ row.customer_name or '—' }}
+            </td>
+            <td class="px-4 py-3">
+              {% set rate = row.success_rate | float %}
+              <div class="flex items-center gap-2">
+                <div class="flex-1 bg-gray-200 rounded-full h-1.5 w-20">
+                  <div class="rounded-full h-1.5
+                    {% if rate >= 80 %}bg-green-400{% elif rate >= 50 %}bg-amber-400{% else %}bg-red-400{% endif %}"
+                       style="width: {{ rate }}%">
+                  </div>
+                </div>
+                <span class="text-xs text-gray-600 w-10 text-right">{{ rate }}%</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+              {% if row.avg_duration_ms %}
+              {{ "%.0f" | format(row.avg_duration_ms) }} ms
+              {% else %}
+              —
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {% set score = row.fitness_score | float if row.fitness_score is not none else 0 %}
+              <span class="text-sm font-semibold
+                {% if score >= 0.8 %}text-green-600{% elif score >= 0.5 %}text-amber-600{% else %}text-red-600{% endif %}">
+                {{ "%.2f" | format(score) }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-500">
+              {{ row.total_attempts or 0 }}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+              {{ row.last_failure_at or '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+      <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <p class="text-sm font-medium">No route fitness data yet</p>
+      <p class="text-xs mt-1">Deploy objects through the factory to start tracking route fitness.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

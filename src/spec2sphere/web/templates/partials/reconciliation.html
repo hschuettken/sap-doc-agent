@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Reconciliation — Spec2Sphere{% endblock %}
+{% block page_title %}Reconciliation Results{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+    <strong>Error loading results:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="font-heading text-base text-charcoal">Reconciliation Results</h2>
+      <div class="flex items-center gap-4 text-xs text-gray-400">
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400"></span> pass
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400"></span> tolerance
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-400"></span> expected
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span> defect
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-gray-300"></span> review
+        </span>
+      </div>
+    </div>
+
+    {% if results %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+            <th class="px-4 py-3">Test Case</th>
+            <th class="px-4 py-3">Project / Spec</th>
+            <th class="px-4 py-3">Baseline</th>
+            <th class="px-4 py-3">Candidate</th>
+            <th class="px-4 py-3">Delta</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Approved By</th>
+            <th class="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for r in results %}
+          <tr class="hover:bg-gray-50 transition" id="recon-row-{{ r.id }}">
+            <td class="px-4 py-3 font-medium text-charcoal font-mono text-xs">
+              {{ r.test_case_key or '—' }}
+            </td>
+            <td class="px-4 py-3 text-gray-500 text-xs">
+              <div>{{ r.project_name or '—' }}</div>
+              {% if r.test_spec_name %}
+              <div class="text-gray-400">{{ r.test_spec_name }}</div>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-gray-600 text-xs font-mono max-w-[8rem] truncate"
+                title="{{ r.baseline_value }}">
+              {{ r.baseline_value or '—' }}
+            </td>
+            <td class="px-4 py-3 text-gray-600 text-xs font-mono max-w-[8rem] truncate"
+                title="{{ r.candidate_value }}">
+              {{ r.candidate_value or '—' }}
+            </td>
+            <td class="px-4 py-3 text-xs font-mono
+              {% if r.delta and r.delta != 0 %}text-red-600{% else %}text-gray-400{% endif %}">
+              {{ r.delta if r.delta is not none else '—' }}
+            </td>
+            <td class="px-4 py-3">
+              {% set cls = status_classes.get(r.status, 'bg-gray-100 text-gray-500') %}
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {{ cls }}">
+                {{ r.status or 'unknown' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-500">
+              {{ r.approved_by or '—' }}
+            </td>
+            <td class="px-4 py-3">
+              {% if r.status in ('probable_defect', 'needs_review') and not r.approved_by %}
+              <button
+                hx-post="/api/reconciliation/approve/{{ r.id }}"
+                hx-vals='{"approved_by": "analyst"}'
+                hx-target="#recon-row-{{ r.id }}"
+                hx-swap="outerHTML"
+                class="px-2 py-1 text-xs bg-petrol text-white rounded hover:bg-petrol-dark transition font-medium">
+                Approve
+              </button>
+              {% else %}
+              <span class="text-xs text-gray-300">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+      <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+      </svg>
+      <p class="text-sm font-medium">No reconciliation results yet</p>
+      <p class="text-xs mt-1">Run a reconciliation pass to see results here.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
