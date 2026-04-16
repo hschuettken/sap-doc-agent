@@ -708,18 +708,30 @@ async def sync_to_doc_platform(
     Returns: {synced: bool, url: str|None, error: str|None}
     """
     try:
+        import os as _os
+
         if platform_type == "bookstack":
             from spec2sphere.doc_platform.bookstack import BookStackAdapter  # noqa: PLC0415
 
-            adapter = BookStackAdapter()
+            adapter = BookStackAdapter(
+                base_url=_os.environ.get("BOOKSTACK_URL", ""),
+                token_id=_os.environ.get("BOOKSTACK_TOKEN_ID", ""),
+                token_secret=_os.environ.get("BOOKSTACK_TOKEN_SECRET", ""),
+            )
         elif platform_type == "confluence":
             from spec2sphere.doc_platform.confluence import ConfluenceAdapter  # noqa: PLC0415
 
-            adapter = ConfluenceAdapter()
+            adapter = ConfluenceAdapter(
+                url=_os.environ.get("CONFLUENCE_URL", ""),
+                token=_os.environ.get("CONFLUENCE_TOKEN", ""),
+            )
         elif platform_type == "outline":
             from spec2sphere.doc_platform.outline import OutlineAdapter  # noqa: PLC0415
 
-            adapter = OutlineAdapter()
+            adapter = OutlineAdapter(
+                base_url=_os.environ.get("OUTLINE_URL", ""),
+                api_key=_os.environ.get("OUTLINE_API_KEY", ""),
+            )
         else:
             return {"synced": False, "url": None, "error": f"Unknown platform: {platform_type}"}
 

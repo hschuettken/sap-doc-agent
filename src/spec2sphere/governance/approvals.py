@@ -327,7 +327,78 @@ async def review_artifact(
             except Exception as exc:
                 logger.warning("Failed to create decision notification: %s", exc)
 
+        # Note: caller should invoke trigger_production_deployment() after this returns
+        # for approved_for_production decisions to start the production deploy pipeline.
         return updated
+    finally:
+        await conn.close()
+
+
+async def trigger_production_deployment(
+    artifact_id: str,
+    ctx: "ContextEnvelope",
+) -> dict:
+    """Trigger production deployment after approved_for_production decision.
+
+    Validates that:
+    1. The release artifact has an approved_for_production approval
+    2. All prerequisite approvals exist (HLA, tech spec, test spec)
+
+    Returns: {"triggered": bool, "error": str|None, "run_id": str|None}
+    """
+    conn = await _get_conn()
+    try:
+        # Verify approved_for_production approval exists
+        approval = await conn.fetchrow(
+            """SELECT * FROM approvals
+               WHERE artifact_id = $1::uuid AND status IN ('approved_for_production', 'approved_with_accepted_deltas')
+               ORDER BY created_at DESC LIMIT 1""",
+            artifact_id,
+        )
+        if not approval:
+            return {"triggered": False, "error": "No production approval found for this artifact", "run_id": None}
+
+        # Check prerequisite approvals for the project
+        project_id = str(ctx.project_id)
+        prereqs = await conn.fetch(
+            """SELECT artifact_type, status FROM approvals
+               WHERE project_id = $1::uuid AND artifact_type IN ('hla_document', 'tech_spec', 'test_spec')
+               AND status IN ('approve', 'approved_for_production', 'approved_with_accepted_deltas')""",
+            project_id,
+        )
+        approved_types = {r["artifact_type"] for r in prereqs}
+        missing = {"hla_document", "tech_spec", "test_spec"} - approved_types
+        if missing:
+            return {
+                "triggered": False,
+                "error": f"Missing prerequisite approvals: {', '.join(sorted(missing))}",
+                "run_id": None,
+            }
+
+        # Log the production deployment trigger in audit log
+        await conn.execute(
+            """INSERT INTO audit_log (tenant_id, customer_id, project_id, user_id, action, resource_type, resource_id, details)
+               VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'production_deployment_triggered', 'release', $5, $6::jsonb)""",
+            str(ctx.tenant_id),
+            str(ctx.customer_id),
+            project_id,
+            str(ctx.user_id),
+            artifact_id,
+            json.dumps({"approval_id": str(approval["id"]), "decision": approval["status"]}),
+        )
+
+        # Trigger deployment via DSP factory (best-effort — factory may not be configured)
+        run_id = None
+        try:
+            from spec2sphere.dsp_factory.deployer import create_deployment_run  # noqa: PLC0415
+
+            result = await create_deployment_run(ctx, tech_spec_id=None, blueprint_id=None)
+            run_id = result.get("run_id")
+        except Exception as exc:
+            logger.warning("Production deployment trigger failed: %s", exc)
+            return {"triggered": False, "error": f"Deployment creation failed: {exc}", "run_id": None}
+
+        return {"triggered": True, "error": None, "run_id": run_id}
     finally:
         await conn.close()
 

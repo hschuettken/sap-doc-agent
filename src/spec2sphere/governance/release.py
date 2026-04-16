@@ -63,6 +63,8 @@ def assemble_release_package(data: dict[str, Any], version: str = "1.0.0") -> by
         decisions/decision_log.json — Architecture decisions
         artifacts/*.sql         — Generated SQL artifacts
         approvals/approvals.json — Approval records
+        screenshots/*.png       — QA screenshots (if present in data["screenshots"])
+        open_issues/register.json — Open issues register (if present in data["open_issues"])
 
     Args:
         data: Project data dictionary containing project, technical_objects, approvals, etc.
@@ -113,6 +115,22 @@ def assemble_release_package(data: dict[str, Any], version: str = "1.0.0") -> by
         if approvals:
             zf.writestr("approvals/approvals.json", json.dumps(approvals, indent=2, default=str))
             files_written.append("approvals/approvals.json")
+
+        # Add screenshots if present
+        screenshots = data.get("screenshots", [])
+        for shot in screenshots:
+            name = shot.get("name", "screenshot.png")
+            content = shot.get("content", b"")
+            if content:
+                path = f"screenshots/{name}"
+                zf.writestr(path, content)
+                files_written.append(path)
+
+        # Add open issues register if present
+        open_issues = data.get("open_issues", [])
+        if open_issues:
+            zf.writestr("open_issues/register.json", json.dumps(open_issues, indent=2, default=str))
+            files_written.append("open_issues/register.json")
 
         # Add manifest with final file list
         manifest.files = files_written

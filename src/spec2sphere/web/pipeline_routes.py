@@ -1074,7 +1074,7 @@ def create_pipeline_routes() -> APIRouter:
         try:
             ctx = await _get_ctx()
             llm = _get_llm()
-            from spec2sphere.pipeline.test_spec_generator import generate_test_spec  # noqa: PLC0415
+            from spec2sphere.pipeline.test_generator import generate_test_spec  # noqa: PLC0415
 
             result = await generate_test_spec(ts_id, ctx, llm)
             test_id = result.get("test_spec_id", "") if isinstance(result, dict) else str(result)
@@ -1269,7 +1269,7 @@ def create_pipeline_routes() -> APIRouter:
 
         try:
             ctx = await _get_ctx()
-            from spec2sphere.pipeline.test_spec_generator import list_test_specs  # noqa: PLC0415
+            from spec2sphere.pipeline.test_generator import list_test_specs  # noqa: PLC0415
 
             test_specs = await list_test_specs(ctx)
             for ts in test_specs:
@@ -1325,7 +1325,7 @@ def create_pipeline_routes() -> APIRouter:
 
         try:
             ctx = await _get_ctx()
-            from spec2sphere.pipeline.test_spec_generator import get_test_spec  # noqa: PLC0415
+            from spec2sphere.pipeline.test_generator import get_test_spec  # noqa: PLC0415
 
             test_spec = await get_test_spec(ts_id)
             if test_spec:

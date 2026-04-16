@@ -118,57 +118,14 @@ async def delete_archetype(archetype_id: str) -> bool:
         await conn.close()
 
 
-async def list_archetypes(
-    customer_id=None,
-    archetype_type: Optional[str] = None,
-) -> list[dict]:
-    """List archetypes with optional filters.
-
-    customer_id=None returns only Horvath platform archetypes (IS NULL).
-    customer_id=<UUID> returns that customer's archetypes.
-    Omit customer_id entirely (use sentinel) to return all.
-    """
-    conn = await _get_conn()
-    try:
-        conditions: list[str] = []
-        params: list = []
-        idx = 1
-
-        if isinstance(customer_id, _UnsetType):
-            pass
-        elif customer_id is None:
-            conditions.append("customer_id IS NULL")
-        else:
-            conditions.append(f"customer_id = ${idx}::uuid")
-            params.append(str(customer_id))
-            idx += 1
-
-        if archetype_type is not None:
-            conditions.append(f"archetype_type = ${idx}")
-            params.append(archetype_type)
-            idx += 1
-
-        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-        rows = await conn.fetch(
-            f"SELECT * FROM layout_archetypes {where} ORDER BY name",
-            *params,
-        )
-        return [_row_to_dict(r) for r in rows]
-    finally:
-        await conn.close()
-
-
 class _UnsetType:
     pass
 
 
 _UNSET = _UnsetType()
 
-# Re-declare with sentinel default
-_original_list_archetypes = list_archetypes
 
-
-async def list_archetypes(  # noqa: F811
+async def list_archetypes(
     customer_id=_UNSET,
     archetype_type: Optional[str] = None,
 ) -> list[dict]:

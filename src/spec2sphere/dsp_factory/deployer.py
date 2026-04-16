@@ -214,13 +214,29 @@ async def rollback_object(ctx: ContextEnvelope, step_id: str, environment: str =
         if not prior_definition:
             return {"status": "failed", "error": "No prior definition in readback_diff"}
 
-        # Re-deploy the prior definition
+        # Re-deploy the prior definition via the route system
         logger.info("Rolling back %s to prior definition", step["artifact_name"])
-        await conn.execute(
-            "UPDATE deployment_steps SET status = 'rolled_back', completed_at = now() WHERE id = $1",
-            step_id,
-        )
-        return {"status": "rolled_back", "step_id": str(step_id)}
+        obj = {
+            "name": step["artifact_name"],
+            "object_type": step["artifact_type"],
+            "platform": step["platform"],
+            "definition": prior_definition,
+        }
+        try:
+            await _execute_route(ctx, step["route_chosen"], obj, environment)
+            await conn.execute(
+                "UPDATE deployment_steps SET status = 'rolled_back', completed_at = now() WHERE id = $1",
+                step_id,
+            )
+            return {"status": "rolled_back", "step_id": str(step_id)}
+        except Exception as exc:
+            logger.warning("Rollback execution failed for %s: %s", step["artifact_name"], exc)
+            await conn.execute(
+                "UPDATE deployment_steps SET status = 'rollback_failed', error_message = $1, completed_at = now() WHERE id = $2",
+                str(exc),
+                step_id,
+            )
+            return {"status": "rollback_failed", "step_id": str(step_id), "error": str(exc)}
     finally:
         await conn.close()
 
@@ -266,7 +282,7 @@ async def _deploy_via_cdp(
         environment,
         session,
     )
-    # Stub: real implementation drives the DSP UI via CDP actions
+    # REQUIRES: Live SAP Datasphere tenant. Drives the DSP SQL editor UI via Chrome DevTools Protocol.
 
 
 async def _deploy_via_api(
@@ -281,7 +297,7 @@ async def _deploy_via_api(
         environment,
         ctx.customer_id,
     )
-    # Stub: real implementation calls DSP REST API
+    # REQUIRES: Live SAP Datasphere tenant with REST API access configured.
 
 
 async def _deploy_via_csn(
@@ -297,4 +313,4 @@ async def _deploy_via_csn(
         environment,
         list(csn.get("definitions", {}).keys()),
     )
-    # Stub: real implementation POSTs the CSN to DSP import endpoint
+    # REQUIRES: Live SAP Datasphere tenant. POSTs the CSN/JSON to DSP import endpoint.

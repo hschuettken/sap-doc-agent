@@ -113,6 +113,7 @@ async def capture_page_screenshot(
 
     Returns:
         Absolute path of the saved screenshot (stub — returns path only).
+        # REQUIRES: Live browser session with SAP content loaded.
     """
     os.makedirs(output_dir, exist_ok=True)
     filename = f"page_{page_id}_{uuid.uuid4().hex[:6]}.png"
@@ -135,6 +136,7 @@ async def capture_widget_screenshot(
 
     Returns:
         Absolute path of the saved screenshot (stub — returns path only).
+        # REQUIRES: Live browser session with SAP content loaded.
     """
     os.makedirs(output_dir, exist_ok=True)
     filename = f"widget_{widget_id}_{uuid.uuid4().hex[:6]}.png"

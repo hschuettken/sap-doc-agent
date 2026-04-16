@@ -116,51 +116,6 @@ async def delete_token(token_id: str) -> bool:
         await conn.close()
 
 
-async def list_tokens(
-    customer_id: Optional[UUID] = None,
-    token_type: Optional[str] = None,
-) -> list[dict]:
-    """List tokens, optionally filtered by customer and/or type.
-
-    Pass customer_id=None to retrieve Horvath defaults (rows where customer_id IS NULL).
-    Omit the argument entirely to retrieve all tokens.
-    """
-    conn = await _get_conn()
-    try:
-        conditions: list[str] = []
-        params: list = []
-        idx = 1
-
-        # Distinguish "not passed" (sentinel) from "explicitly None"
-        # We receive None only when the caller explicitly wants Horvath defaults.
-        # The function signature uses a keyword-only sentinel trick via a default value
-        # that means "unfiltered". Since Python does not have a built-in sentinel without
-        # a module-level object, we rely on the caller: pass customer_id=None to filter
-        # to Horvath defaults, or use the private helper below for unfiltered queries.
-        if customer_id is _UNSET:
-            pass  # no customer filter
-        elif customer_id is None:
-            conditions.append("customer_id IS NULL")
-        else:
-            conditions.append(f"customer_id = ${idx}::uuid")
-            params.append(str(customer_id))
-            idx += 1
-
-        if token_type is not None:
-            conditions.append(f"token_type = ${idx}")
-            params.append(token_type)
-            idx += 1
-
-        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-        rows = await conn.fetch(
-            f"SELECT * FROM design_tokens {where} ORDER BY token_type, token_name",
-            *params,
-        )
-        return [_row_to_dict(r) for r in rows]
-    finally:
-        await conn.close()
-
-
 # Sentinel object so we can distinguish "caller passed None (Horvath defaults)"
 # from "caller did not supply the argument (all tokens)".
 class _UnsetType:
@@ -169,11 +124,8 @@ class _UnsetType:
 
 _UNSET = _UnsetType()
 
-# Re-declare with actual default using the sentinel
-_original_list_tokens = list_tokens
 
-
-async def list_tokens(  # noqa: F811 — intentional redefinition
+async def list_tokens(
     customer_id=_UNSET,
     token_type: Optional[str] = None,
 ) -> list[dict]:

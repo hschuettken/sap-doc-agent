@@ -69,13 +69,6 @@ def classify_delta(
 
     # Check expected_delta before tolerance
     if expected_delta is not None:
-        matches = all(
-            abs(computed_deltas.get(k, None) - float(v)) < 1e-9  # type: ignore[arg-type]
-            for k, v in expected_delta.items()
-            if k in computed_deltas
-        ) and set(expected_delta.keys()) == set(
-            k for k in baseline_keys if computed_deltas[k] != 0.0 or k in expected_delta
-        )
         # Simpler: all keys in expected_delta match, and no extra diffs exist outside expected keys
         expected_keys = set(expected_delta.keys())
         all_match = True

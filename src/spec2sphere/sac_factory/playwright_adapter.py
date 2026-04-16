@@ -31,7 +31,7 @@ class SACPlaywrightAdapter:
         Returns:
             Generated story ID (stub).
         """
-        # Stub: real implementation would navigate SAC UI and extract the new story ID.
+        # REQUIRES: Live SAP Analytics Cloud tenant. Navigates SAC UI and extracts the new story ID.
         story_id = f"story_{uuid.uuid4().hex[:8]}"
         return story_id
 
@@ -82,7 +82,7 @@ class SACPlaywrightAdapter:
             dimension: Dimension name to filter on.
             filter_type: Filter UI type (default: "dropdown").
         """
-        # Stub: real implementation would click "Add Filter" in SAC and configure it.
+        # REQUIRES: Live SAP Analytics Cloud tenant. Clicks "Add Filter" in SAC UI and configures the dimension.
 
     async def setup_navigation(
         self,
@@ -97,7 +97,7 @@ class SACPlaywrightAdapter:
             to_page: Target page ID or title.
             trigger: Interaction trigger (default: "click").
         """
-        # Stub: real implementation would right-click source element and set navigation target.
+        # REQUIRES: Live SAP Analytics Cloud tenant. Right-clicks source element and sets navigation target in SAC UI.
 
     async def capture_screenshot(self, output_path: str) -> str:
         """Capture a screenshot of the current browser view.

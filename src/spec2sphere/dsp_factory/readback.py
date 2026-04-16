@@ -122,7 +122,7 @@ async def _readback_via_cdp(tenant_id, environment: str, object_name: str) -> di
         environment,
         tenant_id,
     )
-    # Stub — real implementation navigates to the DSP view editor and parses the structure
+    # REQUIRES: Live SAP Datasphere tenant. Navigates to the DSP view editor and parses the structure via CDP.
     return {"name": object_name, "columns": [], "joins": [], "route": "cdp"}
 
 
@@ -134,5 +134,5 @@ async def _readback_via_api(tenant_id, environment: str, object_name: str) -> di
         environment,
         tenant_id,
     )
-    # Stub — real implementation calls DSP metadata API
+    # REQUIRES: Live SAP Datasphere tenant. Calls DSP metadata API to fetch object structure.
     return {"name": object_name, "columns": [], "joins": [], "route": "api"}

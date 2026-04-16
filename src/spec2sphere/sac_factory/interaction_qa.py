@@ -6,22 +6,30 @@ import uuid
 
 
 async def _test_filter(tenant_id: object, environment: str, story_id: str, test: dict) -> dict:
-    """Stub: test filter interaction."""
+    """Stub: test filter interaction.
+    # REQUIRES: Live SAP Analytics Cloud tenant with deployed story.
+    """
     return {"status": "pass"}
 
 
 async def _test_navigation(tenant_id: object, environment: str, story_id: str, test: dict) -> dict:
-    """Stub: test navigation interaction."""
+    """Stub: test navigation interaction.
+    # REQUIRES: Live SAP Analytics Cloud tenant with deployed story.
+    """
     return {"status": "pass"}
 
 
 async def _test_drill(tenant_id: object, environment: str, story_id: str, test: dict) -> dict:
-    """Stub: test drill-down interaction."""
+    """Stub: test drill-down interaction.
+    # REQUIRES: Live SAP Analytics Cloud tenant with deployed story.
+    """
     return {"status": "pass"}
 
 
 async def _test_script(tenant_id: object, environment: str, story_id: str, test: dict) -> dict:
-    """Stub: test scripted interaction."""
+    """Stub: test scripted interaction.
+    # REQUIRES: Live SAP Analytics Cloud tenant with deployed story.
+    """
     return {"status": "pass"}
 
 

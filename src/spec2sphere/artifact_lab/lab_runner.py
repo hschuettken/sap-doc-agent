@@ -184,11 +184,7 @@ async def run_experiment(
 
         if experiment_type == "modify":
             modify_url: str = input_definition.get("modify_url", _DEFAULT_MODIFY_URL)
-            # Navigate the same tab to a different URL to simulate a mutation
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                await client.put(f"{cdp_base}/json/new?{modify_url}")
-            # Re-navigate by opening a fresh tab at the modify_url instead
-            # (simpler than WebSocket-driven Page.navigate)
+            # Open a fresh tab at the modify_url to simulate a mutation
             target_id2, read_after = await _cdp_create_and_navigate(cdp_base, modify_url)
             # Close the secondary tab
             try:
