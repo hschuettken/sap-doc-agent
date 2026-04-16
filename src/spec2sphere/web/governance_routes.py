@@ -497,7 +497,7 @@ def create_governance_routes() -> APIRouter:
 
         conn = await _get_conn()
         try:
-            # Check if demo already exists
+            # Check if demo already exists and is complete
             existing = await conn.fetchrow("SELECT id FROM customers WHERE slug = 'horvath-demo'")
             if existing:
                 customer_id = str(existing["id"])
@@ -505,14 +505,29 @@ def create_governance_routes() -> APIRouter:
                     "SELECT id FROM projects WHERE customer_id = $1 AND slug = 'sales-planning'",
                     existing["id"],
                 )
-                project_id = str(project_row["id"]) if project_row else None
-                return JSONResponse(
-                    {
-                        "status": "already_exists",
-                        "customer_id": customer_id,
-                        "project_id": project_id,
-                    }
-                )
+                if project_row:
+                    project_id = str(project_row["id"])
+                    obj_count = await conn.fetchval(
+                        "SELECT COUNT(*) FROM technical_objects WHERE project_id = $1",
+                        project_row["id"],
+                    )
+                    if obj_count and obj_count >= 3:
+                        return JSONResponse(
+                            {
+                                "status": "already_exists",
+                                "customer_id": customer_id,
+                                "project_id": project_id,
+                            }
+                        )
+                    # Partial seed — clean up and re-create
+                    await conn.execute("DELETE FROM reconciliation_results WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM technical_objects WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM tech_specs WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM architecture_decisions WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM hla_documents WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM requirements WHERE project_id = $1", project_row["id"])
+                    await conn.execute("DELETE FROM projects WHERE id = $1", project_row["id"])
+                await conn.execute("DELETE FROM customers WHERE id = $1", existing["id"])
 
             # Get or create default tenant
             tenant = await conn.fetchrow("SELECT id FROM tenants LIMIT 1")
@@ -631,8 +646,8 @@ def create_governance_routes() -> APIRouter:
                 ),
             ]:
                 await conn.execute(
-                    """INSERT INTO technical_objects (id, tech_spec_id, project_id, name, object_type, platform, layer, generated_artifact, status)
-                       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, 'dsp', $6, $7, 'deployed')""",
+                    """INSERT INTO technical_objects (id, tech_spec_id, project_id, name, object_type, platform, layer, definition, generated_artifact, status)
+                       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, 'dsp', $6, '{}'::jsonb, $7, 'deployed')""",
                     str(_uuid.uuid4()),
                     spec_id,
                     project_id,
