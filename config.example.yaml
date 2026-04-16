@@ -1,50 +1,81 @@
-# SAP Documentation Agent — Configuration
+# Spec2Sphere — Configuration Example
 # Copy to config.yaml and edit for your environment.
+# All secrets should be set as environment variables (referenced by *_env keys).
 
 sap_systems:
-  # BW/4HANA system (requires ABAP scanner installed)
-  - name: "Horvath BW/4 Demo"
-    type: bw4hana
-    transport: api
+  # SAP Datasphere tenant (OAuth credentials via env vars)
+  - name: "My Datasphere Tenant"
+    type: datasphere
+    oauth:
+      client_id_env: DSP_CLIENT_ID
+      client_secret_env: DSP_CLIENT_SECRET
+      token_url_env: DSP_TOKEN_URL
     scan_scope:
-      top_level_providers: []
-      namespace_filter: ["Z*", "Y*"]
       object_types:
-        - adso
-        - composite
-        - transformation
-        - class
-        - fm
-        - table
-        - data_element
-        - domain
-        - infoobject
-        - process_chain
-        - data_source
-      max_depth: unlimited
+        - relational_dataset
+        - analytic_model
+        - local_table
+        - remote_table
+        - data_flow
+        - replication_flow
+        - transformation_flow
+        - data_access_control
+      max_depth: 5
+
+  # BW/4HANA system (requires ABAP scanner installed)
+  # - name: "My BW/4HANA"
+  #   type: bw4hana
+  #   transport: api
+  #   scan_scope:
+  #     namespace_filter: ["Z*", "Y*"]
+  #     object_types: [adso, composite, transformation, class, fm]
 
 doc_platform:
-  type: bookstack
-  url: "http://192.168.0.50:8253"
+  type: bookstack         # bookstack | outline | confluence
+  url: "http://localhost:8253"
   auth:
     type: api_token
     token_env: BOOKSTACK_TOKEN
 
 git:
-  type: github
+  type: gitea             # github | gitea | gitlab | azure_devops
   url_env: GIT_REPO_URL
   token_env: GIT_TOKEN
 
 llm:
-  mode: direct
-  provider: openai_compatible
-  base_url_env: LLM_BASE_URL
-  api_key_env: LLM_API_KEY
-  model: qwen2.5:14b
+  mode: direct            # none | copilot_passthrough | direct
+  provider: router        # azure | openai | anthropic | ollama | vllm | gemini | router | none
+  base_url_env: LLM_ROUTER_URL
+  api_key_env: LLM_ROUTER_API_KEY
+  model: qwen2.5:32b
+  rate_limits:
+    token_budget_per_hour: 500000
+    max_concurrent: 4
+    chunk_size_tokens: 8000
+
+browser:
+  mode: container         # container | remote
+  remote_url: ""          # Fallback Chrome CDP URL (e.g. http://192.168.0.70:9222)
+  vnc_enabled: true
+  vnc_port: 5900
+
+modules:
+  core: true              # Always on — scanning, docs, knowledge, design system
+  migration_accelerator: true   # BW semantic interpretation, debt classification
+  dsp_factory: true       # DSP artifact generation, deployment, reconciliation
+  sac_factory: true       # SAC blueprint → execution, visual/data/interaction QA
+  governance: true        # Approval workflow, confidence scoring, traceability
+  artifact_lab: true      # Sandbox experimentation, template learning
+  multi_tenant: false     # Workspace switching, tenant/customer/project CRUD
 
 standards:
-  - horvath/doc_standard.yaml
+  - standards/horvath/doc_standard.yaml
+  - standards/horvath/code_standard.yaml
+  - standards/horvath/documentation_standard.yaml
+  - standards/horvath/sac_design_standard.yaml
+  - standards/horvath/dsp_modeling_standard.yaml
+  - standards/horvath/quality_gates_standard.yaml
 
 reporting:
-  formats: [html, markdown]
+  formats: [html, markdown, pdf]
   sitemap: true

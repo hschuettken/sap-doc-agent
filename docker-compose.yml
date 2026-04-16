@@ -7,12 +7,25 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - LLM_PROVIDER=${LLM_PROVIDER:-router}
-      - MULTI_TENANT=${MULTI_TENANT:-false}
-      - BROWSER_MODE=${BROWSER_MODE:-container}
-      - BROWSER_CDP_URL=${BROWSER_CDP_URL:-http://chrome:9222}
+      - LLM_PROVIDER=${SPEC2SPHERE_LLM_PROVIDER:-${LLM_PROVIDER:-router}}
+      - LLM_ROUTER_URL=${SPEC2SPHERE_LLM_ROUTER_URL:-${LLM_ROUTER_URL:-http://192.168.0.50:8070}}
+      - LLM_ROUTER_API_KEY=${SPEC2SPHERE_LLM_ROUTER_API_KEY:-${LLM_ROUTER_API_KEY:-}}
+      - LLM_ROUTER_MODEL=${SPEC2SPHERE_LLM_ROUTER_MODEL:-${LLM_ROUTER_MODEL:-qwen2.5:32b}}
+      - MULTI_TENANT=${SPEC2SPHERE_MULTI_TENANT:-${MULTI_TENANT:-true}}
+      - BROWSER_MODE=${SPEC2SPHERE_BROWSER_MODE:-${BROWSER_MODE:-container}}
+      - BROWSER_CDP_URL=${SPEC2SPHERE_BROWSER_CDP_URL:-${BROWSER_CDP_URL:-http://chrome:9222}}
+      - DSP_BASE_URL=${SPEC2SPHERE_DSP_BASE_URL:-${DSP_BASE_URL:-}}
+      - DSP_CLIENT_ID=${DSP_CLIENT_ID:-}
+      - DSP_CLIENT_SECRET=${DSP_CLIENT_SECRET:-}
+      - DSP_TOKEN_URL=${DSP_TOKEN_URL:-}
+      - DSP_API_TOKEN=${DSP_API_TOKEN:-}
+      - BOOKSTACK_TOKEN=${BOOKSTACK_TOKEN:-}
+      - SECRET_KEY=${SPEC2SPHERE_SECRET_KEY:-${SECRET_KEY:-spec2sphere-demo-secret-change-me}}
+      - ENABLED_MODULES=${SPEC2SPHERE_ENABLED_MODULES:-${ENABLED_MODULES:-core,migration_accelerator,dsp_factory,sac_factory,governance,artifact_lab,multi_tenant}}
     volumes:
       - output-data:/app/output
+      - ./config.yaml:/app/config.yaml:ro
+      - ./standards:/app/standards:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,8 +41,13 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - LLM_PROVIDER=${LLM_PROVIDER:-router}
+      - LLM_ROUTER_URL=${LLM_ROUTER_URL:-http://192.168.0.50:8070}
+      - LLM_ROUTER_API_KEY=${LLM_ROUTER_API_KEY:-}
+      - LLM_ROUTER_MODEL=${LLM_ROUTER_MODEL:-qwen2.5:32b}
     volumes:
       - output-data:/app/output
+      - ./config.yaml:/app/config.yaml:ro
+      - ./standards:/app/standards:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -44,8 +62,12 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - BROWSER_MODE=${BROWSER_MODE:-container}
       - BROWSER_CDP_URL=${BROWSER_CDP_URL:-http://chrome:9222}
+      - DSP_BASE_URL=${DSP_BASE_URL:-}
+      - DSP_API_TOKEN=${DSP_API_TOKEN:-}
     volumes:
       - output-data:/app/output
+      - ./config.yaml:/app/config.yaml:ro
+      - ./standards:/app/standards:ro
     depends_on:
       redis:
         condition: service_healthy

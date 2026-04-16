@@ -1,16 +1,27 @@
-# SAP Doc Agent — Horvath Demo Configuration
+# Spec2Sphere — Horváth Demo Configuration
 # Copy to config.yaml and set environment variables before running.
+# For homelab: LLM_PROVIDER=router, LLM_ROUTER_URL=http://192.168.0.50:8070
 
 sap_systems:
   # Horvath DSP tenant (OAuth credentials needed)
   - name: "Horvath Datasphere"
     type: datasphere
-    mcp_server: tools/sap-datasphere-mcp  # Optional MCP server path
+    mcp_server: tools/sap-datasphere-mcp
     oauth:
       client_id_env: DSP_CLIENT_ID
       client_secret_env: DSP_CLIENT_SECRET
       token_url_env: DSP_TOKEN_URL
-    spaces: []  # Fill in with actual spaces after OAuth is configured
+    scan_scope:
+      object_types:
+        - relational_dataset
+        - analytic_model
+        - local_table
+        - remote_table
+        - data_flow
+        - replication_flow
+        - transformation_flow
+        - data_access_control
+      max_depth: 5
 
   # Horvath BW/4 Demo (when ABAP scanner is installed)
   # - name: "Horvath BW/4 Demo"
@@ -28,21 +39,44 @@ doc_platform:
     token_env: BOOKSTACK_TOKEN
 
 git:
-  type: github
+  type: gitea
   url_env: GIT_REPO_URL
   token_env: GIT_TOKEN
 
 llm:
   mode: direct
-  provider: openai_compatible
-  base_url_env: LLM_BASE_URL
-  api_key_env: LLM_API_KEY
-  model: qwen2.5:14b
+  provider: router
+  base_url_env: LLM_ROUTER_URL
+  api_key_env: LLM_ROUTER_API_KEY
+  model: qwen2.5:32b
+  rate_limits:
+    token_budget_per_hour: 500000
+    max_concurrent: 4
+    chunk_size_tokens: 8000
+
+browser:
+  mode: container
+  remote_url: "http://192.168.0.70:9222"
+  vnc_enabled: true
+  vnc_port: 5900
+
+modules:
+  core: true
+  migration_accelerator: true
+  dsp_factory: true
+  sac_factory: true
+  governance: true
+  artifact_lab: true
+  multi_tenant: true
 
 standards:
   - standards/horvath/doc_standard.yaml
   - standards/horvath/code_standard.yaml
+  - standards/horvath/documentation_standard.yaml
+  - standards/horvath/sac_design_standard.yaml
+  - standards/horvath/dsp_modeling_standard.yaml
+  - standards/horvath/quality_gates_standard.yaml
 
 reporting:
-  formats: [html, markdown]
+  formats: [html, markdown, pdf]
   sitemap: true
