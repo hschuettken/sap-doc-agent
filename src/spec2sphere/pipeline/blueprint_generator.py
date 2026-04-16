@@ -430,6 +430,7 @@ async def generate_blueprint(
             schema=_BLUEPRINT_SCHEMA,
             system=system_prompt,
             max_retries=3,
+            tier="large",
         )
 
         if blueprint_data is None:

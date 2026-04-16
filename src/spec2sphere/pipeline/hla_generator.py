@@ -291,6 +291,7 @@ async def generate_hla(
         schema=_HLA_SCHEMA,
         system=system_prompt,
         max_retries=3,
+        tier="reasoning",
     )
 
     if hla_content is None:

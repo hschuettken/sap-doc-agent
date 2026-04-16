@@ -8,10 +8,17 @@ from spec2sphere.llm.base import LLMProvider
 
 
 class NoopLLMProvider(LLMProvider):
-    async def generate(self, prompt: str, system: str = "") -> Optional[str]:
+    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
         return None
 
-    async def generate_json(self, prompt: str, schema: dict[str, Any], system: str = "") -> Optional[dict]:
+    async def generate_json(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        system: str = "",
+        *,
+        tier: str = "large",
+    ) -> Optional[dict]:
         return None
 
     def is_available(self) -> bool:

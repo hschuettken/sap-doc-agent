@@ -886,6 +886,7 @@ def create_app(
             result = await provider.generate(
                 "Respond with exactly: OK",
                 system="You are a connectivity test. Respond with exactly the word OK.",
+                tier="small",
             )
             latency = round((time.monotonic() - start) * 1000)
 

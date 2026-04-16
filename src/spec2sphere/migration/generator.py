@@ -168,7 +168,7 @@ async def generate_sql_for_view(
 async def _generate_with_llm(view: ViewSpec, llm: LLMProvider) -> str:
     """Generate SQL using LLM with DSP rules in the prompt."""
     prompt = _build_generate_prompt(view)
-    result = await llm.generate(prompt, system=_GENERATE_SYSTEM)
+    result = await llm.generate(prompt, system=_GENERATE_SYSTEM, tier="large")
     if not result:
         return ""
     # Strip markdown fences if present

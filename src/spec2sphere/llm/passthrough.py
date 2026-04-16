@@ -15,11 +15,18 @@ class CopilotPassthroughProvider(LLMProvider):
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def generate(self, prompt: str, system: str = "") -> Optional[str]:
+    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
         self._write_prompt(prompt, system=system)
         return None
 
-    async def generate_json(self, prompt: str, schema: dict[str, Any], system: str = "") -> Optional[dict]:
+    async def generate_json(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        system: str = "",
+        *,
+        tier: str = "large",
+    ) -> Optional[dict]:
         full_prompt = (
             f"{prompt}\n\nRespond with JSON matching this schema:\n```json\n{json.dumps(schema, indent=2)}\n```"
         )

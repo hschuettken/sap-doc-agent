@@ -39,7 +39,7 @@ class AzureOpenAIProvider(OpenAICompatibleAdapter):
         # Model name is not used in Azure requests (deployment carries it), but required by base class
         super().__init__(base_url=base_url, api_key=api_key, model=deployment)
 
-    async def _chat(self, messages: list[dict]) -> Optional[str]:
+    async def _chat(self, messages: list[dict], model: str | None = None) -> Optional[str]:
         """Override to use Azure-specific endpoint path and api-key header."""
         url = f"{self._base_url}/chat/completions?api-version={_API_VERSION}"
         try:

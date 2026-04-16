@@ -198,7 +198,7 @@ async def classify_with_llm(
         activity_data=activity,
     )
 
-    data = await generate_json_with_retry(llm, prompt, schema=_CLASSIFY_SCHEMA, system=_CLASSIFY_SYSTEM)
+    data = await generate_json_with_retry(llm, prompt, schema=_CLASSIFY_SCHEMA, system=_CLASSIFY_SYSTEM, tier="medium")
 
     if data is None:
         return ClassifiedChain(

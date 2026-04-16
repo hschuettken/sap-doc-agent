@@ -265,6 +265,7 @@ async def _generate_dsp_object_detail(
         schema=_TECH_OBJECT_SCHEMA,
         system=system_prompt,
         max_retries=3,
+        tier="large",
     )
 
     if result is None:

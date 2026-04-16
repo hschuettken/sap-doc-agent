@@ -137,7 +137,9 @@ async def design_chain_views(
     Falls back to heuristic design if LLM fails.
     """
     prompt = _build_design_prompt(classified, chain)
-    data = await generate_json_with_retry(llm, prompt, schema=_DESIGN_SCHEMA, system=_ARCHITECT_SYSTEM)
+    data = await generate_json_with_retry(
+        llm, prompt, schema=_DESIGN_SCHEMA, system=_ARCHITECT_SYSTEM, tier="reasoning"
+    )
 
     if data and "views" in data:
         return _parse_view_specs(data["views"], classified.chain_id)

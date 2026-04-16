@@ -482,6 +482,7 @@ async def _generate_dsp_tests_for_object(
         schema=_DSP_TEST_CASES_SCHEMA,
         system=system_prompt,
         max_retries=2,
+        tier="large",
     )
 
     if result is None:
@@ -613,6 +614,7 @@ async def _generate_sac_tests_for_blueprint(
         schema=_SAC_TEST_CASES_SCHEMA,
         system=system_prompt,
         max_retries=2,
+        tier="large",
     )
 
     if result is None:

@@ -36,9 +36,21 @@ class AnthropicProvider(LLMProvider):
         self._model = os.environ.get("ANTHROPIC_MODEL", _DEFAULT_MODEL)
         self._timeout = 60.0
 
-    async def generate(self, prompt: str, system: str = "") -> Optional[str]:
+    # Tier → model mapping for Anthropic
+    _TIER_MODELS = {
+        "small": "claude-haiku-4-5-20251001",
+        "medium": "claude-sonnet-4-6",
+        "large": "claude-sonnet-4-6",
+        "reasoning": "claude-opus-4-6",
+    }
+
+    def _resolve_model(self, tier: str) -> str:
+        return self._TIER_MODELS.get(tier, self._model)
+
+    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+        model = self._resolve_model(tier)
         payload: dict[str, Any] = {
-            "model": self._model,
+            "model": model,
             "max_tokens": _MAX_TOKENS,
             "messages": [{"role": "user", "content": prompt}],
         }
@@ -59,15 +71,22 @@ class AnthropicProvider(LLMProvider):
                 data = resp.json()
                 return data["content"][0]["text"]
         except (httpx.HTTPError, KeyError, IndexError) as exc:
-            logger.warning("Anthropic API call failed: %s", exc)
+            logger.warning("Anthropic API call failed (%s): %s", model, exc)
             return None
 
-    async def generate_json(self, prompt: str, schema: dict[str, Any], system: str = "") -> Optional[dict]:
+    async def generate_json(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        system: str = "",
+        *,
+        tier: str = "large",
+    ) -> Optional[dict]:
         import json
 
         system_msg = system or "You are a structured data extraction assistant."
         system_msg += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        raw = await self.generate(prompt, system=system_msg)
+        raw = await self.generate(prompt, system=system_msg, tier=tier)
         if raw is None:
             return None
         try:

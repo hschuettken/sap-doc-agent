@@ -79,7 +79,7 @@ async def analyze_chain_steps(chain: DataFlowChain, llm: LLMProvider) -> DataFlo
 
         prompt = "\n".join(context_parts) + f"\n\nABAP source:\n```\n{step.source_code}\n```"
 
-        data = await llm.generate_json(prompt, schema=_STEP_SCHEMA, system=_STEP_SYSTEM)
+        data = await llm.generate_json(prompt, schema=_STEP_SCHEMA, system=_STEP_SYSTEM, tier="medium")
         if data and isinstance(data, dict):
             summary = data.get("summary", "")
             result.steps[i].step_summary = summary.strip()
@@ -87,7 +87,7 @@ async def analyze_chain_steps(chain: DataFlowChain, llm: LLMProvider) -> DataFlo
             prior_summaries.append(summary.strip() or step.name)
         else:
             # Fallback: try plain text generate
-            text = await llm.generate(prompt, system=_STEP_SYSTEM)
+            text = await llm.generate(prompt, system=_STEP_SYSTEM, tier="medium")
             if text:
                 result.steps[i].step_summary = text.strip()
                 prior_summaries.append(text.strip())
@@ -120,7 +120,7 @@ async def summarize_chain(chain: DataFlowChain, llm: LLMProvider) -> DataFlowCha
 
     prompt = f"Chain from {result.source_object_ids} to {result.terminal_object_id}.\n\n" + "\n".join(step_descriptions)
 
-    data = await llm.generate_json(prompt, schema=_CHAIN_SCHEMA, system=_CHAIN_SYSTEM)
+    data = await llm.generate_json(prompt, schema=_CHAIN_SCHEMA, system=_CHAIN_SYSTEM, tier="medium")
     if data:
         result.name = data.get("name", "")
         result.summary = data.get("summary", "")
