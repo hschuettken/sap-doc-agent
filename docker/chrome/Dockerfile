@@ -1,43 +1,22 @@
-FROM ubuntu:22.04
+FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:99
 ENV CHROME_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --window-size=1920,1080"
 
-# Install dependencies
+# Install dependencies + Chrome in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    gnupg \
-    xvfb \
-    x11vnc \
-    fluxbox \
-    supervisor \
-    ca-certificates \
-    fonts-liberation \
-    libglib2.0-0 \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    && (apt-get install -y libasound2 || apt-get install -y libasound2t64 || true) \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Google Chrome stable
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
+    wget gnupg xvfb x11vnc fluxbox supervisor \
+    ca-certificates fonts-liberation \
+    libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 \
+    libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+    libasound2 libpango-1.0-0 libpangocairo-1.0-0 \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub \
+       | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+       > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up VNC password
