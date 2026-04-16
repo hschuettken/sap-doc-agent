@@ -48,7 +48,7 @@ llm:
   provider: router
   base_url_env: LLM_ROUTER_URL
   api_key_env: LLM_ROUTER_API_KEY
-  model: qwen2.5:32b
+  model: qwen2.5:14b
   rate_limits:
     token_budget_per_hour: 500000
     max_concurrent: 4
