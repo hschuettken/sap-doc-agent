@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+{% block title %}Agent Terminal — Spec2Sphere{% endblock %}
+{% block page_title %}Agent Terminal{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<style>
+  .session-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-running { background: #22c55e; animation: pulse-green 1.5s ease-in-out infinite; }
+  .dot-completed { background: #9ca3af; }
+  .dot-failed { background: #ef4444; }
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  #terminal-container .xterm { height: 100%; }
+  #terminal-container .xterm-viewport { overflow-y: auto !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-inner" class="flex gap-0 h-[calc(100vh-57px)] overflow-hidden">
+
+  <!-- ── Left panel: session list ────────────────────────────────────── -->
+  <div class="w-72 flex-shrink-0 bg-white border-r border-[#E5E5E5] flex flex-col">
+
+    <!-- Header -->
+    <div class="px-4 py-3 border-b border-[#E5E5E5] flex items-center justify-between">
+      <h3 class="font-heading text-sm font-semibold text-charcoal">Agent Sessions</h3>
+      <button onclick="openNewSessionModal()"
+              class="text-xs bg-petrol text-white px-2.5 py-1 rounded hover:bg-petrol-light transition-colors">
+        + New
+      </button>
+    </div>
+
+    <!-- Session list (auto-refreshed every 5s via JS) -->
+    <div id="session-list"
+         class="flex-1 overflow-y-auto">
+
+      {% if sessions %}
+      {% for s in sessions %}
+      <button id="session-btn-{{ s.id }}"
+              onclick="selectSession('{{ s.id }}', '{{ s.name|e }}', '{{ s.status }}')"
+              class="w-full text-left px-4 py-3 border-b border-[#F0F0F0] hover:bg-gray-50 transition-colors
+                     {% if selected and selected.id == s.id %}bg-petrol/5 border-l-2 border-l-petrol{% endif %}">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="session-dot dot-{{ s.status }}"></span>
+          <span class="text-sm font-medium text-charcoal truncate">{{ s.name }}</span>
+        </div>
+        <div class="flex items-center justify-between pl-4">
+          <span class="text-xs px-1.5 py-0.5 rounded
+                       {% if s.status == 'running' %}bg-green-100 text-green-700
+                       {% elif s.status == 'failed' %}bg-red-100 text-red-700
+                       {% else %}bg-gray-100 text-gray-500{% endif %}">
+            {{ s.status }}
+          </span>
+          <span class="text-xs text-gray-400">{{ s.created_at[:16]|replace('T', ' ') }}</span>
+        </div>
+        {% if s.description %}
+        <p class="text-xs text-gray-400 mt-1 pl-4 truncate">{{ s.description }}</p>
+        {% endif %}
+      </button>
+      {% endfor %}
+      {% else %}
+      <div class="px-4 py-8 text-center text-gray-400" id="empty-sessions">
+        <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <p class="text-sm font-medium">No sessions yet</p>
+        <p class="text-xs mt-1">Click + New to start an agent task</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Right panel: terminal viewer ────────────────────────────────── -->
+  <div class="flex-1 flex flex-col bg-[#1a1a2e] min-w-0">
+
+    <!-- Terminal toolbar -->
+    <div class="flex items-center justify-between px-4 py-2 bg-[#16213e] border-b border-white/10 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <div id="terminal-indicator" class="flex items-center gap-2">
+          {% if selected %}
+          <span class="session-dot dot-{{ selected.status }}"></span>
+          <span class="text-sm font-medium text-white" id="terminal-session-name">{{ selected.name }}</span>
+          <span class="text-xs px-1.5 py-0.5 rounded
+                       {% if selected.status == 'running' %}bg-green-900/50 text-green-400
+                       {% elif selected.status == 'failed' %}bg-red-900/50 text-red-400
+                       {% else %}bg-white/10 text-gray-400{% endif %}"
+                id="terminal-session-status">
+            {{ selected.status }}
+          </span>
+          {% else %}
+          <span class="text-sm text-white/40">No session selected</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        {% if selected and selected.status == 'running' %}
+        <button onclick="killCurrentSession()"
+                class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded border border-red-900/40 hover:border-red-700/60 transition-colors">
+          Kill
+        </button>
+        {% endif %}
+        <button onclick="clearTerminal()"
+                class="text-xs text-white/40 hover:text-white/70 px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-colors">
+          Clear
+        </button>
+        <button onclick="scrollToBottom()"
+                class="text-xs text-white/40 hover:text-white/70 px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-colors">
+          ↓ Bottom
+        </button>
+      </div>
+    </div>
+
+    <!-- xterm.js terminal -->
+    <div id="terminal-container" class="flex-1 p-2 overflow-hidden">
+      {% if not selected %}
+      <div class="flex items-center justify-center h-full text-white/20">
+        <div class="text-center">
+          <svg class="w-16 h-16 mx-auto mb-4 text-white/10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <p class="text-sm">Select a session or create a new one</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── New Session Modal ────────────────────────────────────────────── -->
+<div id="new-session-modal"
+     class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onclick="event.stopPropagation()">
+    <div class="px-6 py-4 border-b border-[#E5E5E5] flex items-center justify-between">
+      <h3 class="font-heading text-base font-semibold text-charcoal">New Agent Session</h3>
+      <button onclick="closeNewSessionModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <form id="new-session-form" onsubmit="submitNewSession(event)" class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Session Name <span class="text-red-500">*</span></label>
+        <input id="session-name-input" type="text" required
+               placeholder="e.g. Claude Code — Feature X"
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-petrol/30 focus:border-petrol">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <input id="session-desc-input" type="text"
+               placeholder="Optional — what is this agent doing?"
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-petrol/30 focus:border-petrol">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Command <span class="text-red-500">*</span></label>
+        <input id="session-cmd-input" type="text" required
+               placeholder='e.g. claude -p "implement feature X"'
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-petrol/30 focus:border-petrol">
+        <p class="text-xs text-gray-400 mt-1">Shell command to run in tmux. Use full paths if needed.</p>
+      </div>
+
+      <div id="form-error" class="hidden text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg"></div>
+
+      <div class="flex justify-end gap-3 pt-1">
+        <button type="button" onclick="closeNewSessionModal()"
+                class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+          Cancel
+        </button>
+        <button type="submit" id="submit-btn"
+                class="px-4 py-2 text-sm bg-petrol text-white rounded-lg hover:bg-petrol-light transition-colors">
+          Start Session
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let _term = null;
+let _fitAddon = null;
+let _ws = null;
+let _currentSessionId = null;
+let _sessionListData = [];
+
+// ── Init on page load ──────────────────────────────────────────────────────
+(function init() {
+  initTerminal();
+  {% if selected %}
+  connectToSession('{{ selected.id }}', '{{ selected.name|e }}', '{{ selected.status }}');
+  {% endif %}
+  // Kick off the first session-list refresh immediately
+  fetchSessionList();
+})();
+
+// ── Terminal setup ─────────────────────────────────────────────────────────
+function initTerminal() {
+  const container = document.getElementById('terminal-container');
+  if (!container) return;
+
+  _term = new Terminal({
+    theme: {
+      background: '#1a1a2e',
+      foreground: '#e2e8f0',
+      cursor: '#C8963E',
+      selection: 'rgba(200,150,62,0.3)',
+    },
+    fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
+    fontSize: 13,
+    lineHeight: 1.4,
+    cursorBlink: true,
+    scrollback: 5000,
+    convertEol: true,
+  });
+
+  _fitAddon = new FitAddon.FitAddon();
+  _term.loadAddon(_fitAddon);
+
+  // Replace container content (clear the placeholder if present)
+  container.innerHTML = '';
+  _term.open(container);
+  _fitAddon.fit();
+
+  window.addEventListener('resize', () => {
+    if (_fitAddon) _fitAddon.fit();
+  });
+}
+
+// ── WebSocket connection ───────────────────────────────────────────────────
+function connectToSession(sessionId, name, status) {
+  if (_ws) {
+    _ws.close();
+    _ws = null;
+  }
+
+  _currentSessionId = sessionId;
+
+  // Update toolbar
+  const indicator = document.getElementById('terminal-indicator');
+  if (indicator) {
+    const dotClass = status === 'running' ? 'dot-running'
+                   : status === 'failed'  ? 'dot-failed'
+                   : 'dot-completed';
+    indicator.innerHTML = `
+      <span class="session-dot ${dotClass}"></span>
+      <span class="text-sm font-medium text-white" id="terminal-session-name">${escHtml(name)}</span>
+      <span class="text-xs px-1.5 py-0.5 rounded ${statusBadgeClass(status)}" id="terminal-session-status">${status}</span>
+    `;
+  }
+
+  if (!_term) initTerminal();
+  _term.reset();
+  _term.writeln('\x1b[90mConnecting to session...\x1b[0m');
+
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${proto}//${location.host}/ws/agent-terminal/${sessionId}`;
+  _ws = new WebSocket(wsUrl);
+
+  _ws.onopen = () => {
+    _term.reset();
+  };
+
+  _ws.onmessage = (ev) => {
+    _term.write(ev.data);
+  };
+
+  _ws.onerror = () => {
+    _term.writeln('\r\n\x1b[31mWebSocket error — could not connect.\x1b[0m');
+  };
+
+  _ws.onclose = () => {
+    _term.writeln('\r\n\x1b[90m[connection closed]\x1b[0m');
+  };
+}
+
+// ── Session selection ──────────────────────────────────────────────────────
+function selectSession(id, name, status) {
+  // Highlight selected row
+  document.querySelectorAll('[id^="session-btn-"]').forEach(btn => {
+    btn.classList.remove('bg-petrol/5', 'border-l-2', 'border-l-petrol');
+  });
+  const btn = document.getElementById(`session-btn-${id}`);
+  if (btn) btn.classList.add('bg-petrol/5', 'border-l-2', 'border-l-petrol');
+
+  connectToSession(id, name, status);
+}
+
+// ── Session list auto-refresh ──────────────────────────────────────────────
+async function fetchSessionList() {
+  try {
+    const resp = await fetch('/api/agent-terminal/sessions');
+    if (!resp.ok) return;
+    const sessions = await resp.json();
+    _sessionListData = sessions;
+    renderSessionList(sessions);
+  } catch (e) {
+    // best-effort
+  }
+  setTimeout(fetchSessionList, 5000);
+}
+
+function renderSessionList(sessions) {
+  const list = document.getElementById('session-list');
+  if (!list) return;
+
+  if (!sessions.length) {
+    list.innerHTML = `
+      <div class="px-4 py-8 text-center text-gray-400">
+        <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <p class="text-sm font-medium">No sessions yet</p>
+        <p class="text-xs mt-1">Click + New to start an agent task</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = sessions.map(s => {
+    const isSelected = s.id === _currentSessionId;
+    const dotClass = s.status === 'running' ? 'dot-running'
+                   : s.status === 'failed'  ? 'dot-failed'
+                   : 'dot-completed';
+    const badgeClass = s.status === 'running' ? 'bg-green-100 text-green-700'
+                     : s.status === 'failed'  ? 'bg-red-100 text-red-700'
+                     : 'bg-gray-100 text-gray-500';
+    const ts = (s.created_at || '').replace('T', ' ').slice(0, 16);
+    const selectedCls = isSelected ? 'bg-petrol/5 border-l-2 border-l-petrol' : '';
+
+    return `
+      <button id="session-btn-${s.id}"
+              onclick="selectSession('${s.id}', '${escJs(s.name)}', '${s.status}')"
+              class="w-full text-left px-4 py-3 border-b border-[#F0F0F0] hover:bg-gray-50 transition-colors ${selectedCls}">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="session-dot ${dotClass}"></span>
+          <span class="text-sm font-medium text-charcoal truncate">${escHtml(s.name)}</span>
+        </div>
+        <div class="flex items-center justify-between pl-4">
+          <span class="text-xs px-1.5 py-0.5 rounded ${badgeClass}">${s.status}</span>
+          <span class="text-xs text-gray-400">${ts}</span>
+        </div>
+        ${s.description ? `<p class="text-xs text-gray-400 mt-1 pl-4 truncate">${escHtml(s.description)}</p>` : ''}
+      </button>`;
+  }).join('');
+
+  // If current session changed status, update toolbar badge
+  if (_currentSessionId) {
+    const cur = sessions.find(s => s.id === _currentSessionId);
+    if (cur) {
+      const badge = document.getElementById('terminal-session-status');
+      if (badge) {
+        badge.textContent = cur.status;
+        badge.className = `text-xs px-1.5 py-0.5 rounded ${statusBadgeClass(cur.status)}`;
+      }
+    }
+  }
+}
+
+// htmx hook — we do our own polling above, so just ignore the htmx trigger
+function refreshSessionList(event) {}
+
+// ── Kill current session ───────────────────────────────────────────────────
+async function killCurrentSession() {
+  if (!_currentSessionId) return;
+  if (!confirm('Kill this session? The running command will be terminated.')) return;
+
+  try {
+    const resp = await fetch(`/api/agent-terminal/sessions/${_currentSessionId}`, {method: 'DELETE'});
+    if (resp.ok) {
+      _term.writeln('\r\n\x1b[33m[session killed by user]\x1b[0m');
+      fetchSessionList();
+    }
+  } catch (e) {
+    console.error('Kill failed:', e);
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openNewSessionModal() {
+  const modal = document.getElementById('new-session-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.getElementById('session-name-input').focus();
+}
+
+function closeNewSessionModal() {
+  const modal = document.getElementById('new-session-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.getElementById('form-error').classList.add('hidden');
+  document.getElementById('new-session-form').reset();
+}
+
+// Close modal on backdrop click
+document.getElementById('new-session-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeNewSessionModal();
+});
+
+async function submitNewSession(event) {
+  event.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const errDiv = document.getElementById('form-error');
+  errDiv.classList.add('hidden');
+
+  const name = document.getElementById('session-name-input').value.trim();
+  const desc = document.getElementById('session-desc-input').value.trim();
+  const cmd  = document.getElementById('session-cmd-input').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+
+  try {
+    const resp = await fetch('/api/agent-terminal/sessions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, description: desc, command: cmd}),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      errDiv.textContent = data.error || 'Failed to create session';
+      errDiv.classList.remove('hidden');
+      return;
+    }
+
+    closeNewSessionModal();
+    fetchSessionList();
+    // Auto-connect to the new session
+    setTimeout(() => selectSession(data.id, data.name, data.status), 300);
+
+  } catch (e) {
+    errDiv.textContent = `Network error: ${e.message}`;
+    errDiv.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Start Session';
+  }
+}
+
+// ── Terminal helpers ───────────────────────────────────────────────────────
+function clearTerminal() {
+  if (_term) _term.reset();
+}
+
+function scrollToBottom() {
+  if (_term) _term.scrollToBottom();
+}
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escJs(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+function statusBadgeClass(status) {
+  if (status === 'running') return 'bg-green-900/50 text-green-400';
+  if (status === 'failed')  return 'bg-red-900/50 text-red-400';
+  return 'bg-white/10 text-gray-400';
+}
+</script>
+{% endblock %}

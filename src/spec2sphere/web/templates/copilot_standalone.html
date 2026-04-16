@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Spec2Sphere Knowledge Hub — SAP Datasphere and SAC delivery knowledge by Horvath Analytics">
+    <title>
+        {% if page == 'content' %}{{ content_page.title }} — Spec2Sphere Knowledge Hub
+        {% elif page == 'section' %}{{ section.title }} — Spec2Sphere Knowledge Hub
+        {% else %}Spec2Sphere Knowledge Hub{% endif %}
+    </title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Georgia:ital@0;1&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    petrol: { DEFAULT: '#05415A', light: '#0a6b8f', dark: '#032d3e', '50': '#e8f4f8' },
+                    accent: { DEFAULT: '#C8963E', light: '#d9ac5f' },
+                },
+                fontFamily: {
+                    heading: ['Georgia', 'Times New Roman', 'serif'],
+                    body: ['Inter', 'system-ui', 'sans-serif'],
+                }
+            }
+        }
+    }
+    </script>
+    <style>
+    /* Markdown content styles */
+    .prose { font-family: 'Inter', system-ui, sans-serif; color: #1a202c; line-height: 1.7; }
+    .prose h1 { font-family: Georgia, serif; font-size: 1.875rem; font-weight: 700; color: #05415A; margin: 0 0 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #05415A; }
+    .prose h2 { font-family: Georgia, serif; font-size: 1.375rem; font-weight: 700; color: #05415A; margin: 2rem 0 0.75rem; }
+    .prose h3 { font-size: 1.125rem; font-weight: 600; color: #2d3748; margin: 1.5rem 0 0.5rem; }
+    .prose h4 { font-size: 1rem; font-weight: 600; color: #4a5568; margin: 1.25rem 0 0.5rem; }
+    .prose p { margin: 0.875rem 0; }
+    .prose strong { font-weight: 600; color: #1a202c; }
+    .prose code { font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.875em; background: #edf2f7; color: #2d3748; padding: 0.125rem 0.375rem; border-radius: 4px; }
+    .prose pre { background: #1a202c; color: #e2e8f0; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1.25rem 0; }
+    .prose pre code { background: none; color: inherit; padding: 0; font-size: 0.875rem; }
+    .prose ul, .prose ol { margin: 0.75rem 0 0.75rem 1.5rem; }
+    .prose li { margin: 0.375rem 0; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.9rem; }
+    .prose th { background: #05415A; color: #fff; padding: 0.625rem 0.875rem; text-align: left; font-weight: 600; }
+    .prose td { padding: 0.5rem 0.875rem; border-bottom: 1px solid #e2e8f0; }
+    .prose tr:nth-child(even) td { background: #f7fafc; }
+    .prose a { color: #0a6b8f; text-decoration: underline; }
+    .prose a:hover { color: #05415A; }
+    .prose blockquote { border-left: 4px solid #C8963E; margin: 1.25rem 0; padding: 0.5rem 1.25rem; background: #fefcf7; color: #4a5568; font-style: italic; }
+    </style>
+</head>
+<body class="font-body bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+
+<!-- Top navigation bar -->
+<header class="bg-petrol text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-14">
+            <!-- Logo + breadcrumb area -->
+            <div class="flex items-center gap-4">
+                <a href="/copilot" class="flex items-center gap-2 font-heading text-base font-semibold text-white hover:text-white/80 transition-colors">
+                    <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    Spec2Sphere
+                </a>
+                {% if page == 'section' %}
+                <span class="text-white/40">/</span>
+                <span class="text-white/80 text-sm">{{ section.title }}</span>
+                {% elif page == 'content' %}
+                <span class="text-white/40">/</span>
+                <a href="/copilot/{{ content_page.section_id }}" class="text-white/70 text-sm hover:text-white/90">{{ content_page.breadcrumbs[1].label }}</a>
+                <span class="text-white/40">/</span>
+                <span class="text-white/80 text-sm truncate max-w-xs">{{ content_page.title }}</span>
+                {% endif %}
+            </div>
+            <!-- Search + links -->
+            <div class="flex items-center gap-3">
+                <form action="/copilot/search" method="get" class="hidden sm:flex items-center">
+                    <input type="text" name="q" placeholder="Search knowledge..."
+                           class="text-sm bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-l-md px-3 py-1.5 focus:outline-none focus:bg-white/20 w-48">
+                    <button type="submit" class="bg-accent hover:bg-accent-light text-white px-3 py-1.5 rounded-r-md text-sm transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </button>
+                </form>
+                <a href="/docs" class="text-xs text-white/60 hover:text-white/90 hidden md:block">API Docs</a>
+                <a href="/ui/dashboard" class="text-xs text-white/60 hover:text-white/90 hidden md:block">App</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Main content -->
+<main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    {# ==================== HUB INDEX ==================== #}
+    {% if page == 'hub' %}
+
+    <!-- Hero section -->
+    <div class="text-center mb-12">
+        <div class="inline-flex items-center gap-2 bg-petrol/10 text-petrol px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Powered by Horvath Analytics
+        </div>
+        <h1 class="font-heading text-4xl font-bold text-petrol mb-4">Spec2Sphere Knowledge Hub</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed">{{ index.description }}</p>
+
+        <!-- Search bar -->
+        <form action="/copilot/search" method="get" class="mt-8 max-w-xl mx-auto flex gap-2">
+            <input type="text" name="q" placeholder="Search across all knowledge..."
+                   class="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-petrol focus:border-petrol outline-none">
+            <button type="submit" class="bg-petrol hover:bg-petrol-light text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Section cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {% for section in index.sections %}
+        <a href="/copilot/{{ section.id }}"
+           class="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-petrol/30 transition-all">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-10 h-10 bg-petrol/10 group-hover:bg-petrol/20 rounded-lg flex items-center justify-center transition-colors">
+                    <svg class="w-5 h-5 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="{{ section.icon }}"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-petrol group-hover:text-petrol-light transition-colors mb-1">{{ section.title }}</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed line-clamp-2">{{ section.description }}</p>
+                    <span class="inline-block mt-3 text-xs font-medium text-accent">
+                        {{ section.page_count }} page{{ 's' if section.page_count != 1 else '' }} &rarr;
+                    </span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Integration section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- REST API card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 class="font-heading text-lg font-semibold text-petrol mb-3">REST API</h2>
+            <p class="text-sm text-gray-600 mb-4">Programmatic access to all knowledge content in JSON format.</p>
+            <div class="space-y-2 font-mono text-xs">
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">GET /api/copilot/sections</div>
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">GET /api/copilot/sections/{section}</div>
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">GET /api/copilot/search?q=...</div>
+            </div>
+            <a href="/docs#tag/copilot" class="inline-block mt-4 text-sm text-petrol hover:underline">View API Documentation &rarr;</a>
+        </div>
+        <!-- MCP card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 class="font-heading text-lg font-semibold text-petrol mb-3">MCP Integration</h2>
+            <p class="text-sm text-gray-600 mb-4">Connect MS Copilot and other AI tools directly via the Model Context Protocol.</p>
+            <div class="space-y-2 font-mono text-xs">
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">GET /mcp/sse  (SSE channel)</div>
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">POST /mcp/messages</div>
+                <div class="bg-gray-50 rounded px-3 py-2 text-gray-700">POST /mcp/sse  (stateless)</div>
+            </div>
+            <p class="mt-4 text-xs text-gray-400">Protocol: MCP 2024-11-05 · Transport: SSE · Auth: none</p>
+        </div>
+    </div>
+
+
+    {# ==================== SECTION LIST ==================== #}
+    {% elif page == 'section' %}
+
+    <!-- Section header -->
+    <div class="mb-8">
+        <nav class="text-sm text-gray-500 mb-3">
+            <a href="/copilot" class="hover:text-petrol">Knowledge Hub</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-900">{{ section.title }}</span>
+        </nav>
+        <h1 class="font-heading text-3xl font-bold text-petrol mb-2">{{ section.title }}</h1>
+        <p class="text-gray-600">{{ section.description }}</p>
+    </div>
+
+    <!-- Section search -->
+    <form action="/copilot/search" method="get" class="flex gap-2 mb-8 max-w-lg">
+        <input type="hidden" name="section" value="{{ section.id }}">
+        <input type="text" name="q" placeholder="Search within {{ section.title }}..."
+               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-petrol focus:border-petrol outline-none">
+        <button type="submit" class="bg-petrol hover:bg-petrol-light text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Search</button>
+    </form>
+
+    <!-- Page list -->
+    {% if section.pages %}
+    <div class="space-y-3">
+        {% for p in section.pages %}
+        <a href="/copilot/{{ section.id }}/{{ p.id }}"
+           class="group flex items-start gap-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-petrol/30 transition-all">
+            <div class="flex-shrink-0 mt-0.5 w-8 h-8 bg-petrol/10 group-hover:bg-petrol/20 rounded-lg flex items-center justify-center transition-colors">
+                <svg class="w-4 h-4 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-petrol group-hover:text-petrol-light transition-colors">{{ p.title }}</h3>
+                {% if p.excerpt %}
+                <p class="text-sm text-gray-500 mt-1 line-clamp-2">{{ p.excerpt }}</p>
+                {% endif %}
+                {% if p.updated_at %}
+                <p class="text-xs text-gray-400 mt-2">Updated: {{ p.updated_at }}</p>
+                {% endif %}
+            </div>
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-petrol transition-colors flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+        <svg class="w-12 h-12 mx-auto mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <p class="text-gray-500 font-medium">No pages in this section yet.</p>
+    </div>
+    {% endif %}
+
+
+    {# ==================== CONTENT PAGE ==================== #}
+    {% elif page == 'content' %}
+
+    <div class="flex gap-8">
+        <!-- Main content -->
+        <article class="flex-1 min-w-0">
+            <!-- Breadcrumbs -->
+            <nav class="text-sm text-gray-500 mb-4 flex items-center gap-1 flex-wrap">
+                {% for crumb in content_page.breadcrumbs[:-1] %}
+                <a href="{{ crumb.url }}" class="hover:text-petrol">{{ crumb.label }}</a>
+                <span class="text-gray-300">/</span>
+                {% endfor %}
+                <span class="text-gray-900">{{ content_page.title }}</span>
+            </nav>
+
+            <!-- Page header -->
+            <div class="mb-6 pb-4 border-b border-gray-100">
+                {% if content_page.updated_at %}
+                <p class="text-xs text-gray-400 mb-3">Last updated: {{ content_page.updated_at }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Rendered content -->
+            <div class="prose max-w-none bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                {{ content_page.content_html | safe }}
+            </div>
+        </article>
+
+        <!-- Sidebar -->
+        {% if content_page.related %}
+        <aside class="hidden lg:block w-64 flex-shrink-0">
+            <div class="sticky top-20 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Related Pages</h3>
+                <div class="space-y-2">
+                    {% for rel in content_page.related %}
+                    <a href="{{ rel.url }}" class="block text-sm text-petrol hover:text-petrol-light hover:underline leading-snug">
+                        {{ rel.title }}
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="mt-6 pt-4 border-t border-gray-100">
+                    <a href="/copilot/{{ content_page.section_id }}" class="text-xs text-gray-400 hover:text-petrol">
+                        &larr; Back to section
+                    </a>
+                </div>
+            </div>
+        </aside>
+        {% endif %}
+    </div>
+
+    {# ==================== SEARCH RESULTS ==================== #}
+    {% elif page == 'search' %}
+
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/copilot" class="hover:text-petrol">Knowledge Hub</a>
+        <span class="text-gray-300">/</span>
+        <span class="text-gray-900">Search Results</span>
+    </nav>
+
+    <h1 class="font-heading text-2xl font-bold text-petrol mb-2">
+        {% if query %}Search: "{{ query }}"{% else %}Search{% endif %}
+    </h1>
+    {% if results %}
+    <p class="text-sm text-gray-500 mb-6">{{ results|length }} result{{ 's' if results|length != 1 else '' }} found</p>
+    <div class="space-y-4">
+        {% for r in results %}
+        <a href="{{ r.url }}" class="block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-petrol/30 transition-all">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs bg-petrol/10 text-petrol px-2 py-0.5 rounded-full">{{ r.section }}</span>
+            </div>
+            <h3 class="text-base font-semibold text-charcoal mb-1">{{ r.title }}</h3>
+            {% if r.excerpt %}<p class="text-sm text-gray-500 line-clamp-2">{{ r.excerpt }}</p>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% elif query %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center mt-6">
+        <p class="text-gray-500">No results found for "{{ query }}".</p>
+    </div>
+    {% else %}
+    <form action="/copilot/search" method="get" class="mt-6 max-w-xl flex gap-2">
+        <input type="text" name="q" placeholder="Search across all knowledge..." autofocus
+               class="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-petrol focus:border-petrol outline-none">
+        <button type="submit" class="bg-petrol hover:bg-petrol-light text-white px-6 py-3 rounded-lg font-medium transition-colors">Search</button>
+    </form>
+    {% endif %}
+
+    {% endif %}
+
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-white border-t border-gray-100 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="font-heading text-sm font-semibold text-petrol">Spec2Sphere</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-xs text-gray-400">Powered by Horvath Analytics</span>
+            </div>
+            <div class="flex items-center gap-5 text-xs text-gray-400">
+                <a href="/copilot" class="hover:text-petrol">Knowledge Hub</a>
+                <a href="/api/copilot/sections" class="hover:text-petrol">API</a>
+                <a href="/copilot/sitemap.xml" class="hover:text-petrol">Sitemap</a>
+                <a href="/docs" class="hover:text-petrol">OpenAPI</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

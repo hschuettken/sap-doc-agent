@@ -92,6 +92,14 @@ async def _register_with_oracle() -> None:
                 {"method": "POST", "path": "/api/governance/generate-report", "purpose": "Generate as-built report"},
                 {"method": "POST", "path": "/api/governance/release", "purpose": "Assemble release package"},
                 {"method": "POST", "path": "/api/lab/templates/{id}/graduate", "purpose": "Graduate learned template"},
+                {"method": "GET", "path": "/ui/agent-terminal", "purpose": "Agent terminal viewer (tmux sessions)"},
+                {"method": "GET", "path": "/api/agent-terminal/sessions", "purpose": "List agent sessions"},
+                {"method": "POST", "path": "/api/agent-terminal/sessions", "purpose": "Create agent session"},
+                {"method": "GET", "path": "/copilot", "purpose": "Copilot knowledge hub (unauthenticated)"},
+                {"method": "GET", "path": "/api/copilot/sections", "purpose": "List knowledge sections"},
+                {"method": "GET", "path": "/api/copilot/search", "purpose": "Search knowledge content"},
+                {"method": "GET", "path": "/mcp/sse", "purpose": "MCP SSE endpoint for Copilot integration"},
+                {"method": "POST", "path": "/mcp/messages", "purpose": "MCP JSON-RPC message endpoint"},
             ],
             "nats_subjects": [],
             "source_paths": [
@@ -238,6 +246,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount governance routes: %s", exc)
 
+    # Mount terminal routes (agent session viewer)
+    try:
+        from spec2sphere.web.terminal_routes import create_terminal_routes
+
+        app.include_router(create_terminal_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount terminal routes: %s", exc)
+
     # Mount migration routers
     try:
         from spec2sphere.web.migration_routes import (
@@ -249,6 +265,14 @@ def create_app(
         app.include_router(create_migration_ui_router(output_path))
     except ImportError:
         pass
+
+    # Mount copilot routes (knowledge hub + MCP server)
+    try:
+        from spec2sphere.web.copilot_routes import create_copilot_routes
+
+        app.include_router(create_copilot_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount copilot routes: %s", exc)
 
     # Auth middleware (password from env, defaults to "admin" for dev)
     # In multi-tenant mode, user email+password login is also supported
