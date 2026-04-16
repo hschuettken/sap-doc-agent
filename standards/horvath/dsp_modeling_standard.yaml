@@ -1,0 +1,1018 @@
+name: "Horvath SAP Datasphere Data Modeling Standard v1.0"
+version: "1.0"
+description: >
+  Production-grade data modeling standard for SAP Datasphere (DSP) environments,
+  developed by Horvath & Partners for enterprise analytics implementations.
+
+  This standard governs every DSP object created in a Horvath-led engagement:
+  naming, layer placement, view design, persistence strategy, security, and
+  cross-domain reuse. Violations are classified by severity and feed directly
+  into automated model quality audits.
+
+  GUIDING PRINCIPLE — INTEGRATED DATA MODEL: Design once, reuse everywhere.
+  No duplicate dimensions. No copy-paste views. All data domains must be
+  comparable through shared, conformed dimensions (customer, material, time,
+  org unit). Cross-domain analysis is a first-class requirement from day one.
+
+author: "Horvath & Partners — Data & Analytics Practice"
+target_platform: "SAP Datasphere (DSP), SAP Analytics Cloud (SAC)"
+applies_to:
+  - Analytic Views
+  - SQL Views
+  - Graphical Views
+  - Analytic Models
+  - Data Access Controls (DAC)
+  - Replication Flows
+  - Data Flows
+  - Local Tables
+  - Remote Tables
+
+
+# =============================================================================
+# SECTION 1: INTEGRATED MODEL PRINCIPLES
+# =============================================================================
+
+integrated_model_principles:
+  description: >
+    The integrated data model is the single most important design principle at
+    Horvath. Every modeling decision is evaluated against it. An isolated fact
+    table that cannot join to a shared customer dimension is an anti-pattern,
+    not just a naming mistake.
+
+  principles:
+    - id: imp_01
+      name: "Design Once, Reuse Everywhere"
+      severity: critical
+      description: >
+        Each business concept (customer, material, cost center, date) is modeled
+        exactly once in the HARMONIZED layer and shared to all consuming spaces.
+        Duplicate dimension views are prohibited regardless of minor attribute
+        differences. If a domain needs additional attributes, extend the shared
+        dimension — never fork it.
+      check: "no duplicate dimension names or near-duplicate structures across domains"
+
+    - id: imp_02
+      name: "Conformed Dimensions Are Mandatory"
+      severity: critical
+      description: >
+        Conformed dimensions carry the same primary key, the same grain, and the
+        same core attributes across every fact table that references them. This
+        enables cross-domain analysis (e.g., comparing SD net revenue to CO cost
+        allocations on the same customer hierarchy) without ETL workarounds.
+        Dimensions are conformed by being built once in 02_ layer with a stable
+        surrogate key.
+      conformed_dimension_types:
+        - name: "Customer / Business Partner"
+          domain_prefix: "MD_BP"
+          key_field: "CUSTOMER_KEY"
+        - name: "Material / Product"
+          domain_prefix: "MD_MAT"
+          key_field: "MATERIAL_KEY"
+        - name: "Time / Date"
+          domain_prefix: "MD_TIME"
+          key_field: "CALDAY"
+        - name: "Org Unit / Cost Center / Profit Center"
+          domain_prefix: "MD_ORG"
+          key_field: "ORG_UNIT_KEY"
+        - name: "Plant / Location"
+          domain_prefix: "MD_PLANT"
+          key_field: "PLANT_KEY"
+        - name: "G/L Account"
+          domain_prefix: "MD_ACC"
+          key_field: "ACCOUNT_KEY"
+      check: "dimension views must reference the shared conformed dimension, not a local copy"
+
+    - id: imp_03
+      name: "Cross-Domain Comparability"
+      severity: important
+      description: >
+        All fact tables at the MART layer (03_) must join to at least one
+        conformed dimension so that cross-domain Analytic Models can be built
+        on top without additional transformation. A fact without at least one
+        shared dimension key is not comparable to anything else and violates the
+        integrated model.
+      check: "every MART fact must carry at least one conformed dimension key (customer, material, time, or org unit)"
+
+    - id: imp_04
+      name: "No Business Logic in Source / RAW Layer"
+      severity: critical
+      description: >
+        The RAW layer is a landing zone only. It contains exact replicas of
+        source system data with no filtering, no calculated columns, no business
+        rules. Any transformation applied in the RAW layer creates a hidden
+        dependency that is invisible to downstream consumers.
+      check: "RAW layer views must not contain CASE statements, calculated measures, or WHERE filters beyond technical deduplication"
+
+    - id: imp_05
+      name: "Shared Analytic Models for Cross-Domain Reporting"
+      severity: important
+      description: >
+        When two business domains need combined reporting (e.g., SD revenue vs.
+        CO allocations), build a single Analytic Model in the MART layer that
+        uses associations to both domain facts plus the shared dimensions. Never
+        create a denormalised flat view that merges two domain facts — this
+        creates an unmaintainable mega-table.
+      check: "cross-domain reporting must use associations in an Analytic Model, not flat denormalised JOINs"
+
+
+# =============================================================================
+# SECTION 2: LAYER ARCHITECTURE
+# =============================================================================
+
+layer_architecture:
+  description: >
+    DSP objects are organized into exactly four layers. Layer assignment is
+    determined by the object's purpose, not its name. NEVER skip a layer.
+    NEVER put logic into a layer that does not own it.
+
+  layers:
+    - id: RAW
+      label: "01_ — RAW"
+      description: >
+        Landing zone for replicated source data. Objects here are exact mirrors
+        of source system tables/views. Zero business logic allowed.
+      purpose: "Replicate and make source data accessible within DSP"
+      allowed_prefixes: ["LT_", "RT_", "RF_"]
+      typical_object_types:
+        - "Local Tables (LT_) — manually loaded or flow targets"
+        - "Remote Tables (RT_) — live access to source system tables via connection"
+        - "Replication Flows (RF_) — managed replication from S/4HANA or BW"
+      rules:
+        - id: raw_r01
+          severity: critical
+          rule: "No CASE statements or calculated columns"
+        - id: raw_r02
+          severity: critical
+          rule: "No WHERE filters except technical deduplication (row number filtering is allowed)"
+        - id: raw_r03
+          severity: critical
+          rule: "No JOINs across source domains — single source object per RAW view"
+        - id: raw_r04
+          severity: important
+          rule: "No persistence of views in this layer — remote tables and replication targets only"
+        - id: raw_r05
+          severity: minor
+          rule: "Column aliases should match source system field names exactly for traceability"
+      examples:
+        - technical_name: "01_RT_SD_VBAK"
+          description: "Remote table mirroring S/4HANA VBAK (Sales Order Header)"
+        - technical_name: "01_LT_SD_SALES_ORDER_LOAD"
+          description: "Local table for flat-file loaded sales order data"
+        - technical_name: "01_RF_FI_GL_ACCOUNT_LINE"
+          description: "Replication flow target for G/L accounting line items"
+
+    - id: HARMONIZED
+      label: "02_ — HARMONIZED"
+      description: >
+        Business key resolution, type casting, deduplication, master data
+        enrichment, and surrogate key generation. This is where source-system
+        peculiarities are normalized into the integrated model vocabulary.
+      purpose: "Produce clean, typed, deduplicated, business-key-resolved records"
+      allowed_prefixes: ["RV_", "HV_", "FV_", "MD_", "TF_"]
+      typical_object_types:
+        - "Relational Views (RV_) — simple cleansing and type casting views"
+        - "Harmonized Views (HV_) — join + resolve business keys, union across sources"
+        - "Fact Views (FV_) — cleansed transactional fact before aggregation"
+        - "Master Data Dimensions (MD_) — conformed dimensions, shared across all spaces"
+        - "Technical Foundation Views (TF_) — date spine, calendar, technical lookup tables"
+      rules:
+        - id: harm_r01
+          severity: critical
+          rule: "All date fields must be cast to NVARCHAR(8) YYYYMMDD or DATE type — no source-format dates propagated forward"
+        - id: harm_r02
+          severity: critical
+          rule: "Surrogate keys must be generated here — never in the MART layer"
+        - id: harm_r03
+          severity: critical
+          rule: "Time-dependent master data (SAP validity periods) must use ROW_NUMBER() OVER (PARTITION BY key ORDER BY DATAB DESC) = 1 for current record selection"
+        - id: harm_r04
+          severity: important
+          rule: "Master data dimensions (MD_ prefix) must be exposed via Space Sharing as read-only — never copied into consuming spaces"
+        - id: harm_r05
+          severity: important
+          rule: "Data Access Controls (DAC) are applied at this layer — not in RAW, not in MART"
+        - id: harm_r06
+          severity: important
+          rule: "Deduplication of replicated data must be done here using ROW_NUMBER() on natural business key + replication timestamp"
+        - id: harm_r07
+          severity: minor
+          rule: "Column names must use business-readable aliases (e.g. CUSTOMER_ID, not KUNNR)"
+      examples:
+        - technical_name: "02_MD_D_SD_CUSTOMER_ATTR"
+          description: "Conformed customer dimension with resolved name, segment, region, and hierarchy from S/4HANA BP"
+        - technical_name: "02_HV_FI_GL_LINE_ITEMS"
+          description: "Harmonized G/L line items unioning multiple source systems with resolved chart-of-accounts mapping"
+        - technical_name: "02_FV_SD_SALES_ORDER_LINE"
+          description: "Cleansed sales order line items with resolved material key and date casts"
+        - technical_name: "02_TF_TIME_DATE_SPINE"
+          description: "Central date dimension covering full calendar from 2000-01-01 to 2040-12-31"
+        - technical_name: "02_MD_D_CO_COST_CENTER_HIER"
+          description: "Cost center hierarchy dimension with standard hierarchy path"
+
+    - id: MART
+      label: "03_ — MART"
+      description: >
+        Domain aggregations, star schemas, and Analytic Models built for
+        specific reporting areas. Objects here join harmonized facts to
+        conformed dimensions via associations and apply business aggregation logic.
+      purpose: "Deliver domain-specific star schemas and Analytic Models for SAC consumption"
+      allowed_prefixes: ["AM_", "FV_", "HV_"]
+      typical_object_types:
+        - "Analytic Models (AM_) — star schema with explicit fact/dimension wiring, measures, and hierarchies"
+        - "Fact Views (FV_) — optionally persisted aggregated fact views feeding the Analytic Model"
+        - "Harmonized Views (HV_) — bridge views combining multiple harmonized facts for an Analytic Model"
+      rules:
+        - id: mart_r01
+          severity: critical
+          rule: "Analytic Models must use associations for dimension linkage — never hardcoded JOINs in the Analytic Model itself"
+        - id: mart_r02
+          severity: critical
+          rule: "Only Analytic Models (AM_) are exposed to SAC consumption spaces — never raw fact views"
+        - id: mart_r03
+          severity: important
+          rule: "Every Analytic Model must reference at least one conformed dimension (customer, material, time, or org unit)"
+        - id: mart_r04
+          severity: important
+          rule: "Measures must be explicitly defined in the Analytic Model — do not rely on auto-aggregation for business KPIs"
+        - id: mart_r05
+          severity: important
+          rule: "Persist FV_ fact views in this layer only when query time exceeds 30 seconds without persistence or when >3 downstream Analytic Models consume the same fact view"
+        - id: mart_r06
+          severity: minor
+          rule: "Analytic Model measures must have business-readable labels, not technical field names"
+      examples:
+        - technical_name: "03_AM_SD_SALES_ANALYSIS"
+          description: "Analytic Model for SD sales analysis: revenue, quantity, discount by customer, material, time, sales org"
+        - technical_name: "03_AM_FI_PROFIT_LOSS"
+          description: "Analytic Model for P&L reporting aligned to chart-of-accounts hierarchy"
+        - technical_name: "03_AM_CO_COST_ALLOCATION"
+          description: "Analytic Model for cost center allocations with actuals vs. plan comparison"
+        - technical_name: "03_FV_SD_BILLING_AGG_DAILY"
+          description: "Persisted daily billing aggregation (>30s without persistence, feeds 4 Analytic Models)"
+
+    - id: CONSUMPTION
+      label: "04_ — CONSUMPTION"
+      description: >
+        Thin analytical views or direct Analytic Model exposures surfaced to
+        SAC story consumers. This layer must remain lean — business logic lives
+        in MART. CONSUMPTION objects are view-only, never persisted.
+      purpose: "Expose clean, access-controlled data to SAC and other consumers"
+      allowed_prefixes: ["AM_", "DAC_"]
+      typical_object_types:
+        - "Analytic Models (AM_) — promoted to consumption space via Space Sharing"
+        - "Data Access Controls (DAC_) — row-level security wrappers applied on shared Analytic Models"
+      rules:
+        - id: cons_r01
+          severity: critical
+          rule: "NEVER persist CONSUMPTION layer objects — persistence belongs in MART"
+        - id: cons_r02
+          severity: critical
+          rule: "No new business logic in CONSUMPTION — only DAC application and field visibility control"
+        - id: cons_r03
+          severity: important
+          rule: "Analytic Models promoted to CONSUMPTION must have DAC applied unless data is non-sensitive"
+        - id: cons_r04
+          severity: important
+          rule: "SAC connections must point to CONSUMPTION space objects only — never to HARMONIZED or MART directly"
+      examples:
+        - technical_name: "04_DAC_SD_SALES_REGION_FILTER"
+          description: "DAC applying sales region row restriction on SD Analytic Model for regional managers"
+        - technical_name: "04_AM_SD_SALES_ANALYSIS_EMEA"
+          description: "EMEA-scoped view of SD sales Analytic Model with DAC restricting to EMEA company codes"
+
+
+# =============================================================================
+# SECTION 3: NAMING CONVENTION
+# =============================================================================
+
+naming_convention:
+  description: >
+    Technical names in DSP cannot be changed after the first save. A wrong name
+    is permanent — plan before creating. Every object name encodes its layer,
+    type, domain, and purpose. An object whose name does not follow this pattern
+    cannot be located, governed, or audited.
+
+  pattern: "<LAYER_PREFIX>_<TYPE_PREFIX>_<DOMAIN>_<DESCRIPTIVE_NAME>"
+
+  layer_prefixes:
+    - prefix: "01_"
+      layer: RAW
+      description: "Landing zone — replicated source data"
+    - prefix: "02_"
+      layer: HARMONIZED
+      description: "Cleansed, typed, key-resolved data"
+    - prefix: "03_"
+      layer: MART
+      description: "Domain star schemas and Analytic Models"
+    - prefix: "04_"
+      layer: CONSUMPTION
+      description: "SAC-facing views with access controls"
+
+  type_prefixes:
+    - prefix: "LT_"
+      type: "Local Table"
+      layer: RAW
+    - prefix: "RT_"
+      type: "Remote Table"
+      layer: RAW
+    - prefix: "RF_"
+      type: "Replication Flow Target Table"
+      layer: RAW
+    - prefix: "RV_"
+      type: "Relational View (simple cleansing)"
+      layer: HARMONIZED
+    - prefix: "HV_"
+      type: "Harmonized View (multi-source, key resolution)"
+      layer: "HARMONIZED or MART"
+    - prefix: "FV_"
+      type: "Fact View (transactional data, optionally persisted)"
+      layer: "HARMONIZED or MART"
+    - prefix: "MD_"
+      type: "Master Data Dimension"
+      layer: HARMONIZED
+    - prefix: "TF_"
+      type: "Technical Foundation View (date spine, lookup)"
+      layer: HARMONIZED
+    - prefix: "AM_"
+      type: "Analytic Model"
+      layer: "MART or CONSUMPTION"
+    - prefix: "DAC_"
+      type: "Data Access Control wrapper"
+      layer: CONSUMPTION
+    - prefix: "DF_"
+      type: "Data Flow (Python transformation, use sparingly)"
+      layer: "HARMONIZED or MART"
+
+  domain_codes:
+    - code: "SD"
+      description: "Sales & Distribution"
+    - code: "FI"
+      description: "Financial Accounting"
+    - code: "CO"
+      description: "Controlling"
+    - code: "MM"
+      description: "Materials Management"
+    - code: "PP"
+      description: "Production Planning"
+    - code: "HR"
+      description: "Human Resources"
+    - code: "PM"
+      description: "Plant Maintenance"
+    - code: "QM"
+      description: "Quality Management"
+    - code: "MD"
+      description: "Cross-domain Master Data"
+
+  descriptive_name_rules:
+    - rule: "snake_case only — no CamelCase, no hyphens"
+    - rule: "English language — no German abbreviations"
+    - rule: "Descriptive, not generic — CUSTOMER_ATTR not MASTER_DATA"
+    - rule: "Avoid abbreviations unless universally understood (GL = G/L Account, BP = Business Partner)"
+    - rule: "Maximum 40 characters for the descriptive segment (DSP has a 64-char technical name limit)"
+
+  valid_examples:
+    - technical_name: "02_MD_D_SD_CUSTOMER_ATTR"
+      breakdown: "02_=HARMONIZED, MD_=Master Data, D=Dimension suffix, SD=Sales domain, CUSTOMER_ATTR=business description"
+    - technical_name: "03_AM_SD_SALES_ANALYSIS"
+      breakdown: "03_=MART, AM_=Analytic Model, SD=Sales domain, SALES_ANALYSIS=business description"
+    - technical_name: "02_FV_FI_GL_LINE_ITEMS"
+      breakdown: "02_=HARMONIZED, FV_=Fact View, FI=Finance domain, GL_LINE_ITEMS=business description"
+    - technical_name: "01_RT_MM_MARA_MATERIAL_MASTER"
+      breakdown: "01_=RAW, RT_=Remote Table, MM=Materials domain, MARA_MATERIAL_MASTER=source table + description"
+    - technical_name: "02_HV_CO_COST_CENTER_ACTUALS"
+      breakdown: "02_=HARMONIZED, HV_=Harmonized View, CO=Controlling domain, COST_CENTER_ACTUALS=description"
+    - technical_name: "04_DAC_FI_COMPANY_CODE_FILTER"
+      breakdown: "04_=CONSUMPTION, DAC_=Data Access Control, FI=Finance domain, COMPANY_CODE_FILTER=description"
+
+  invalid_examples:
+    - technical_name: "CustomerMasterView"
+      violation: "No layer prefix, no type prefix, no domain, CamelCase"
+    - technical_name: "ZFISALES_RPT"
+      violation: "BW-style Z-prefix not applicable in DSP, no layer structure"
+    - technical_name: "03_SALES_ANALYSIS_FINAL_V2"
+      violation: "Missing type prefix, 'FINAL_V2' indicates version creep — redesign, don't version"
+    - technical_name: "02_MD_Kunden_Attribute_DE"
+      violation: "German language, CamelCase, non-standard domain code"
+
+  rules:
+    - id: nc_r01
+      severity: critical
+      rule: "Technical names must follow <LAYER>_<TYPE>_<DOMAIN>_<DESCRIPTIVE_NAME> pattern exactly"
+    - id: nc_r02
+      severity: critical
+      rule: "Technical names CANNOT be changed after first save in DSP — validate before creating"
+    - id: nc_r03
+      severity: critical
+      rule: "Layer prefix (01_, 02_, 03_, 04_) must match the actual layer the object belongs to"
+    - id: nc_r04
+      severity: important
+      rule: "Type prefix must be one of the defined types (LT_, RT_, RF_, RV_, HV_, FV_, MD_, TF_, AM_, DAC_, DF_)"
+    - id: nc_r05
+      severity: important
+      rule: "Domain code must be from the defined domain list (SD, FI, CO, MM, PP, HR, PM, QM, MD)"
+    - id: nc_r06
+      severity: important
+      rule: "Descriptive name segment must be in English, snake_case, and be meaningful"
+    - id: nc_r07
+      severity: minor
+      rule: "Version suffixes (_V2, _NEW, _FINAL) are forbidden — use proper object lifecycle management"
+
+
+# =============================================================================
+# SECTION 4: VIEW DESIGN RULES
+# =============================================================================
+
+view_design_rules:
+  description: >
+    DSP supports SQL views (recommended for complex logic), graphical views
+    (for simple projections), and Analytic Models (for consumption). These rules
+    govern design choices within each view type.
+
+  sql_view_rules:
+    - id: vd_sql_01
+      severity: critical
+      rule: "Always use explicit column lists — no SELECT *"
+      rationale: "SELECT * breaks downstream consumers when source columns change"
+
+    - id: vd_sql_02
+      severity: critical
+      rule: "No WITH clause / CTEs in DSP SQL views — DSP does not support the WITH syntax"
+      rationale: "DSP SQL parser limitation — use inline subqueries instead"
+      workaround: "Wrap subquery logic as inline derived tables: SELECT ... FROM (SELECT ...) AS sub"
+
+    - id: vd_sql_03
+      severity: critical
+      rule: "UNION ALL legs must have identical column count, aliases, and compatible types"
+      rationale: "Implicit column matching causes silent data corruption in DSP"
+
+    - id: vd_sql_04
+      severity: critical
+      rule: "LIMIT clause inside UNION ALL must be wrapped in parentheses: (SELECT ... LIMIT N) UNION ALL (...)"
+      rationale: "DSP parser precedence bug — unparenthesised LIMIT applies to the whole UNION"
+
+    - id: vd_sql_05
+      severity: important
+      rule: "Use INNER JOIN or LEFT JOIN explicitly — avoid comma-separated FROM clause joins"
+      rationale: "Implicit joins hide Cartesian product risks and are unreadable"
+
+    - id: vd_sql_06
+      severity: important
+      rule: "Prefer SQL views over graphical views for any logic more complex than a single-table projection"
+      rationale: "SQL views are version-controllable in git, reproducible, and readable by all team members; graphical views are click-configured and produce no reviewable artifact"
+
+    - id: vd_sql_07
+      severity: important
+      rule: "Use ROW_NUMBER() OVER (PARTITION BY <business_key> ORDER BY <timestamp> DESC) = 1 for deduplication — never DISTINCT on transactional data"
+      rationale: "DISTINCT loses the ability to audit which record was selected; ROW_NUMBER gives deterministic, auditable deduplication"
+
+    - id: vd_sql_08
+      severity: important
+      rule: "Time-dependent master data must select the current record: ROW_NUMBER() OVER (PARTITION BY key ORDER BY DATAB DESC) = 1 — this is SAP standard for validity period navigation"
+
+    - id: vd_sql_09
+      severity: minor
+      rule: "Format SQL with consistent indentation: 4 spaces per level, keywords UPPERCASE, aliases lowercase"
+      rationale: "Consistency reduces code review friction and aids onboarding"
+
+    - id: vd_sql_10
+      severity: minor
+      rule: "Add a one-line comment above each SELECT block explaining its purpose when the view has more than one query stage"
+
+  graphical_view_rules:
+    - id: vd_gfx_01
+      severity: important
+      rule: "Graphical views are permitted only for simple projections (column selection + rename) on a single source — no multi-source joins in graphical views"
+
+    - id: vd_gfx_02
+      severity: important
+      rule: "Business logic (CASE expressions, calculated columns) must not be placed in graphical views — use SQL views for any transformation"
+
+    - id: vd_gfx_03
+      severity: minor
+      rule: "Graphical view descriptions must document what the projection selects and from which source"
+
+  analytic_model_rules:
+    - id: vd_am_01
+      severity: critical
+      rule: "Business Builder is deprecated — all new Analytic Models must use the Analytic Model designer (released in DSP 2023.Q2+)"
+
+    - id: vd_am_02
+      severity: critical
+      rule: "Dimensions must be linked to the fact source via associations defined in the underlying view — never via hard-coded joins inside the Analytic Model"
+
+    - id: vd_am_03
+      severity: important
+      rule: "Every measure in an Analytic Model must have an explicit aggregation rule (SUM, COUNT, AVG, MIN, MAX, LAST) — never leave aggregation as default/unspecified"
+
+    - id: vd_am_04
+      severity: important
+      rule: "Hierarchies on dimensions must reference the shared hierarchy defined in the MD_ dimension view — not a custom hierarchy defined only inside one Analytic Model"
+
+    - id: vd_am_05
+      severity: important
+      rule: "Currency conversion in Analytic Models must use the DSP native currency conversion feature with ECT exchange rate type — never hardcode rates or build custom conversion views"
+
+    - id: vd_am_06
+      severity: minor
+      rule: "Label all measures and dimensions with business-friendly names and descriptions in the Analytic Model metadata — these names surface directly in SAC"
+
+  view_stacking_rules:
+    - id: vd_stack_01
+      severity: important
+      rule: "Maximum 5 view stacking levels without an intermediate persistent table"
+      rationale: "Deep view chains compound query latency multiplicatively; beyond 5 levels, DSP query optimizer degrades significantly"
+
+    - id: vd_stack_02
+      severity: important
+      rule: "If the critical path from RAW to Analytic Model exceeds 5 views, introduce a persisted snapshot at the HARMONIZED or MART layer"
+
+    - id: vd_stack_03
+      severity: minor
+      rule: "Document the view lineage (source → target chain) in the object description for any view that is >3 levels deep"
+
+  association_rules:
+    - id: vd_assoc_01
+      severity: critical
+      rule: "Dimension-to-fact linking must use DSP associations — not SQL JOINs within the Analytic Model"
+      rationale: "Associations are resolved lazily by DSP query engine; JOINs in the Analytic Model create a full denormalised rowset and destroy query performance"
+
+    - id: vd_assoc_02
+      severity: important
+      rule: "Associations must be defined on the HARMONIZED layer fact view (FV_) pointing to the conformed dimension (MD_) — the Analytic Model picks them up automatically"
+
+    - id: vd_assoc_03
+      severity: minor
+      rule: "Association cardinality must be documented: 1:N (dimension to fact), N:1 (fact to dimension), or N:M (requires bridge table)"
+
+
+# =============================================================================
+# SECTION 5: PERFORMANCE RULES
+# =============================================================================
+
+performance_rules:
+  description: >
+    Performance in DSP is governed by persistence strategy, query design, and
+    view stacking depth. These rules prevent the most common performance failures
+    in DSP implementations.
+
+  persistence_rules:
+    - id: perf_p01
+      severity: critical
+      rule: "NEVER persist the CONSUMPTION layer — persistence in 04_ is a design error"
+
+    - id: perf_p02
+      severity: important
+      rule: "Persist a HARMONIZED or MART view when: (a) query execution time without persistence exceeds 30 seconds on production data volume, (b) the view feeds 3 or more downstream Analytic Models, or (c) the view contains a CROSS JOIN or multi-level aggregation"
+
+    - id: perf_p03
+      severity: important
+      rule: "NEVER persist a view that reads directly from a Remote Table — replicate first via Replication Flow, then transform"
+      rationale: "Persisting against a remote source causes the full replication overhead to run at every scheduled refresh — use Replication Flows to land the data locally first"
+
+    - id: perf_p04
+      severity: minor
+      rule: "Schedule persistence refreshes during off-peak hours (22:00–06:00 local time) and document the schedule in the object description"
+
+  query_design_rules:
+    - id: perf_q01
+      severity: critical
+      rule: "No SELECT * — always explicit column lists"
+
+    - id: perf_q02
+      severity: critical
+      rule: "No CROSS JOINs in non-persisted views — CROSS JOINs must always target a persisted intermediate table"
+
+    - id: perf_q03
+      severity: important
+      rule: "Filter on partition-pruning columns (CALDAY, CALMONTH, COMPANY_CODE) as early as possible in the view chain — push predicates toward the RAW layer"
+
+    - id: perf_q04
+      severity: important
+      rule: "Aggregation must happen at the lowest layer where it is semantically correct — pre-aggregate in HARMONIZED (FV_) before joining to dimensions in MART"
+
+    - id: perf_q05
+      severity: important
+      rule: "Avoid scalar subqueries in SELECT clause — these execute once per row and cause linear performance degradation"
+
+    - id: perf_q06
+      severity: minor
+      rule: "Use NVARCHAR over CLOB/BLOB for key fields and frequently filtered attributes"
+
+    - id: perf_q07
+      severity: minor
+      rule: "When joining large fact tables to small lookup tables (currency codes, UoM conversions), place the lookup on the right side of the JOIN"
+
+  replication_rules:
+    - id: perf_rep01
+      severity: critical
+      rule: "Use Replication Flows for S/4HANA and BW source data ingestion — NOT Data Flows"
+      rationale: "Replication Flows use SAP CDC (Change Data Capture) protocol for delta loads; Data Flows do full extracts by default, which does not scale"
+
+    - id: perf_rep02
+      severity: important
+      rule: "Data Flows (DF_ prefix) are permitted only when Python transformation logic is required — document the reason"
+
+    - id: perf_rep03
+      severity: important
+      rule: "Replication Flow load type must be set to DELTA after the initial full load — never leave it on FULL LOAD for recurring runs"
+
+
+# =============================================================================
+# SECTION 6: SECURITY RULES
+# =============================================================================
+
+security_rules:
+  description: >
+    Row-level and column-level security in DSP is implemented through Data Access
+    Controls (DACs). Authorization concepts must be defined before the MART
+    layer is built — retrofitting security is 10x more expensive than designing
+    it in.
+
+  data_access_control_rules:
+    - id: sec_dac01
+      severity: critical
+      rule: "Data Access Controls (DACs) must be applied at the HARMONIZED layer (02_) for master data and at the MART layer (03_) Analytic Model for transactional data — never at the RAW layer"
+      rationale: "RAW data may contain unmasked sensitive fields; harmonized data has business-key-resolved records that map cleanly to authorization objects"
+
+    - id: sec_dac02
+      severity: critical
+      rule: "Every Analytic Model exposed in the CONSUMPTION space must have a DAC unless the data owner explicitly signs off that the data is non-sensitive"
+
+    - id: sec_dac03
+      severity: important
+      rule: "DAC hierarchy: use SAP standard authorization objects (company code, sales org, controlling area, profit center) as restriction dimensions wherever possible"
+
+    - id: sec_dac04
+      severity: important
+      rule: "DACs must be version-labeled and documented with: restricted attribute, user group, approval reference"
+
+    - id: sec_dac05
+      severity: minor
+      rule: "Test DAC effectiveness with a non-admin test user before go-live — validate that restricted rows do not appear in SAC stories"
+
+  space_sharing_rules:
+    - id: sec_shr01
+      severity: critical
+      rule: "Space sharing must be READ-ONLY — never share a space with write permission to a consuming space"
+
+    - id: sec_shr02
+      severity: important
+      rule: "Only share HARMONIZED layer MD_ (master data) views and MART layer AM_ (Analytic Models) — never share RAW layer objects"
+
+    - id: sec_shr03
+      severity: important
+      rule: "Shared objects must be clearly labeled in the description as 'SHARED — do not modify in this space'"
+
+    - id: sec_shr04
+      severity: minor
+      rule: "Document the space sharing matrix: which spaces share which objects, with what permission level and since when"
+
+  credential_rules:
+    - id: sec_cred01
+      severity: critical
+      rule: "Source system connection credentials must be stored in DSP Connection Manager — never hardcoded in views or flows"
+
+    - id: sec_cred02
+      severity: critical
+      rule: "Technical service users for replication must follow the principle of least privilege — read-only access to the specific source tables being replicated"
+
+
+# =============================================================================
+# SECTION 7: REUSE PATTERNS
+# =============================================================================
+
+reuse_patterns:
+  description: >
+    These patterns encode the Horvath approach to reuse in DSP. Each pattern
+    has a canonical structure. Deviating from a pattern requires explicit
+    justification documented in the object description.
+
+  patterns:
+    - id: rp_01
+      name: "Master Data Dimension Pattern"
+      applies_to: "All MD_ views in the HARMONIZED layer"
+      description: >
+        A master data dimension is built exactly once in the HARMONIZED (02_)
+        space and shared via Space Sharing to all consuming spaces. No space
+        may create its own copy of a shared dimension.
+      structure:
+        source: "01_RT_ or 01_LT_ (RAW layer source)"
+        transformation: "02_RV_ (type casts, field rename)"
+        dimension: "02_MD_ (final conformed dimension with all attributes)"
+        sharing: "Space Sharing read-only to all consuming spaces"
+      key_fields:
+        - name: "<ENTITY>_KEY"
+          type: "NVARCHAR(40)"
+          description: "Surrogate key — stable, business-system-independent"
+        - name: "<ENTITY>_ID"
+          type: "NVARCHAR(20)"
+          description: "Source system natural key (KUNNR, MATNR, etc.)"
+        - name: "<ENTITY>_TEXT"
+          type: "NVARCHAR(80)"
+          description: "Short description / name in user's language"
+        - name: "VALID_FROM"
+          type: "DATE"
+          description: "Validity period start (for time-dependent attributes)"
+        - name: "VALID_TO"
+          type: "DATE"
+          description: "Validity period end"
+        - name: "IS_ACTIVE"
+          type: "BOOLEAN"
+          description: "Derived flag: 1 if record is current active record"
+
+    - id: rp_02
+      name: "Date/Time Dimension Pattern"
+      applies_to: "02_TF_TIME_DATE_SPINE and all time dimension references"
+      description: >
+        A single centrally maintained date spine covers the full project
+        date range. All facts carry CALDAY (YYYYMMDD) as the time grain key.
+        Monthly and quarterly grains are derived via the date spine — never
+        hardcoded in fact views.
+      structure:
+        date_spine: "02_TF_TIME_DATE_SPINE — one row per calendar day"
+        grain_key: "CALDAY NVARCHAR(8) format YYYYMMDD"
+        derived_attributes:
+          - "CALMONTH NVARCHAR(6) YYYYMM"
+          - "CALYEAR NVARCHAR(4)"
+          - "CALQUARTER NVARCHAR(7) YYYY/QQ"
+          - "FISCAL_PERIOD NVARCHAR(7) (aligned to company fiscal year)"
+          - "IS_WEEKEND BOOLEAN"
+          - "IS_HOLIDAY BOOLEAN (populated from holiday calendar)"
+          - "DAYS_IN_MONTH INTEGER"
+
+    - id: rp_03
+      name: "Fact View + Analytic Model Pattern"
+      applies_to: "All 03_AM_ Analytic Models"
+      description: >
+        Every Analytic Model is built on a fact view (02_FV_ or 03_FV_) that
+        carries the grain key fields and measures. Dimensions are linked via
+        associations on the fact view. The Analytic Model orchestrates the
+        star schema — it does not contain transformation logic.
+      structure:
+        fact_view: "02_FV_ or 03_FV_ — carries grain keys + measures"
+        associations: "defined on the fact view, pointing to MD_ dimensions"
+        analytic_model: "03_AM_ — references the fact view, exposes measures with aggregation rules"
+        consumption: "04_ — DAC applied, shared to SAC space"
+      mandatory_measures:
+        - "At least one additive measure (SUM aggregation)"
+        - "COUNT_DISTINCT on the grain key for record count verification"
+
+    - id: rp_04
+      name: "Currency Conversion Pattern"
+      applies_to: "All fact views carrying monetary amounts"
+      description: >
+        Monetary amounts in source currency are stored in the fact view.
+        Currency conversion to group currency (EUR or USD depending on client)
+        is applied in the Analytic Model using DSP native currency conversion
+        with ECT exchange rate type. Never build custom conversion views.
+      fields_on_fact:
+        - "AMOUNT_LC DECIMAL(23,2) — amount in local (transaction) currency"
+        - "CURRENCY_KEY NVARCHAR(5) — ISO currency code"
+        - "AMOUNT_GC DECIMAL(23,2) — leave NULL; populated by Analytic Model conversion"
+      analytic_model_setting:
+        exchange_rate_type: "ECT (standard group exchange rate)"
+        target_currency: "defined as a variable in the Analytic Model (not hardcoded)"
+
+    - id: rp_05
+      name: "Surrogate Key Generation Pattern"
+      applies_to: "All MD_ views generating surrogate keys"
+      description: >
+        Surrogate keys are generated using MD5 or SHA256 on the concatenated
+        natural business key fields. This makes surrogate keys deterministic
+        across systems and environments (dev/test/prod generate the same key
+        for the same business entity).
+      sql_pattern: >
+        UPPER(TO_VARCHAR(HASH_MD5(
+          TRIM(COALESCE(SOURCE_SYSTEM_ID, '')) || '|' ||
+          TRIM(COALESCE(NATURAL_KEY_FIELD, ''))
+        ))) AS ENTITY_KEY
+      rules:
+        - "Always include SOURCE_SYSTEM_ID as the first component to prevent key collisions across source systems"
+        - "Use pipe '|' as separator to reduce false collision risk"
+        - "TRIM + COALESCE to handle leading/trailing spaces and NULL values"
+        - "UPPER the hash for consistency"
+
+    - id: rp_06
+      name: "Cross-Domain Analysis Pattern"
+      applies_to: "Any Analytic Model combining data from 2+ business domains"
+      description: >
+        Cross-domain Analytic Models (e.g., SD revenue vs. CO cost allocation)
+        are built by creating a bridge fact view at the MART layer that unites
+        the two harmonized facts on the shared conformed dimension keys.
+        The Analytic Model then references this bridge view.
+      structure:
+        shared_dimension_key: "The conformed dimension key that both domains carry (e.g., CUSTOMER_KEY)"
+        bridge_fact: "03_FV_ — LEFT JOIN or UNION ALL of the two domain facts on the shared key"
+        analytic_model: "03_AM_ — single model exposing both domain measures through one star schema"
+      rules:
+        - "Never build two separate Analytic Models and expect SAC to join them — that is not supported"
+        - "The bridge fact view should ONLY carry keys and measures — no dimension attributes"
+        - "If the two domains have different grains, aggregate the finer-grain domain to match the coarser grain before bridging"
+
+
+# =============================================================================
+# SECTION 8: ANTI-PATTERNS
+# =============================================================================
+
+anti_patterns:
+  description: >
+    These patterns are explicitly prohibited in Horvath DSP implementations.
+    Every anti-pattern has been observed in real projects and results in
+    measurable harm: maintenance cost, performance degradation, security gaps,
+    or incorrect analysis.
+
+  patterns:
+    - id: ap_01
+      name: "Layer Skipping"
+      severity: critical
+      description: >
+        Building an Analytic Model that reads directly from a RAW layer Remote
+        Table or Replication Flow target — skipping the HARMONIZED layer entirely.
+      consequence: "Un-typed, un-deduplicated, un-secured data surfaces in reports; business keys remain in SAP internal format (KUNNR, MATNR) and are unreadable"
+      detection: "Analytic Model source view has a 01_ prefix"
+
+    - id: ap_02
+      name: "Business Logic in RAW Layer"
+      severity: critical
+      description: >
+        Adding CASE statements, calculated columns, or business filters to a
+        01_-prefixed view or Replication Flow transformation.
+      consequence: "Logic is hidden at the bottom of the stack; consumers assume the data is raw when it has been modified; impossible to audit"
+      detection: "01_ view contains CASE, IIF, calculated fields, or non-technical WHERE filters"
+
+    - id: ap_03
+      name: "Dimension Forking"
+      severity: critical
+      description: >
+        Creating a domain-specific copy of a shared dimension (e.g., 02_MD_D_SD_CUSTOMER_ATTR
+        and separately 02_MD_D_FI_CUSTOMER_ATTR with different keys) instead of
+        extending the shared dimension with domain-specific attributes.
+      consequence: "Customer master appears different in SD and FI reports; cross-domain analysis is blocked; reconciliation is manual"
+      detection: "Two MD_ views for the same business entity with different primary keys"
+
+    - id: ap_04
+      name: "Hardcoded Joins in Analytic Models"
+      severity: critical
+      description: >
+        Adding dimension tables as JOIN sources directly in the Analytic Model
+        designer instead of using associations.
+      consequence: "Full Cartesian rowset before query filtering; query performance collapses on data volumes >1M rows; SAC timeouts"
+      detection: "Analytic Model source definition contains explicit JOIN syntax"
+
+    - id: ap_05
+      name: "Persisted CONSUMPTION Layer"
+      severity: critical
+      description: >
+        Adding persistence (snapshot schedule) to a 04_-prefixed view or to an
+        Analytic Model in the CONSUMPTION space.
+      consequence: "Stale data served to business users between refresh cycles; disk consumption scales unexpectedly; no clear source-of-truth"
+      detection: "04_ object has a scheduled snapshot configured"
+
+    - id: ap_06
+      name: "SELECT * in Views"
+      severity: important
+      description: >
+        Using SELECT * in any SQL view, especially in stacked views where the
+        source table schema may change.
+      consequence: "Column additions in source table propagate silently and may break downstream type assumptions; performance optimizer cannot prune columns"
+      detection: "SQL view body contains SELECT *"
+
+    - id: ap_07
+      name: "Version Suffix Naming"
+      severity: important
+      description: >
+        Naming objects with version or status suffixes such as _V2, _NEW,
+        _FINAL, _BACKUP, _OLD, _COPY.
+      consequence: "DSP does not have a versioning concept — suffixes create parallel objects that both get consumed; decommissioning becomes unclear; governance fails"
+      detection: "Technical name ends with _V[digit], _NEW, _FINAL, _BACKUP, _OLD, _COPY, _TEST"
+
+    - id: ap_08
+      name: "CTE / WITH Clause Usage"
+      severity: important
+      description: >
+        Using SQL WITH (CTE) syntax in DSP SQL views.
+      consequence: "DSP SQL parser does not support WITH clauses — the view fails to deploy"
+      detection: "SQL view body starts with WITH or contains a WITH block"
+      fix: "Rewrite as inline derived table: SELECT ... FROM (SELECT ...) AS subquery_alias"
+
+    - id: ap_09
+      name: "Remote Table Direct Persistence"
+      severity: important
+      description: >
+        Configuring a snapshot/persistence schedule directly on a view that
+        reads from a Remote Table (01_RT_).
+      consequence: "Every persistence refresh runs a full extraction from the source system; no delta; source system load; data latency risk"
+      detection: "Persisted view lineage includes a Remote Table with no Replication Flow in between"
+
+    - id: ap_10
+      name: "Data Flow for Mass Replication"
+      severity: important
+      description: >
+        Using a Data Flow (DF_ prefix) to replicate large SAP tables that
+        support CDC/delta extraction via Replication Flow.
+      consequence: "Data Flows do full extracts by default; 100M+ row tables re-extracted every run; replication latency measured in hours not minutes"
+      detection: "DF_ object sources from an S/4HANA or BW table that has a Replication Flow equivalent available"
+
+    - id: ap_11
+      name: "Business Builder Usage for New Models"
+      severity: important
+      description: >
+        Creating new Analytic Models via the deprecated Business Builder
+        (pre-2023.Q2 DSP feature).
+      consequence: "Business Builder is scheduled for removal; new features (hierarchy navigation, currency conversion v2, calculation engine) are Analytic Model-only"
+      detection: "Object type is identified as Business Builder entity in metadata export"
+
+    - id: ap_12
+      name: "Hardcoded Credentials in Views"
+      severity: critical
+      description: >
+        Embedding connection strings, passwords, or API keys as literals in
+        SQL views, data flows, or transformation scripts.
+      consequence: "Credentials visible in DSP source export, audit logs, and Git history; compliance violation"
+      detection: "View SQL contains password=, apikey=, token= string literals"
+
+    - id: ap_13
+      name: "German Language in Technical Names"
+      severity: minor
+      description: >
+        Using German words or abbreviations in technical names (e.g., KUNDEN,
+        ARTIKEL, AUFTRAG) even when the source system uses German.
+      consequence: "Mixed-language codebase confuses international team members; inconsistent with naming convention"
+      detection: "Technical name contains common German words"
+
+    - id: ap_14
+      name: "Deep View Stacking Without Persistence"
+      severity: minor
+      description: >
+        View chains exceeding 5 levels without an intermediate persisted table.
+      consequence: "Query optimizer generates a multi-level nested SQL plan; execution time grows super-linearly with data volume"
+      detection: "View lineage depth exceeds 5 hops from RAW to Analytic Model"
+
+
+# =============================================================================
+# SECTION 9: SCORING
+# =============================================================================
+
+scoring:
+  description: >
+    Scoring evaluates a DSP object or a set of objects (e.g., all objects in a
+    space or a development package) against this standard. The score reflects
+    compliance quality, not just the presence/absence of metadata.
+
+  object_scoring:
+    base_score: 100
+    name_compliant: 10
+    description_present: 5
+    description_quality:
+      short_but_present: 2
+      meaningful_20_chars: 5
+    layer_correctly_assigned: 10
+    type_prefix_correct: 5
+    domain_code_present: 5
+    owner_assigned: 5
+
+  penalties:
+    critical_violation: -25
+    important_violation: -10
+    minor_violation: -3
+    layer_skipped: -30
+    business_logic_in_raw: -25
+    dimension_forked: -25
+    hardcoded_join_in_am: -25
+    persisted_consumption: -20
+    select_star: -10
+    version_suffix: -5
+    german_name: -3
+    no_description: -10
+    no_owner: -5
+
+  thresholds:
+    excellent:
+      min_score: 90
+      label: "Compliant — no action required"
+    acceptable:
+      min_score: 70
+      label: "Acceptable — minor issues to address before next release"
+    needs_improvement:
+      min_score: 50
+      label: "Needs improvement — review and remediate before go-live"
+    critical:
+      min_score: 0
+      label: "Critical violations present — block go-live until resolved"
+
+  space_level_scoring:
+    description: "Aggregate score across all objects in a space or package"
+    weights:
+      naming_compliance_rate: 0.25
+      layer_architecture_compliance_rate: 0.35
+      performance_rule_compliance_rate: 0.20
+      security_rule_compliance_rate: 0.20
+    thresholds:
+      green: 85
+      amber: 70
+      red: 0
+
+  audit_frequency:
+    during_development: "after every sprint — catch violations early"
+    pre_go_live: "mandatory full audit of all objects in scope"
+    post_go_live: "quarterly automated scan"

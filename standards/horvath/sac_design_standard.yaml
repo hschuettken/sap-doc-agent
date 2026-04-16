@@ -1,0 +1,1091 @@
+name: "Horvath SAP Analytics Cloud Design Standard v1.0"
+version: "1.0"
+description: >
+  Horváth proprietary design standard for SAP Analytics Cloud (SAC) dashboards and
+  stories. Applies to all customer projects where Horváth delivers SAC content.
+  Governs layout architecture, visual language (adjusted IBCS), widget configuration,
+  color usage, data connection strategy, and responsive behaviour.
+
+  This standard covers three distinct artefact categories:
+    1. Dashboard design (structure, tiers, layout grid)
+    2. Visual encoding (IBCS notation, chart types, number formats)
+    3. Technical configuration (data connections, variables, filter strategy)
+
+  A complete SAC delivery is evaluated against all three categories.
+  Partial documents — e.g. a design specification that omits the data connection
+  strategy — will score accordingly.
+
+  The review agent evaluates a DESIGN DOCUMENTATION SET against this standard.
+  Each section maps to a concrete, checkable design decision that a developer or
+  reviewer can verify in the SAC story editor.
+
+# ---------------------------------------------------------------------------
+# Design Principles — the "why" behind every rule below
+# ---------------------------------------------------------------------------
+
+design_principles:
+  - id: three_tier_mandatory
+    name: "3-Tier Dashboard Architecture"
+    severity: must
+    description: >
+      Every SAC story must implement the 3-tier navigation model:
+      Tier 1 (Executive Overview) → Tier 2 (Topic Detail) → Tier 3 (Data Deep-Dive).
+      Flat single-page dashboards are not acceptable for production delivery.
+      Each tier must be reachable via explicit navigation (linked pages or drill-through).
+
+  - id: scannable_overview
+    name: "Tier 1 scannable in 10 seconds"
+    severity: must
+    description: >
+      The Executive Overview (Tier 1) must convey the most critical KPIs and
+      traffic-light signals within 10 seconds of visual scanning.
+      Maximum 6 KPI tiles per row. No data tables on Tier 1.
+      Text labels and trend indicators replace chart details at this tier.
+
+  - id: ibcs_notation
+    name: "Adjusted IBCS Notation"
+    severity: must
+    description: >
+      All charts must use IBCS-compliant visual encoding:
+        - Solid fill = Actual (AC)
+        - Outlined/hollow = Plan/Budget (BU/PL)
+        - Hatched fill = Forecast (FC)
+      Deviations must use red (negative) and green (positive) with directional arrows.
+      Corporate accent colors are permitted for branding elements only (max 2 accents).
+
+  - id: no_pie_charts
+    name: "No pie charts"
+    severity: must
+    description: >
+      Pie charts are prohibited except for 2–3 segment compositions where the
+      primary message is proportional share. Use horizontal bar charts or
+      waterfall charts as the default alternatives.
+
+  - id: deviation_mandatory
+    name: "Deviation charts for plan/actual"
+    severity: must
+    description: >
+      Any page showing both plan and actual values must include a deviation chart
+      (absolute or relative). Displaying plan and actual columns side-by-side without
+      an explicit deviation series is insufficient.
+
+  - id: german_number_format
+    name: "German number locale"
+    severity: must
+    description: >
+      All numeric outputs must use German locale formatting:
+      thousands separator = period (.), decimal separator = comma (,).
+      Example: 1.234.567,89. Every number must be accompanied by its unit
+      (€, %, Stk, t, etc.). Never display raw numbers without unit context.
+
+  - id: consistent_grid
+    name: "12-column layout grid"
+    severity: must
+    description: >
+      All pages must align to a 12-column responsive grid.
+      Widget widths must be multiples of grid columns (e.g. 3, 4, 6, 12 columns).
+      Arbitrary pixel widths that break the grid are not permitted.
+
+  - id: live_connection_preferred
+    name: "Live connection to DSP Analytic Models"
+    severity: should
+    description: >
+      Prefer live connections to SAP Datasphere Analytic Models over import models.
+      Import mode is acceptable only when planning write-back features are required.
+      Justify any import model choice in the design documentation.
+
+  - id: whitespace_discipline
+    name: "Clean whitespace — no clutter"
+    severity: should
+    description: >
+      Generous whitespace between widgets is mandatory. No overlapping widgets.
+      No decorative images or logos inside the data canvas.
+      Every pixel of screen space must serve a data communication purpose.
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Tiers — required elements per tier
+# ---------------------------------------------------------------------------
+
+dashboard_tiers:
+  - id: tier_1_executive_overview
+    name: "Tier 1 — Executive Overview"
+    description: >
+      The entry page of every SAC story. Provides a high-level, at-a-glance status
+      summary for senior stakeholders. Must load within 3 seconds on a live connection.
+    mandatory: true
+    required_elements:
+      - id: kpi_tiles
+        name: "KPI Tiles"
+        description: >
+          Maximum 6 KPI tiles per row. Each tile must show: current value, comparison
+          value (plan or prior period), absolute deviation, and a trend indicator (up/down arrow).
+          Tile background must use traffic-light color coding:
+          green (within tolerance), amber (warning threshold), red (critical threshold).
+        constraints:
+          max_kpi_per_row: 6
+          required_fields: ["current_value", "comparison_value", "absolute_deviation", "trend_indicator"]
+          color_coding: "traffic_light"
+
+      - id: traffic_lights
+        name: "Traffic Light Status Indicators"
+        description: >
+          At least one traffic-light status section summarizing the overall
+          health per domain (e.g. Finance, Sales, Operations).
+          Status must be driven by a threshold formula, not manually set.
+        constraints:
+          minimum_domains: 1
+          threshold_driven: true
+
+      - id: high_level_trend
+        name: "High-Level Trend Chart"
+        description: >
+          One chart showing the primary KPI trend over time (typically 12 months
+          rolling or YTD). Must use a line or bar chart — no area charts.
+          Must include plan line (outlined) if plan data is available.
+        constraints:
+          chart_types: ["line", "bar"]
+          max_series: 3
+          plan_line_if_available: true
+
+      - id: navigation_to_tier2
+        name: "Navigation to Tier 2"
+        description: >
+          Explicit navigation buttons or clickable chart elements that drill
+          through to the relevant Tier 2 topic page. Navigation must be labelled.
+          Hover states must indicate clickability.
+        constraints:
+          navigation_type: ["button", "linked_chart", "navigation_panel"]
+          labelled: true
+
+    forbidden_elements:
+      - "Data tables with more than 5 rows"
+      - "Ad-hoc filter panels (move to Tier 3)"
+      - "Charts with more than 3 series"
+      - "Text blocks longer than 2 lines"
+
+  - id: tier_2_topic_detail
+    name: "Tier 2 — Topic Detail"
+    description: >
+      Per-domain breakdown pages (e.g. Sales by Region, Cost by Cost Center,
+      Headcount by Org Unit). Reached by drill-through from Tier 1.
+      One Tier 2 page per business domain.
+    mandatory: true
+    required_elements:
+      - id: domain_breakdown_chart
+        name: "Domain Breakdown Chart"
+        description: >
+          Primary chart showing the domain KPI broken down by the most
+          relevant dimension (region, cost center, product group, etc.).
+          Must be a horizontal bar chart or column chart sorted by value.
+          Must include deviation bar if plan data is available.
+        constraints:
+          chart_types: ["horizontal_bar", "column_chart", "waterfall"]
+          sorted: true
+          deviation_series_if_plan_available: true
+
+      - id: side_by_side_table
+        name: "Detail Table alongside Chart"
+        description: >
+          A data table showing the same breakdown as the chart with numeric
+          precision. Must have: alternating row colors, sticky header,
+          sortable columns, and conditional formatting on deviation columns.
+        constraints:
+          alternating_rows: true
+          sticky_header: true
+          sortable_columns: true
+          conditional_formatting_on_deviation: true
+
+      - id: time_series_detail
+        name: "Time Series Detail Chart"
+        description: >
+          Secondary chart showing the domain KPI over time.
+          Must show actual (solid), plan (outlined), and optionally forecast (hatched).
+          Must include data labels on the most recent period.
+        constraints:
+          ibcs_encoding: true
+          data_labels_latest_period: true
+
+      - id: page_filter
+        name: "Page-Level Filters"
+        description: >
+          Cascading filter bar at the top of the page (not embedded in widgets).
+          Must include at minimum: time period selector and primary breakdown
+          dimension. Filters must have meaningful defaults (e.g. current fiscal year).
+        constraints:
+          placement: "top_of_page"
+          cascading: true
+          has_defaults: true
+          minimum_filters: ["time_period", "primary_dimension"]
+
+      - id: navigation_tier2
+        name: "Back Navigation to Tier 1 + forward to Tier 3"
+        description: >
+          Breadcrumb or button navigation: back to Tier 1 and drill-through
+          to the Tier 3 deep-dive for selected rows.
+        constraints:
+          back_to_tier1: true
+          drill_to_tier3: true
+
+    forbidden_elements:
+      - "KPI tiles (belong on Tier 1)"
+      - "Charts with more than 5 series"
+      - "Unformatted export buttons visible by default"
+
+  - id: tier_3_deep_dive
+    name: "Tier 3 — Data Deep-Dive"
+    description: >
+      Full transactional detail view with ad-hoc filter capability and data export.
+      Reached by drill-through from Tier 2. This tier is for power users only.
+    mandatory: true
+    required_elements:
+      - id: full_data_table
+        name: "Full Detail Table"
+        description: >
+          Complete table with all relevant dimensions and measures.
+          Must support: sortable columns, column resizing, sticky header,
+          alternating row colors, and conditional formatting on key columns.
+          Must show at minimum 50 rows before pagination.
+        constraints:
+          sortable: true
+          resizable_columns: true
+          sticky_header: true
+          min_visible_rows: 50
+          pagination: true
+
+      - id: export_capability
+        name: "Export to CSV / Excel"
+        description: >
+          Explicit export button (CSV and/or Excel). Must be clearly labelled.
+          Export must respect all active filter selections.
+        constraints:
+          formats: ["csv", "xlsx"]
+          filter_aware: true
+          visible_label: true
+
+      - id: adhoc_filters
+        name: "Ad-hoc Filter Panel"
+        description: >
+          Full filter panel with all available dimensions for ad-hoc analysis.
+          Must use cascading logic (selecting a higher-level dimension narrows
+          downstream options). Must include a "Reset filters" button.
+        constraints:
+          cascading: true
+          reset_button: true
+          all_dimensions_available: true
+
+      - id: row_count_indicator
+        name: "Row Count Indicator"
+        description: >
+          Display total row count and filtered row count so users know the
+          impact of their filter selections.
+        constraints:
+          show_total: true
+          show_filtered: true
+
+      - id: loading_state
+        name: "Loading State for Live Connections"
+        description: >
+          All widgets must show a spinner or skeleton state while data loads
+          from live connections. No empty white space during loading.
+        constraints:
+          spinner_or_skeleton: true
+          no_empty_canvas: true
+
+    forbidden_elements:
+      - "Charts as primary content (use table + optional supporting mini-chart)"
+      - "KPI tiles"
+
+
+# ---------------------------------------------------------------------------
+# IBCS Rules — Horváth adjusted notation
+# ---------------------------------------------------------------------------
+
+ibcs_rules:
+  - id: ibcs_actual_encoding
+    name: "Actual values — solid fill"
+    severity: must
+    category: visual_encoding
+    description: >
+      All actual (AC) values must be represented with solid fill in the primary
+      neutral color (dark grey #333333 or SAC default dark bar color).
+      No gradient fills for actual values.
+
+  - id: ibcs_plan_encoding
+    name: "Plan/Budget values — outlined/hollow"
+    severity: must
+    category: visual_encoding
+    description: >
+      Plan (PL) and budget (BU) values must be represented as outlined/hollow bars
+      or columns. Fill is transparent; the border uses the same color as the
+      corresponding actual. In line charts, plan lines use dashed strokes.
+
+  - id: ibcs_forecast_encoding
+    name: "Forecast values — hatched fill"
+    severity: must
+    category: visual_encoding
+    description: >
+      Forecast (FC) values must be represented with a hatched fill pattern.
+      In line charts, forecast lines use dotted strokes. The base color matches
+      the actual series.
+
+  - id: ibcs_deviation_charts
+    name: "Deviation charts mandatory for plan/actual comparison"
+    severity: must
+    category: chart_selection
+    description: >
+      Any view containing both plan and actual values must include a separate
+      deviation chart (Δ absolute and/or Δ% relative). The deviation chart
+      must be positioned directly below or to the right of the primary chart.
+      Positive deviations = green (#2D8B3A). Negative deviations = red (#C0392B).
+      Directional arrows (▲/▼) must accompany the numeric deviation value.
+
+  - id: ibcs_waterfall
+    name: "Waterfall charts for variance analysis"
+    severity: must
+    category: chart_selection
+    description: >
+      Variance bridge analyses (e.g. budget-to-actual walk, period-over-period
+      change decomposition) must use waterfall charts.
+      Positive contributors = green. Negative contributors = red.
+      Starting and ending bars = neutral dark grey (solid fill).
+      Subtotal bars must be clearly marked with a different shade.
+
+  - id: ibcs_no_pie
+    name: "No pie charts"
+    severity: must
+    category: chart_selection
+    description: >
+      Pie charts are prohibited. Exception: exactly 2 or 3 segment compositions
+      where the single message is proportional share (e.g. market split).
+      In all other cases use sorted horizontal bar charts.
+      Donut charts are prohibited without exception.
+
+  - id: ibcs_color_accent_limit
+    name: "Maximum 2 corporate accent colors"
+    severity: must
+    category: color
+    description: >
+      Beyond the IBCS neutral palette (dark grey, mid grey, light grey),
+      a maximum of 2 corporate accent colors may be used.
+      Accent colors are permitted for: brand logo areas, top navigation bar,
+      primary CTA buttons. Accent colors must NOT be used for data series —
+      data series use the IBCS encoding rules above.
+
+  - id: ibcs_axis_labels
+    name: "Axis labels and titles mandatory"
+    severity: must
+    category: labeling
+    description: >
+      Every chart axis must have a label that names the measure and its unit.
+      Example: "Revenue (€ Mio.)", "Headcount (FTE)", "Costs (€ T)".
+      Unlabelled axes are not acceptable in production.
+
+  - id: ibcs_chart_titles
+    name: "Chart titles with context"
+    severity: must
+    category: labeling
+    description: >
+      Every chart must have a title (what is shown) and a subtitle that names
+      the data source/model, the reporting period, and the currency/unit.
+      Format: "[Measure] by [Dimension] | [Period] | [Unit] | [Source Model]"
+      Example: "Revenue by Region | YTD Jan–Sep 2024 | EUR Mio. | S_C_REVENUE"
+
+  - id: ibcs_legend_placement
+    name: "Legend placement and content"
+    severity: should
+    category: labeling
+    description: >
+      Legends must be positioned above or below the chart, never to the right
+      (which wastes horizontal space). Legend entries must match IBCS notation:
+      solid square = AC, hollow square = PL, hatched square = FC.
+      If only one series is shown, suppress the legend.
+
+  - id: ibcs_number_format
+    name: "German locale number format with unit"
+    severity: must
+    category: formatting
+    description: >
+      All numeric values must use German locale:
+        - Thousands separator: period (.)
+        - Decimal separator: comma (,)
+        - Negative values: minus prefix, red color (not parentheses)
+        - Unit always present: €, %, T€, Mio€, FTE, Stk, t, etc.
+      SAC format strings:
+        - Millions: #.##0,0 Mio. (scale factor 1,000,000)
+        - Thousands: #.##0 T€ (scale factor 1,000)
+        - Percentage: #.##0,0%
+      Large numbers rounded to 1 decimal place. Never show more than 3 significant
+      digits on overview pages (round to millions/thousands as appropriate).
+
+  - id: ibcs_conditional_formatting
+    name: "Conditional formatting thresholds documented"
+    severity: must
+    category: governance
+    description: >
+      Any widget using conditional formatting (traffic lights, color scales)
+      must have its thresholds documented in the design specification.
+      Thresholds must be data-driven (formula or variable) not hardcoded.
+      Document: green threshold (≥ X% or ≤ X%), amber threshold, red threshold.
+
+
+# ---------------------------------------------------------------------------
+# Widget Rules
+# ---------------------------------------------------------------------------
+
+widget_rules:
+  - id: widget_kpi_tile_max
+    name: "KPI tile row limit"
+    severity: must
+    category: layout
+    description: >
+      Maximum 6 KPI tiles per row on any page. On Tier 1 this is a hard limit.
+      On Tier 2 a maximum of 4 summary KPI tiles is recommended (above the
+      main charts). Tiles must be equal width within a row.
+
+  - id: widget_chart_title
+    name: "All charts must have title and subtitle"
+    severity: must
+    category: labeling
+    description: >
+      See ibcs_chart_titles. Applied at the widget configuration level:
+      SAC chart widget's "Title" and "Subtitle" fields must be populated.
+      Empty title fields will fail QA review.
+
+  - id: widget_table_formatting
+    name: "Table widget formatting requirements"
+    severity: must
+    category: formatting
+    description: >
+      All table widgets must be configured with:
+        - Alternating row colors (light grey for even rows)
+        - Sticky column headers (freeze top row)
+        - Sortable columns enabled
+        - Conditional formatting on deviation columns (red/green)
+        - Column widths set to content (no truncation of key dimensions)
+        - Pagination enabled for tables with >100 rows
+
+  - id: widget_filter_defaults
+    name: "Filter widgets must have meaningful defaults"
+    severity: must
+    category: usability
+    description: >
+      Every filter/input control must have a default value that makes sense
+      for the first-time user:
+        - Date filters: default to current fiscal year or current month YTD
+        - Dimension filters: default to "All" or the most relevant entity
+        - Cascading filters: parent filter selection must automatically
+          refresh and narrow child filter values
+      The default state must be validated with the business owner and
+      documented in the design specification.
+
+  - id: widget_no_overlapping
+    name: "No overlapping widgets"
+    severity: must
+    category: layout
+    description: >
+      Widgets must not overlap. SAC's story editor grid must be used correctly.
+      Widgets positioned via absolute pixel coordinates that create visual
+      overlap will be rejected in QA.
+
+  - id: widget_loading_states
+    name: "Loading state for live connection widgets"
+    severity: must
+    category: ux
+    description: >
+      All widgets connected via live connections must display a loading indicator
+      (spinner or skeleton placeholder) while data is being fetched.
+      The SAC "Loading Spinner" widget or a placeholder text widget must be
+      used. Blank white space during loading is not acceptable.
+
+  - id: widget_hover_drill
+    name: "Drill-through hover states"
+    severity: must
+    category: ux
+    description: >
+      Any chart element or table cell that supports drill-through navigation
+      must show a visual hover state (cursor change, highlight, or tooltip
+      indicating "Click to drill through"). Unlabelled clickable areas confuse
+      end users and must be fixed before delivery.
+
+  - id: widget_responsive_tablet
+    name: "Tablet-safe layout"
+    severity: should
+    category: responsive
+    description: >
+      Dashboards must remain functional and readable on a 1024×768 tablet viewport.
+      Test at 1024px width: no horizontal scrolling, no truncated axis labels,
+      no overlapping widgets. KPI tiles may reduce to 3 per row at tablet width.
+
+  - id: widget_no_3d_charts
+    name: "No 3D chart types"
+    severity: must
+    category: chart_selection
+    description: >
+      3D charts (3D bar, 3D pie, 3D line) are prohibited. They distort data
+      perception and violate IBCS principles. Always use flat 2D chart types.
+
+  - id: widget_max_series
+    name: "Maximum series per chart"
+    severity: should
+    category: chart_selection
+    description: >
+      Charts should contain at most 5 data series. Beyond 5 series the chart
+      becomes unreadable. Use "Other" aggregation for remaining series and
+      provide a Tier 3 table for the full breakdown.
+
+  - id: widget_micro_interactions
+    name: "Micro-interactions for navigation"
+    severity: should
+    category: ux
+    description: >
+      Navigation interactions (drill-through, linked pages, filter changes)
+      must provide visual feedback:
+        - Animated page transitions (SAC page animation: slide or fade)
+        - Active filter chips showing current selection
+        - "Reset all filters" button visible when any non-default filter is active
+        - Breadcrumb showing current navigation path (Tier 1 > Tier 2 > Tier 3)
+
+
+# ---------------------------------------------------------------------------
+# Color Palette
+# ---------------------------------------------------------------------------
+
+color_palette:
+  ibcs_base:
+    description: "Mandatory IBCS base colors — do not modify"
+    colors:
+      actual_dark:
+        hex: "#1A1A1A"
+        name: "AC Primary Dark"
+        usage: "Primary actual series, main data bars"
+      actual_mid:
+        hex: "#5A5A5A"
+        name: "AC Mid Grey"
+        usage: "Secondary actual series"
+      plan_outline:
+        hex: "#1A1A1A"
+        name: "PL Outline"
+        usage: "Plan/Budget series border color (fill: transparent)"
+      forecast_hatch:
+        hex: "#5A5A5A"
+        name: "FC Hatch"
+        usage: "Forecast series hatch pattern base color"
+      positive_deviation:
+        hex: "#2D8B3A"
+        name: "Positive Delta Green"
+        usage: "Favorable deviations, positive waterfall bars"
+      negative_deviation:
+        hex: "#C0392B"
+        name: "Negative Delta Red"
+        usage: "Unfavorable deviations, negative waterfall bars"
+      neutral_total:
+        hex: "#2C3E50"
+        name: "Neutral Dark Blue-Grey"
+        usage: "Waterfall start/end bars, subtotals"
+      background_primary:
+        hex: "#FFFFFF"
+        name: "Canvas White"
+        usage: "Page background"
+      background_secondary:
+        hex: "#F5F5F5"
+        name: "Panel Light Grey"
+        usage: "Widget background, filter panel background"
+      row_alternate:
+        hex: "#FAFAFA"
+        name: "Table Row Alternate"
+        usage: "Even row background in tables"
+      border_subtle:
+        hex: "#E0E0E0"
+        name: "Subtle Border"
+        usage: "Widget borders, grid lines, table column dividers"
+
+  traffic_lights:
+    description: "Traffic light thresholds — must be driven by formulas, not hardcoded"
+    colors:
+      green:
+        hex: "#27AE60"
+        name: "TL Green"
+        usage: "Within tolerance — threshold defined per KPI in design spec"
+      amber:
+        hex: "#F39C12"
+        name: "TL Amber"
+        usage: "Warning — approaching threshold"
+      red:
+        hex: "#E74C3C"
+        name: "TL Red"
+        usage: "Critical — threshold breached"
+
+  accent:
+    description: >
+      Corporate accent colors. Maximum 2. Populate with client's brand colors
+      at project start. Do NOT use for data series.
+    accent_1:
+      hex: "TBD_CLIENT_PRIMARY"
+      name: "Corporate Primary Accent"
+      usage: "Navigation bar, primary buttons, logo area"
+    accent_2:
+      hex: "TBD_CLIENT_SECONDARY"
+      name: "Corporate Secondary Accent"
+      usage: "Selected state highlights, secondary buttons"
+
+  forbidden:
+    description: "Colors that must never appear in SAC stories"
+    colors:
+      - name: "Rainbow gradients"
+        reason: "Violates IBCS — colors must encode meaning, not decorate"
+      - name: "Saturated multi-hue data series"
+        reason: "Violates IBCS — use grey scale + deviations only"
+      - name: "Light yellow (#FFFF00 range)"
+        reason: "Accessibility — poor contrast on white"
+      - name: "Pure red for non-deviation context"
+        reason: "Red = negative deviation only; never use for neutral data"
+
+
+# ---------------------------------------------------------------------------
+# Responsive Rules
+# ---------------------------------------------------------------------------
+
+responsive_rules:
+  - id: resp_desktop_primary
+    name: "Desktop-first design"
+    severity: must
+    description: >
+      All layouts are designed and tested at 1920×1080 (Full HD desktop) as
+      the primary viewport. This is the anchor for the 12-column grid.
+
+  - id: resp_tablet_safe
+    name: "Tablet-safe at 1024px width"
+    severity: must
+    description: >
+      Stories must be verified at 1024×768 (landscape tablet):
+        - No horizontal scrollbar
+        - KPI tiles: max 3 per row (6-column span each)
+        - Chart subtitles may be hidden below 1200px if they cause overflow
+        - Filter panels must collapse to a compact toggle if space is limited
+
+  - id: resp_no_mobile
+    name: "Mobile not in scope (but no hard breaks)"
+    severity: should
+    description: >
+      Mobile viewport (< 768px) is not a primary target for SAC stories.
+      However, stories must not crash or become completely unusable below 768px.
+      Use SAC's responsive page settings to enforce a minimum canvas width of 1024px.
+
+  - id: resp_dark_mode
+    name: "Dark mode compatibility"
+    severity: should
+    description: >
+      Where the SAC tenant has dark mode enabled, stories must remain readable.
+      Avoid hardcoded white backgrounds on text elements — use SAC's theme-aware
+      color variables where available. Test the story in both SAC light and dark themes
+      before delivery.
+
+  - id: resp_print_friendly
+    name: "PDF export / print layout"
+    severity: should
+    description: >
+      Executive Overview (Tier 1) must be printable as a single A4 landscape PDF
+      without data truncation. Enable SAC's "Optimized for Print" story setting.
+      Font sizes must be minimum 9pt when rendered at A4 size.
+
+
+# ---------------------------------------------------------------------------
+# Data Connection Rules
+# ---------------------------------------------------------------------------
+
+data_connection_rules:
+  - id: dc_live_preferred
+    name: "Live connection to DSP Analytic Models"
+    severity: must
+    category: connection_type
+    description: >
+      All SAC stories must connect to SAP Datasphere Analytic Models via
+      live connection. Import models are only permitted when:
+        1. Planning write-back (SAC Planning) is required for that story
+        2. A specific DSP Analytic Model is not yet available and an interim
+           BW query is used as a bridge (must be flagged for remediation)
+      Import mode must be explicitly approved and documented in the design spec.
+
+  - id: dc_variable_defaults
+    name: "Meaningful variable defaults"
+    severity: must
+    category: variables
+    description: >
+      Every SAC story variable (fiscal year, company code, controlling area, etc.)
+      must have a meaningful default:
+        - Fiscal year: current year (use SAC formula variable with CURRENT_YEAR())
+        - Fiscal period: current period YTD
+        - Company code / Controlling area: client's primary entity
+        - Currency: client's primary reporting currency
+      Stories that open with empty variables showing no data are not acceptable.
+
+  - id: dc_page_filter_over_widget
+    name: "Page-level filters over widget-level filters"
+    severity: must
+    category: filter_strategy
+    description: >
+      Filter selections must be applied at page level (Page Filters in SAC) rather
+      than embedded in individual widget queries.
+      Exception: A widget-level filter is acceptable only when the widget
+      intentionally shows a different slice than the page context
+      (e.g. a "previous period" comparison widget). This exception must be
+      documented in the design spec with a justification comment.
+
+  - id: dc_no_hardcoded_members
+    name: "No hardcoded dimension members"
+    severity: must
+    category: data_quality
+    description: >
+      SAC calculated measures and restricted measures must not contain hardcoded
+      dimension member values (e.g. hardcoded company codes, hardcoded cost
+      center ranges). Use hierarchy nodes, attributes, or variables instead.
+      Hardcoded members become stale when master data changes.
+
+  - id: dc_model_documentation
+    name: "Data model connection documented"
+    severity: must
+    category: governance
+    description: >
+      The design specification must document for each story page:
+        - Connected DSP Analytic Model name (technical ID and description)
+        - DSP Space and layer (mart or consumption layer preferred)
+        - Key measures used with their business definition
+        - Variables and their mapping to filter controls
+      Undocumented model connections make maintenance impossible.
+
+  - id: dc_currency_conversion
+    name: "Currency conversion documented"
+    severity: must
+    category: data_quality
+    description: >
+      If the SAC story displays amounts in a reporting currency (e.g. EUR)
+      while source data may be in multiple transaction currencies:
+        - The currency translation method must be documented (average rate, closing rate, etc.)
+        - The exchange rate source (DSP/BW rate table, SAC currency conversion) must be named
+        - The translation date reference (posting date, key date, fiscal year-end) must be stated
+
+  - id: dc_refresh_strategy
+    name: "Data refresh / cache strategy documented"
+    severity: should
+    category: operations
+    description: >
+      For import model stories: document the scheduled refresh frequency and
+      the data currency guarantee (e.g. "data refreshed nightly at 02:00 CET").
+      For live connection stories: document any known latency or the DSP
+      real-time replication / scheduled refresh cycle that feeds the Analytic Model.
+      This information must be visible to end users — add a "Data as of: [date]"
+      indicator on the Tier 1 page.
+
+
+# ---------------------------------------------------------------------------
+# Document Types — for the DocReviewAgent to evaluate design documentation
+# ---------------------------------------------------------------------------
+
+scope:
+  system_level:
+    - sac_design_concept
+  application_level:
+    - sac_story_specification
+    - sac_data_connection_spec
+    - sac_ux_specification
+    - sac_qa_checklist
+
+document_types:
+  - id: sac_design_concept
+    name: "SAC Design Concept"
+    description: >
+      High-level design document that establishes the 3-tier architecture,
+      color palette, IBCS notation decisions, and responsive strategy for
+      a customer SAC implementation. Typically one document per project.
+    required_sections:
+      - id: tier_architecture
+        name: "3-Tier Architecture"
+        description: >
+          Defines the Tier 1 / Tier 2 / Tier 3 structure: which pages belong
+          to which tier, navigation paths, and the business purpose of each tier.
+        min_content_length: 200
+        should_contain: ["tier 1", "tier 2", "tier 3", "navigation", "drill"]
+
+      - id: ibcs_adaptation
+        name: "IBCS Notation Adaptation"
+        description: >
+          Documents the project-specific IBCS adaptations: encoding rules,
+          allowed accent colors, deviation chart placement, number formats.
+        min_content_length: 150
+        should_contain: ["actual", "plan", "forecast", "deviation"]
+
+      - id: color_palette_definition
+        name: "Color Palette Definition"
+        description: >
+          Specifies the project color palette: IBCS base colors, traffic light
+          thresholds, and the 2 corporate accent colors.
+        min_content_length: 100
+        should_contain: ["color", "accent", "traffic"]
+
+      - id: grid_layout
+        name: "12-Column Grid Layout"
+        description: >
+          Documents the grid system, standard widget widths, and spacing rules.
+          Should include a visual example or mockup.
+        min_content_length: 80
+        should_contain_visual: true
+
+      - id: responsive_strategy
+        name: "Responsive / Multi-Device Strategy"
+        description: >
+          States the target viewports (desktop primary, tablet secondary)
+          and any breakpoint rules.
+        min_content_length: 80
+        should_contain: ["desktop", "tablet", "1024"]
+
+  - id: sac_story_specification
+    name: "SAC Story Specification"
+    description: >
+      Per-story (per-subject area) specification document. Defines each page
+      within the story, its tier, the widgets placed, and the business logic.
+    required_sections:
+      - id: story_overview
+        name: "Story Overview"
+        description: >
+          Purpose of the story, target user group, business questions answered.
+          Must include the DSP Analytic Model(s) used.
+        min_content_length: 100
+        should_contain: ["analytic model", "target user", "business question"]
+
+      - id: page_inventory
+        name: "Page Inventory"
+        description: >
+          Table listing all pages: page name, tier assignment (1/2/3),
+          primary chart type, and filter controls present.
+        min_content_length: 150
+        should_contain: ["tier", "page", "filter"]
+
+      - id: kpi_definitions
+        name: "KPI Definitions"
+        description: >
+          For each KPI shown on Tier 1: business definition, SAC measure name,
+          calculation logic, comparison base (plan/prior year), and thresholds.
+        min_content_length: 200
+        should_contain: ["kpi", "threshold", "calculation", "deviation"]
+
+      - id: filter_specification
+        name: "Filter & Variable Specification"
+        description: >
+          All SAC variables and page filters: technical name, default value,
+          mandatory/optional, cascading dependencies.
+        min_content_length: 150
+        should_contain: ["variable", "default", "filter", "cascading"]
+
+      - id: navigation_design
+        name: "Navigation Design"
+        description: >
+          Drill-through paths between all tiers. Must include a navigation
+          diagram showing the page relationships.
+        min_content_length: 100
+        should_contain_visual: true
+        should_contain: ["drill", "navigation", "page"]
+
+      - id: number_format_spec
+        name: "Number Format Specification"
+        description: >
+          Number format rules for each measure category: currency amounts,
+          percentages, headcount, volumes. Must specify scaling factor and unit.
+        min_content_length: 100
+        should_contain: ["format", "€", "unit", "decimal"]
+
+  - id: sac_data_connection_spec
+    name: "SAC Data Connection Specification"
+    description: >
+      Documents all data connections used in SAC stories: models, measures,
+      variables, and currency translation.
+    required_sections:
+      - id: model_inventory
+        name: "Analytic Model Inventory"
+        description: >
+          Table of all connected DSP Analytic Models: technical name, DSP space,
+          description, owner, and which SAC stories use it.
+        min_content_length: 150
+        should_contain: ["analytic model", "space", "dsp"]
+
+      - id: measure_definitions
+        name: "Measure Definitions"
+        description: >
+          Business definition for all key measures: technical name, business name,
+          calculation formula (if restricted/calculated), and data source column.
+        min_content_length: 200
+        should_contain: ["measure", "calculation", "formula"]
+
+      - id: variable_mapping
+        name: "Variable to Filter Mapping"
+        description: >
+          Maps each DSP variable to the SAC filter control that drives it.
+          Includes the default value rule and the cascading hierarchy.
+        min_content_length: 100
+        should_contain: ["variable", "filter", "default", "mapping"]
+
+      - id: currency_translation
+        name: "Currency Translation"
+        description: >
+          Documents the currency conversion approach: rate type, reference date,
+          source of exchange rates, and which measures are converted.
+        min_content_length: 80
+        should_contain: ["currency", "rate", "conversion"]
+
+      - id: connection_type_justification
+        name: "Connection Type Justification"
+        description: >
+          States live vs. import for each model. If import: documents the
+          scheduled refresh time and data latency guarantee.
+        min_content_length: 80
+        should_contain: ["live", "import", "refresh"]
+
+  - id: sac_ux_specification
+    name: "SAC UX Specification"
+    description: >
+      Documents the user experience design: widget layout per page,
+      interaction design, and visual design compliance with IBCS and color rules.
+    required_sections:
+      - id: wireframes
+        name: "Wireframes / Mockups"
+        description: >
+          Low or mid fidelity wireframes for each story page showing the
+          widget layout, tier assignment, and navigation flows.
+        min_content_length: 50
+        should_contain_visual: true
+
+      - id: widget_configuration
+        name: "Widget Configuration Details"
+        description: >
+          For each non-trivial widget: chart type, series, IBCS encoding,
+          conditional formatting rules, and drill-through behaviour.
+        min_content_length: 200
+        should_contain: ["chart", "series", "drill", "conditional"]
+
+      - id: conditional_formatting_thresholds
+        name: "Conditional Formatting Thresholds"
+        description: >
+          Documents all traffic light and conditional formatting thresholds:
+          KPI name, green threshold, amber threshold, red threshold, formula used.
+        min_content_length: 150
+        should_contain: ["threshold", "green", "red", "amber", "formula"]
+
+      - id: accessibility_check
+        name: "Accessibility & Contrast Check"
+        description: >
+          Documents that color contrast ratios meet WCAG AA (4.5:1 for text).
+          Confirms that color coding is never the sole data carrier
+          (always accompanied by icons, labels, or patterns).
+        min_content_length: 80
+        should_contain: ["contrast", "color", "accessibility"]
+
+  - id: sac_qa_checklist
+    name: "SAC QA Acceptance Checklist"
+    description: >
+      Pre-delivery QA checklist that must be signed off before any SAC story
+      is released to users. Covers design compliance, data accuracy, and UX.
+    required_sections:
+      - id: design_compliance
+        name: "Design Compliance Check"
+        description: >
+          Checklist verifying: 3-tier structure present, IBCS encoding correct,
+          no pie charts, deviation charts present, color palette compliant.
+        min_content_length: 100
+        should_contain: ["ibcs", "tier", "deviation", "color"]
+
+      - id: data_accuracy_check
+        name: "Data Accuracy Check"
+        description: >
+          Documents the reconciliation check: SAC totals vs. source system totals,
+          testing scope (date range, entities), and sign-off by the business.
+        min_content_length: 100
+        should_contain: ["reconciliation", "total", "source", "accuracy"]
+
+      - id: filter_behaviour_check
+        name: "Filter Behaviour Check"
+        description: >
+          Confirms: cascading filters work, defaults are meaningful,
+          all pages update correctly on filter change, reset button works.
+        min_content_length: 80
+        should_contain: ["filter", "default", "cascading", "reset"]
+
+      - id: navigation_check
+        name: "Navigation Check"
+        description: >
+          Confirms: all drill-throughs work, hover states visible,
+          back-navigation returns to correct page, breadcrumbs accurate.
+        min_content_length: 60
+        should_contain: ["drill", "navigation", "hover"]
+
+      - id: number_format_check
+        name: "Number Format Check"
+        description: >
+          Confirms: German locale applied throughout, units present on all numbers,
+          no rounding errors, currency conversion values reconciled.
+        min_content_length: 60
+        should_contain: ["format", "unit", "german", "rounding"]
+
+      - id: performance_check
+        name: "Performance Check"
+        description: >
+          Documents page load times for each story page under live connection.
+          Tier 1 must load within 3 seconds. Tier 2 within 5 seconds. Tier 3 within 8 seconds.
+          Any page exceeding thresholds requires DSP model optimization before release.
+        min_content_length: 80
+        should_contain: ["load", "performance", "seconds", "tier 1"]
+
+      - id: signoff
+        name: "Stakeholder Sign-Off"
+        description: >
+          Business owner sign-off, Horváth consultant sign-off, date, and
+          any open issues with agreed remediation dates.
+        min_content_length: 30
+        should_contain: ["sign-off", "owner", "date"]
+
+
+# ---------------------------------------------------------------------------
+# Scoring — calibrated for SAC design documentation
+# ---------------------------------------------------------------------------
+
+scoring:
+  section_present: 5
+  section_min_length_met: 3
+  section_contains_keywords: 2
+  section_has_visual: 4
+  penalties:
+    section_missing: -10
+    section_too_short: -3
+    no_visuals_where_expected: -6
+
+  # Grade thresholds for the automated review report
+  grade_thresholds:
+    excellent:
+      min_percentage: 90
+      label: "Excellent — meets Horváth SAC standard"
+    good:
+      min_percentage: 75
+      label: "Good — minor gaps to address before delivery"
+    acceptable:
+      min_percentage: 60
+      label: "Acceptable — significant gaps; remediation required"
+    poor:
+      min_percentage: 0
+      label: "Below standard — major rework required before client handover"
+
+  # Bonus points for exceptional quality indicators (informational only — not added to base score)
+  bonus_indicators:
+    - id: has_ibcs_deviation_charts
+      description: "All plan/actual pages include deviation charts"
+      bonus_points: 5
+    - id: has_navigation_diagram
+      description: "Navigation flow diagram present in design spec"
+      bonus_points: 3
+    - id: has_performance_benchmarks
+      description: "Page load time benchmarks documented and met"
+      bonus_points: 3
+    - id: has_reconciliation_proof
+      description: "Data reconciliation to source system documented with screenshots"
+      bonus_points: 5
+    - id: no_import_models
+      description: "All connections are live connections (no import models)"
+      bonus_points: 4

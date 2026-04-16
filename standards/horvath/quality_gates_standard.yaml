@@ -1,0 +1,1215 @@
+name: "Horvath Quality Gates and Governance Standard"
+version: "1.0"
+description: >
+  Defines the mandatory quality gates that every SAP Datasphere and BW/4HANA
+  deliverable must pass before promotion between environments. Gates are
+  lightweight by design — they must be completable within a single working day
+  each — but non-negotiable. No artifact moves forward without passing the gate
+  appropriate to its promotion stage.
+
+  This standard covers DSP objects (local tables, views, replication flows,
+  transformation flows, analytic models), BW/4HANA objects (ADSOs,
+  InfoObjects, transformations, process chains), and SAC artefacts (stories,
+  applications, embedded analytics).
+
+  Automated checks (naming, SQL rules, dependency graphs) are run by the
+  review agent. Human checks (business name quality, KPI correctness, UAT
+  sign-off) require a named approver. Both must pass for a gate to clear.
+
+scope:
+  platforms:
+    - "SAP Datasphere (DSP)"
+    - "SAP BW/4HANA"
+    - "SAP Analytics Cloud (SAC)"
+  environments:
+    - DEV
+    - QA
+    - PROD
+  applies_to:
+    - New development
+    - Enhancements to existing objects
+    - Schema changes (column add/modify)
+    - Process chain modifications
+    - Security / DAC changes
+  exceptions:
+    - Documentation-only changes (description field updates) — Gate 1 only
+    - Hotfixes — Gate 1 skipped with documented risk acceptance, all other gates mandatory
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1 — GATE DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+gate_definitions:
+
+  - id: gate_1
+    name: "Gate 1: Design Review"
+    purpose: >
+      Validates that the design is sound BEFORE any build work begins.
+      Catching problems here costs a discussion; catching them at Gate 3
+      costs a rework sprint.
+    stage: "Before build (DEV)"
+    trigger: "Developer has created a design sketch / technical spec"
+    automated_checks:
+      - id: g1_naming
+        name: "Naming convention compliance"
+        description: >
+          Proposed object names must comply with the layer-specific prefix
+          conventions defined in the implementation guideline. The review
+          agent checks against patterns: LT_, RT_, RF_, RV_, HV_, FV_, MD_,
+          AM_, TF_, TC_, DAC_ for DSP; 0<NS>W/S/D, ZCL_, ZFI_, etc. for BW.
+        automated: true
+        severity: must
+      - id: g1_layer
+        name: "Layer correctness"
+        description: >
+          The proposed layer assignment (RAW / HARMONIZED / MART / CONSUMPTION)
+          must be consistent with the object's purpose. An object that joins
+          two source systems cannot be RAW. An object with a KPI formula cannot
+          be HARMONIZED. A persistence decision must be documented and must
+          follow the persistence rules in Section 6.1 of the implementation
+          guideline.
+        automated: true
+        severity: must
+      - id: g1_reuse
+        name: "Reuse check"
+        description: >
+          Before creating a new object, verify that a functionally equivalent
+          object does not already exist in the same or a shared space. The
+          review agent queries the lineage graph and existing object catalogue.
+          Duplicate objects with minor variations are a common source of
+          divergence. If a close match exists, the default decision is to extend
+          the existing object rather than create a new one.
+        automated: true
+        severity: must
+      - id: g1_integration
+        name: "Integration impact assessment"
+        description: >
+          Changes to HARMONIZED or MART objects trigger a downstream impact
+          check. The review agent identifies all objects that consume the
+          proposed new or modified object and lists them. The developer must
+          acknowledge each downstream consumer and confirm whether it is
+          affected.
+        automated: true
+        severity: must
+    human_checks:
+      - id: g1_design_sense
+        name: "Design makes business sense"
+        description: >
+          A peer developer or technical lead reviews the design sketch and
+          confirms that the proposed grain, key structure, join logic, and
+          layer placement are appropriate for the stated business requirement.
+          This is a judgment check — the reviewer must understand the domain.
+        reviewer_role: peer_developer
+        severity: must
+      - id: g1_brs_link
+        name: "Linked to a BRS requirement"
+        description: >
+          Every design must reference at least one business requirement from
+          the BRS. Design work with no traceable requirement is deferred until
+          the requirement is documented.
+        reviewer_role: technical_lead
+        severity: must
+
+  - id: gate_2
+    name: "Gate 2: Technical Review"
+    purpose: >
+      Validates that the built artifact meets technical quality standards
+      before it is deployed to the QA environment. The developer presents
+      evidence; the technical lead and a peer verify it.
+    stage: "Before QA deploy"
+    trigger: "Developer considers the build complete in DEV"
+    automated_checks:
+      - id: g2_sql_quality
+        name: "SQL quality rules"
+        description: >
+          Automated scan against all SQL coding rules from the implementation
+          guideline. Checked: no SELECT *, explicit JOINs with aliases,
+          CASE expressions have ELSE clauses, no hardcoded dates or client
+          numbers, UNION ALL legs have matching column aliases, division
+          guards NULLIF present where division occurs, VARCHAR dates converted
+          to DATE by HARMONIZED layer at latest.
+        automated: true
+        severity: must
+      - id: g2_semantic_types
+        name: "Semantic type annotations"
+        description: >
+          DSP analytic models and SAC-facing views must have semantic type
+          annotations on all measure columns (currency, unit, amount type).
+          Columns with semantic type AMOUNT must have an associated CURRENCY
+          column. Columns with semantic type QUANTITY must have an associated
+          UNIT_OF_MEASURE column. Missing semantic types cause SAC to render
+          measures without currency context.
+        automated: true
+        severity: must
+      - id: g2_associations
+        name: "Associations and relationships"
+        description: >
+          DSP analytic models must declare associations to all dimension views
+          that are used in SAC filters. Undeclared associations cause filter
+          values to be empty in SAC drill-downs. The review agent verifies that
+          every JOIN target that is a master data / dimension object has a
+          corresponding association declaration.
+        automated: true
+        severity: must
+      - id: g2_test_results
+        name: "Test results attached"
+        description: >
+          The developer must attach test evidence: reconciliation query results
+          (record count and key figure totals vs. source system), delta test
+          results (full load + delta produces same result as two full loads),
+          and volume test results (tested on production-scale data volume).
+          The review agent checks that the test protocol document exists and
+          references the correct object.
+        automated: false
+        severity: must
+      - id: g2_persistence
+        name: "Persistence strategy confirmed"
+        description: >
+          Every new persisted object must document: why it is persisted
+          (query time, number of consumers, cross-source join, aggregation
+          ratio), expected row count at go-live, expected growth rate, and
+          whether a partitioning strategy applies. Objects that meet the
+          persistence criteria from Section 6.1 but are left in-memory must
+          include a documented exception.
+        automated: false
+        severity: must
+      - id: g2_dac
+        name: "Data access control applied"
+        description: >
+          Every analytic model and CONSUMPTION view that exposes business data
+          must have a DAC applied. The review agent checks that the DAC exists
+          and is active. Models without a DAC are blocked from QA transport.
+          Exception: models explicitly designated as non-restricted (e.g.,
+          publicly available reference data) must have this exception documented
+          and approved by the security lead.
+        automated: true
+        severity: must
+    human_checks:
+      - id: g2_peer_review
+        name: "Peer code review"
+        description: >
+          A peer developer reviews all SQL expressions, transformation logic,
+          ABAP programs, and CASE expressions against the implementation
+          guideline. Reviewer must check all items in the code review checklist
+          (Section 10.2 of the implementation guideline) and confirm sign-off.
+        reviewer_role: peer_developer
+        severity: must
+      - id: g2_view_depth
+        name: "View stacking depth"
+        description: >
+          Technical lead verifies that the view stacking depth does not exceed
+          5 layers. If the design requires depth >5, an intermediate
+          persistence point must be introduced.
+        reviewer_role: technical_lead
+        severity: must
+
+  - id: gate_3
+    name: "Gate 3: Business Review"
+    purpose: >
+      Validates that the artifact is correct for the business, not just
+      technically sound. Business users who will work with the data every
+      day must confirm that what was built matches what was asked for.
+      This gate cannot be performed by the development team alone.
+    stage: "Before PROD deploy"
+    trigger: "QA testing is complete and the artifact is candidate for PROD"
+    automated_checks:
+      - id: g3_business_names
+        name: "Business-friendly column names"
+        description: >
+          CONSUMPTION layer objects and SAC stories must use business-readable
+          column labels. Columns named WRBTR, BUKRS, KOSTL are not acceptable
+          in a user-facing object. The review agent checks for any SAP
+          technical field names (patterns: 4–8 uppercase chars, common SAP
+          table field names) in CONSUMPTION objects and flags them.
+        automated: true
+        severity: must
+      - id: g3_kpi_formula
+        name: "KPI formula traceability"
+        description: >
+          Every measure exposed in an analytic model or SAC story must trace
+          to a KPI definition in the BRS. The review agent checks the
+          traceability matrix for KPI entries that reference the object.
+          Measures with no BRS reference are flagged as undocumented KPIs
+          and must either be documented or removed.
+        automated: true
+        severity: must
+      - id: g3_ibcs
+        name: "IBCS compliance for charts"
+        description: >
+          SAC stories must comply with IBCS notation conventions where
+          applicable: actual values in solid black, budget/plan in outlined
+          bars, prior year in grey, variance in red/green with delta arrows.
+          Semantic axis labelling must follow IBCS time-period notation
+          (PY, PY-1, AC, BU, FC). The review agent checks for common IBCS
+          violations: mixed colour palettes for the same measure type,
+          missing axis labels, pie charts where bar/waterfall is required.
+        automated: false
+        severity: should
+      - id: g3_sac_layout
+        name: "SAC layout follows design standard"
+        description: >
+          Story pages must follow the Horvath SAC layout standard: header band
+          with story title, context selectors (date range, company code,
+          cost centre), KPI tile row, main analysis area, footnote with data
+          freshness timestamp and contact owner. The review agent checks for
+          the presence of required page elements.
+        automated: false
+        severity: should
+    human_checks:
+      - id: g3_uat_signoff
+        name: "UAT sign-off by business owner"
+        description: >
+          The business owner named in the BRS must sign off on the UAT test
+          protocol. Sign-off confirms: the data matches the expected values
+          from a known reference period, the filters and drill-down paths
+          work as required, the report layout is accepted for production use.
+          Sign-off by proxy (a delegate without domain knowledge) is not
+          acceptable.
+        reviewer_role: business_owner
+        severity: must
+      - id: g3_kpi_correct
+        name: "KPI values verified against source"
+        description: >
+          Business owner compares at least one full reporting period of key
+          figures from the SAC story against a known reference (existing
+          report, SAP transaction, Excel extract). Discrepancies above 0.5%
+          tolerance for financial figures must be resolved before sign-off.
+        reviewer_role: business_owner
+        severity: must
+      - id: g3_rollback_plan
+        name: "Rollback plan documented"
+        description: >
+          The release manager must confirm that a documented rollback plan
+          exists. Rollback plan must specify: which transport requests to
+          reverse, whether a data rollback is required, who executes the
+          rollback, and the maximum acceptable rollback window.
+        reviewer_role: release_manager
+        severity: must
+
+  - id: gate_4
+    name: "Gate 4: Post-Deploy Validation"
+    purpose: >
+      Confirms that the production deployment succeeded and the artifact
+      functions correctly in the production environment. Runs within 24 hours
+      of the PROD transport. A failed Gate 4 triggers immediate escalation
+      to the release manager and may initiate rollback.
+    stage: "Within 24 hours of PROD deploy"
+    trigger: "Successful PROD transport completion"
+    automated_checks:
+      - id: g4_data_refresh
+        name: "Data refresh executes successfully"
+        description: >
+          The task chain or process chain responsible for the new objects must
+          complete at least one successful run in PROD. The review agent checks
+          the run log for the past 24 hours and confirms a green completion
+          status. A run that completed with warnings must be reviewed manually.
+        automated: true
+        severity: must
+      - id: g4_no_broken_deps
+        name: "No broken downstream dependencies"
+        description: >
+          The lineage graph is re-evaluated after the PROD transport. Any
+          object that previously consumed a now-replaced object and has a
+          broken reference must be flagged immediately. The review agent
+          runs a dependency health check across all objects that reference
+          the transported artifacts.
+        automated: true
+        severity: must
+      - id: g4_sac_load_sla
+        name: "SAC story loads within SLA"
+        description: >
+          For any SAC story or analytic model included in the transport,
+          the load time must be within the agreed SLA: initial page load
+          ≤10 seconds, filter interaction ≤5 seconds, on production data
+          volume. Performance is measured by the release manager running
+          the story with a non-cached session immediately after deployment.
+        automated: false
+        severity: must
+      - id: g4_security_validated
+        name: "Row-level security validated in PROD"
+        description: >
+          At least one non-admin test user must successfully access the PROD
+          story and confirm that they see only the data permitted by their
+          authorization profile. At least one unauthorized data access attempt
+          must be confirmed to be denied (tested with a user from a different
+          company code or cost centre group).
+        automated: false
+        severity: must
+    human_checks:
+      - id: g4_business_smoke_test
+        name: "Business smoke test on production data"
+        description: >
+          The business owner or a designated key user performs a smoke test
+          on actual production data: opens the SAC story, applies the standard
+          filters for the current period, and confirms that the headline KPIs
+          look plausible. This is not a full UAT — it is a sanity check on
+          production data freshness and correct values.
+        reviewer_role: business_owner
+        severity: must
+      - id: g4_monitoring_active
+        name: "Monitoring and alerting active"
+        description: >
+          The release manager confirms that process chain / task chain
+          monitoring is configured for the new flows: failure alerting is
+          active, the on-call contact is updated in the operations runbook,
+          and the first scheduled run has been verified in the production
+          schedule.
+        reviewer_role: release_manager
+        severity: should
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 2 — REVIEW CHECKLISTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+review_checklists:
+
+  gate_1_design_review:
+    description: "Complete before starting any build work in DEV"
+    items:
+      - id: ck_g1_01
+        text: "Proposed object name follows layer-prefix convention"
+        severity: must
+      - id: ck_g1_02
+        text: "Object is assigned to exactly one architecture layer; assignment is documented"
+        severity: must
+      - id: ck_g1_03
+        text: "Persistence decision is documented with justification (query time / consumer count / cross-source / aggregation ratio)"
+        severity: must
+      - id: ck_g1_04
+        text: "Checked object catalogue — no functionally equivalent object already exists"
+        severity: must
+      - id: ck_g1_05
+        text: "All downstream consumers of modified objects are identified and listed"
+        severity: must
+      - id: ck_g1_06
+        text: "Design is traced to at least one BRS requirement ID"
+        severity: must
+      - id: ck_g1_07
+        text: "Authorization concept is considered — which org dimensions restrict access?"
+        severity: must
+      - id: ck_g1_08
+        text: "Delta mechanism is defined for RAW objects (ODP / SLT / replication flow / full reload with swap)"
+        severity: must
+      - id: ck_g1_09
+        text: "Partitioning strategy defined if expected row count exceeds 10 million"
+        severity: should
+      - id: ck_g1_10
+        text: "Abbreviations used in the name are registered in the project abbreviation register"
+        severity: should
+      - id: ck_g1_11
+        text: "Reuse opportunity assessed — could an existing HARMONIZED object be extended instead of creating a new one?"
+        severity: should
+      - id: ck_g1_12
+        text: "Test data strategy noted — anonymized extract available for DEV testing?"
+        severity: nice
+
+  gate_2_technical_review:
+    description: "Complete before raising a QA transport request"
+    items:
+      - id: ck_g2_01
+        text: "No SELECT * in any SQL view or ABAP program"
+        severity: must
+      - id: ck_g2_02
+        text: "All JOINs are explicit (INNER JOIN / LEFT OUTER JOIN) with named table aliases"
+        severity: must
+      - id: ck_g2_03
+        text: "All CASE expressions have an ELSE clause"
+        severity: must
+      - id: ck_g2_04
+        text: "VARCHAR dates (DATAB, DATBI, BUDAT, ERDAT, etc.) converted to DATE by HARMONIZED layer"
+        severity: must
+      - id: ck_g2_05
+        text: "UNION ALL legs have matching column count and matching AS aliases"
+        severity: must
+      - id: ck_g2_06
+        text: "Division expressions use NULLIF guard to prevent divide-by-zero"
+        severity: must
+      - id: ck_g2_07
+        text: "No hardcoded client numbers, dates, or magic values — constants declared with CONSTANTS or as config parameters"
+        severity: must
+      - id: ck_g2_08
+        text: "FOR ALL ENTRIES is guarded against empty driving table (IF lt_xxx IS NOT INITIAL)"
+        severity: must
+      - id: ck_g2_09
+        text: "No nested SELECT inside LOOP"
+        severity: must
+      - id: ck_g2_10
+        text: "No empty CATCH blocks — all exceptions are logged with context"
+        severity: must
+      - id: ck_g2_11
+        text: "Reconciliation query exists, has been run, and results are documented in the test protocol"
+        severity: must
+      - id: ck_g2_12
+        text: "Delta test evidence provided (full + delta load produces same result as two full loads)"
+        severity: must
+      - id: ck_g2_13
+        text: "Volume test run on production-scale data; execution time is within accepted SLA"
+        severity: must
+      - id: ck_g2_14
+        text: "DAC applied to all CONSUMPTION analytic models; tested with non-admin user"
+        severity: must
+      - id: ck_g2_15
+        text: "Semantic types annotated on all measure columns (AMOUNT paired with CURRENCY, QUANTITY paired with UOM)"
+        severity: must
+      - id: ck_g2_16
+        text: "Associations declared for all dimension objects referenced in SAC filter paths"
+        severity: must
+      - id: ck_g2_17
+        text: "View stacking depth ≤5 layers; intermediate persistence added if exceeded"
+        severity: must
+      - id: ck_g2_18
+        text: "SQL view header comment block present (View, Layer, Author, Date, Purpose, Changes)"
+        severity: must
+      - id: ck_g2_19
+        text: "Object description field populated with ≥20 characters of meaningful text"
+        severity: must
+      - id: ck_g2_20
+        text: "Owner field set; owner is a current project team member (not a departed consultant)"
+        severity: must
+      - id: ck_g2_21
+        text: "Inline comments present for non-obvious WHERE clauses, JOIN conditions, CASE expressions"
+        severity: should
+      - id: ck_g2_22
+        text: "JOINs are on indexed fields; explicit secondary index defined for foreign key columns if not in primary key"
+        severity: should
+      - id: ck_g2_23
+        text: "ABAP: all methods are ≤50 executable statements; no FORM routines in new code"
+        severity: should
+      - id: ck_g2_24
+        text: "TMP_ and TEST_ objects removed from transport content"
+        severity: must
+      - id: ck_g2_25
+        text: "Transport request contains only objects related to the current feature (no unrelated changes bundled)"
+        severity: should
+
+  gate_3_business_review:
+    description: "Complete before raising a PROD transport request. Business owner must be present."
+    items:
+      - id: ck_g3_01
+        text: "UAT sign-off recorded in the test protocol document with business owner name and date"
+        severity: must
+      - id: ck_g3_02
+        text: "KPI values verified against reference report / SAP transaction for at least one full period"
+        severity: must
+      - id: ck_g3_03
+        text: "Discrepancies in financial figures are within 0.5% tolerance or formally accepted with written justification"
+        severity: must
+      - id: ck_g3_04
+        text: "CONSUMPTION layer column labels are business-readable — no raw SAP technical field names visible to users"
+        severity: must
+      - id: ck_g3_05
+        text: "Every KPI measure traces to a named KPI definition in the BRS"
+        severity: must
+      - id: ck_g3_06
+        text: "Rollback plan documented: which transports to reverse, data rollback needed?, responsible person, rollback window"
+        severity: must
+      - id: ck_g3_07
+        text: "PROD transport window is scheduled (not Friday, not month-end close, not during scheduled batch window)"
+        severity: must
+      - id: ck_g3_08
+        text: "All named downstream consumers have been tested in QA and confirmed unaffected"
+        severity: must
+      - id: ck_g3_09
+        text: "SAC story layout: header band, context selectors, KPI tiles, analysis area, footnote with data freshness timestamp"
+        severity: should
+      - id: ck_g3_10
+        text: "IBCS notation applied: AC solid, BU/PL outlined, PY grey, variances delta-arrow with red/green"
+        severity: should
+      - id: ck_g3_11
+        text: "Time period labels follow IBCS convention (AC, BU, FC, PY, PY-1)"
+        severity: should
+      - id: ck_g3_12
+        text: "No pie charts where a bar chart, waterfall, or variance column chart would communicate the data more clearly"
+        severity: should
+      - id: ck_g3_13
+        text: "SAC story optimized for target device: desktop and/or mobile layout verified"
+        severity: nice
+      - id: ck_g3_14
+        text: "Operational runbook updated with schedule, failure contacts, recovery steps"
+        severity: must
+
+  gate_4_post_deploy:
+    description: "Complete within 24 hours of successful PROD transport"
+    items:
+      - id: ck_g4_01
+        text: "Task chain / process chain completed successfully at least once in PROD (green status, no warnings)"
+        severity: must
+      - id: ck_g4_02
+        text: "Dependency health check run — no broken references in lineage graph"
+        severity: must
+      - id: ck_g4_03
+        text: "SAC story initial page load ≤10 seconds on production data (cold cache, non-admin user)"
+        severity: must
+      - id: ck_g4_04
+        text: "SAC filter interaction ≤5 seconds"
+        severity: must
+      - id: ck_g4_05
+        text: "Row-level security validated in PROD: restricted user sees only permitted data"
+        severity: must
+      - id: ck_g4_06
+        text: "Unauthorized access attempt confirmed denied (cross-company-code or cross-cost-centre test)"
+        severity: must
+      - id: ck_g4_07
+        text: "Business owner / key user smoke test completed on production data for current period"
+        severity: must
+      - id: ck_g4_08
+        text: "Process chain / task chain failure alerting is active and contacts are current"
+        severity: must
+      - id: ck_g4_09
+        text: "Deployment recorded in the change log with transport IDs, deployer, timestamp"
+        severity: must
+      - id: ck_g4_10
+        text: "Rollback plan can be retired (or updated) now that go-live is confirmed"
+        severity: should
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 3 — APPROVAL WORKFLOW
+# ─────────────────────────────────────────────────────────────────────────────
+
+approval_workflow:
+
+  roles:
+    - id: developer
+      name: "Developer"
+      description: "Person who built or modified the artifact. Cannot approve their own work at any gate."
+    - id: peer_developer
+      name: "Peer Developer"
+      description: >
+        A developer who did not build the artifact but has equivalent technical
+        skill in DSP/BW. Approves Gate 1 design check and Gate 2 code review.
+    - id: technical_lead
+      name: "Technical Lead"
+      description: >
+        Senior technical resource with full knowledge of the architecture.
+        Approves QA transports (Gate 2). Signs off on schema changes and
+        changes to shared HARMONIZED objects.
+    - id: business_owner
+      name: "Business Owner"
+      description: >
+        The domain expert named in the BRS who is responsible for the
+        correctness of the business data. Must personally confirm Gate 3 sign-off
+        — cannot delegate to a technical resource.
+    - id: release_manager
+      name: "Release Manager"
+      description: >
+        Responsible for scheduling and coordinating PROD deployments.
+        Confirms rollback plan (Gate 3) and post-deploy monitoring (Gate 4).
+    - id: architect
+      name: "Solution Architect"
+      description: >
+        Required for schema changes affecting shared HARMONIZED objects,
+        changes to authorization design, or any change flagged as high-impact
+        by the downstream dependency check.
+
+  approval_matrix:
+    - gate: gate_1
+      required_approvers:
+        - peer_developer
+        - technical_lead
+      notes: >
+        Both approvers must sign off. If no peer developer is available on the
+        project, the technical lead may approve both checks. Document the
+        exception.
+
+    - gate: gate_2
+      required_approvers:
+        - peer_developer
+        - technical_lead
+      conditional_approvers:
+        - condition: "Schema change on a shared HARMONIZED or MART object"
+          additional_approver: architect
+        - condition: "Change affects >5 downstream consumers"
+          additional_approver: architect
+      notes: >
+        Technical lead approves the QA transport request. Peer developer approves
+        the code review checklist. Both must be complete before the transport
+        request is released.
+
+    - gate: gate_3
+      required_approvers:
+        - business_owner
+        - release_manager
+      notes: >
+        Business owner sign-off must be recorded in the UAT test protocol
+        document with a wet or digital signature, not just a verbal
+        confirmation. Release manager confirms the deployment window and
+        rollback plan.
+
+    - gate: gate_4
+      required_approvers:
+        - release_manager
+      conditional_approvers:
+        - condition: "Gate 4 automated checks fail"
+          additional_approver: technical_lead
+        - condition: "Row-level security validation fails"
+          additional_approver: architect
+      notes: >
+        Release manager completes the post-deploy checklist and marks the
+        deployment as confirmed. Business owner smoke test is recorded in the
+        checklist by the release manager.
+
+  escalation_paths:
+    - scenario: "Approver is unavailable and SLA is at risk"
+      escalation_target: technical_lead
+      max_wait: "1 business day before escalating"
+      action: >
+        Technical lead nominates a temporary substitute with equivalent role
+        authority. Substitution must be documented in the gate record.
+
+    - scenario: "Business owner refuses to sign off without a design change"
+      escalation_target: technical_lead
+      max_wait: "Immediate"
+      action: >
+        Business owner documents the specific objection. Technical lead
+        convenes a triage meeting within 1 business day. Design change or
+        formal deferral decision reached. No transport proceeds with a
+        refused Gate 3.
+
+    - scenario: "Gate 4 post-deploy check fails"
+      escalation_target: release_manager
+      max_wait: "Immediate"
+      action: >
+        Release manager decides within 2 hours: (a) fix forward if the issue
+        is minor and can be resolved without a rollback, (b) initiate rollback
+        if data is incorrect or security is broken. Rollback decision is
+        communicated to all stakeholders within 30 minutes of decision.
+
+    - scenario: "SLA breach — gate not actioned within review window"
+      escalation_target: project_manager
+      max_wait: "3 business days from gate submission"
+      action: >
+        Project manager identifies the blocker, removes it, or documents
+        a formal risk acceptance for proceeding without full sign-off.
+
+  slas:
+    gate_1_review_window: "2 business days from design submission"
+    gate_2_review_window: "2 business days from DEV complete notification"
+    gate_3_review_window: "2 business days from QA testing complete notification"
+    gate_4_completion_deadline: "24 hours after successful PROD transport"
+    escalation_trigger: "3 business days without action on any open gate"
+    breach_action: >
+      Project manager informed. Blocker investigated and resolved within
+      1 additional business day, or a formal risk acceptance is documented
+      and signed by the project manager.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4 — CONFIDENCE SCORING
+# ─────────────────────────────────────────────────────────────────────────────
+
+confidence_scoring:
+  description: >
+    The review agent calculates a confidence score for each artifact on
+    five dimensions. The score is used to communicate readiness state and
+    to flag areas that need attention. Scores do NOT replace gate sign-off
+    — an artifact with a green score still requires human approval at
+    Gates 2 and 3.
+
+  dimensions:
+    - id: completeness
+      name: "Completeness"
+      description: >
+        Does the artifact have all required documentation, descriptions,
+        owner assignments, BRS links, and test evidence? A score of 100%
+        means every mandatory field is populated and every mandatory test
+        result is attached.
+      weight: 0.25
+      automated: true
+      checks:
+        - "Description field populated (≥20 chars)"
+        - "Owner field populated"
+        - "Layer assignment documented"
+        - "BRS requirement ID linked"
+        - "Reconciliation query exists and result is attached"
+        - "Delta test evidence exists (for delta-enabled objects)"
+        - "Persistence decision documented"
+        - "Rollback plan documented (for Gate 3)"
+        - "Operational runbook entry exists"
+
+    - id: correctness
+      name: "Correctness"
+      description: >
+        Does the artifact implement the business rules correctly? Assessed
+        through reconciliation results, KPI formula traceability, and
+        business owner sign-off status. Automated sub-score based on
+        reconciliation pass/fail; full score requires business owner
+        confirmation.
+      weight: 0.30
+      automated: false
+      checks:
+        - "Reconciliation delta ≤0.5% vs. source system"
+        - "All KPI measures trace to BRS definitions"
+        - "Business owner has confirmed data values in UAT"
+        - "No unexplained NULL measures in production data sample"
+        - "Edge cases (zero amounts, open-ended dates) produce expected output"
+
+    - id: performance
+      name: "Performance"
+      description: >
+        Does the artifact meet performance SLAs? Score is based on measured
+        execution times from the volume test in DEV/QA and the SAC load
+        time check in Gate 4.
+      weight: 0.20
+      automated: true
+      checks:
+        - "Volume test passed on production-scale data"
+        - "Query execution time within SLA (SAC initial load ≤10s, filter ≤5s)"
+        - "Task chain / process chain completion within scheduled window"
+        - "Persistence strategy applied where criteria are met"
+        - "View stacking depth ≤5"
+        - "JOINs on indexed fields"
+
+    - id: security
+      name: "Security"
+      description: >
+        Is access control implemented and validated? Score considers DAC
+        presence, authorization testing, and space sharing agreements.
+      weight: 0.15
+      automated: true
+      checks:
+        - "DAC applied to all CONSUMPTION analytic models"
+        - "Non-admin user test confirms row-level restrictions work"
+        - "Cross-organization access attempt confirmed denied"
+        - "Space sharing agreements documented (if cross-space sharing)"
+        - "No unrestricted columns in a restricted analytic model"
+
+    - id: documentation
+      name: "Documentation"
+      description: >
+        Is the artifact sufficiently documented for long-term maintainability
+        and operational support? Score covers SQL header comments, inline
+        comments, data flow documentation currency, and operational runbook
+        completeness.
+      weight: 0.10
+      automated: true
+      checks:
+        - "SQL view header block comment present and current"
+        - "Inline comments on non-obvious logic"
+        - "Data flow documentation updated to reflect this change"
+        - "Object documentation entry exists with upstream/downstream"
+        - "Operational runbook entry updated with schedule and failure contacts"
+
+  thresholds:
+    green:
+      min_score_percent: 80
+      label: "Ready"
+      color: "#1a7a4a"
+      meaning: "Artifact is in good shape for the current gate. Proceed with approval workflow."
+    yellow:
+      min_score_percent: 60
+      max_score_percent: 79
+      label: "Attention needed"
+      color: "#c47a00"
+      meaning: >
+        Artifact has identified gaps. Review the failing checks on the relevant
+        dimension before proceeding. Promotion is possible with documented
+        risk acceptance, but should not be the default.
+    red:
+      max_score_percent: 59
+      label: "Not ready"
+      color: "#b71c1c"
+      meaning: >
+        Significant gaps exist. The artifact must not proceed to the next
+        environment until the red dimension(s) are resolved.
+
+  promotion_minimum_requirements:
+    gate_2_to_qa:
+      completeness: green
+      correctness: yellow
+      performance: yellow
+      security: green
+      documentation: yellow
+      notes: >
+        Correctness may be yellow at Gate 2 because business owner sign-off
+        is not required until Gate 3. Security must be green because DAC
+        testing in QA requires the DAC to be present and active.
+
+    gate_3_to_prod:
+      completeness: green
+      correctness: green
+      performance: green
+      security: green
+      documentation: yellow
+      notes: >
+        All critical dimensions must be green for PROD promotion. Documentation
+        may be yellow if a documentation task is tracked and scheduled for
+        completion within 5 business days of go-live. A yellow documentation
+        score with no tracked remediation task blocks the transport.
+
+  score_formula: >
+    weighted_score = (completeness * 0.25) + (correctness * 0.30) +
+                     (performance * 0.20) + (security * 0.15) +
+                     (documentation * 0.10)
+    Each dimension score = (checks_passed / total_checks) * 100
+    Final report shows both the weighted composite and each dimension
+    individually. Promotion requirements are evaluated per-dimension,
+    not on the composite.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 5 — TRACEABILITY REQUIREMENTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+traceability_requirements:
+  description: >
+    Every artifact in the data platform must have a traceable lineage from
+    the business requirement that motivated its creation to the deployed
+    object that serves reporting consumers. Traceability is the foundation
+    of impact analysis, regression testing, and audit readiness.
+    Untraceable artifacts are, by definition, technical debt.
+
+  traceability_chain:
+    - level: 1
+      name: "Business Requirement → DSP/BW Object"
+      rule: >
+        Every DSP local table, view, ADSO, analytic model, and SAC story must
+        reference at least one BRS requirement ID in its technical documentation.
+        The BRS requirement ID must be populated in the object's extended
+        description or in the project traceability matrix.
+      automated_check: true
+      severity: must
+
+    - level: 2
+      name: "SAC Widget / Measure → KPI Definition"
+      rule: >
+        Every measure displayed in a SAC story or application must be traceable
+        to a KPI definition in the BRS. The KPI definition specifies: business
+        name, formula in business language, expected sign convention (positive
+        is good / bad), rounding rule, and currency / unit. A measure without
+        a KPI definition is either undocumented or should not exist.
+      automated_check: true
+      severity: must
+
+    - level: 3
+      name: "Data Flow → Source-Target Mapping"
+      rule: >
+        Every transformation, replication flow, and ABAP data transfer
+        process must have a documented source-target field mapping. The mapping
+        records: source field name, source type, target field name, target type,
+        transformation applied (if any), and the business rule that governs
+        the transformation. The mapping is maintained in the data flow
+        documentation section of the object's documentation set.
+      automated_check: false
+      severity: must
+
+    - level: 4
+      name: "Transport → Change Record"
+      rule: >
+        Every PROD transport must reference a change record (ticket ID from
+        the project's issue tracker). The change record documents: reason for
+        change, objects affected, test evidence, approver list, and the
+        transport IDs themselves. This enables reconstruction of what changed
+        and why at any point in the system's history.
+      automated_check: false
+      severity: must
+
+    - level: 5
+      name: "Object → Owner"
+      rule: >
+        Every object must have a named owner — a current project team member
+        or a defined business domain team. Ownership implies responsibility
+        for correctness, response to support requests, and review of changes
+        that affect the object. Objects owned by departed team members must
+        be reassigned within 10 business days of the owner's departure.
+      automated_check: true
+      severity: must
+
+  orphan_object_policy:
+    definition: >
+      An orphan object is any DSP or BW artifact that meets one or more of
+      the following criteria:
+        (a) Has no BRS requirement ID in its documentation
+        (b) Is not referenced by any downstream consumer (no lineage edges)
+        (c) Has no named owner or the named owner has left the project
+        (d) Has not been included in a transport or accessed in the last
+            90 days (for CONSUMPTION objects)
+    classification: "Technical debt"
+    required_action: >
+      Orphan objects must be reviewed at the next project governance checkpoint
+      (at minimum quarterly). Each orphan is either:
+        (a) Documented — a BRS reference and owner are added, and it is
+            confirmed as intentionally maintained
+        (b) Deprecated — marked for deletion in DEV first, then QA, then PROD
+            following the standard transport process
+      Orphan objects that are neither documented nor deprecated within
+      30 days of identification are escalated to the project manager and
+      scheduled for mandatory cleanup.
+    automated_detection: true
+    review_frequency: "Quarterly minimum; additionally triggered when a major transport is prepared"
+
+  traceability_matrix:
+    description: >
+      The project traceability matrix is a living document maintained by
+      the technical lead. It maps BRS requirement IDs to DSP/BW objects
+      to SAC measures. It is updated as part of every Gate 1 and Gate 3
+      approval. The matrix is the primary input for impact analysis when
+      a business requirement changes.
+    format: "Spreadsheet or Confluence table with columns: BRS_ID, Object_Technical_Name, Object_Type, Layer, SAC_Measure (if applicable), Owner, Last_Updated"
+    owner: technical_lead
+    update_trigger: "Every Gate 1 approval (add new row) and every Gate 3 approval (confirm no gaps)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 6 — ANTI-PATTERNS
+# ─────────────────────────────────────────────────────────────────────────────
+
+anti_patterns:
+
+  - id: ap_01
+    name: "Approving without testing"
+    description: >
+      Signing off on a gate — in particular Gate 2 or Gate 3 — without
+      reviewing the test evidence. This includes business owners signing UAT
+      without actually running the report, and technical leads approving
+      transports without verifying reconciliation results.
+    severity: critical
+    consequence: >
+      Incorrect data reaches production. Reconciliation failures surface
+      during month-end close, causing emergency rollbacks and business
+      disruption. The approver shares accountability for the production issue.
+    detection: >
+      Gate records without attached test evidence are flagged by the
+      review agent. Any approval recorded before the test protocol
+      document is updated is marked as non-compliant.
+    required_action: "Approval is void. Test evidence must be provided and gate re-evaluated."
+
+  - id: ap_02
+    name: "Skipping Gate 1 for 'small changes'"
+    description: >
+      Bypassing the design review because the change is perceived as minor.
+      Common examples: adding a column to an existing view, changing a filter
+      condition, modifying a CASE expression. The assumption is that small
+      changes cannot break downstream objects — this assumption is incorrect.
+    severity: high
+    consequence: >
+      Breaking changes reach QA or PROD because downstream impact was not
+      assessed. A column rename in a HARMONIZED view can silently break
+      10 downstream MART objects and 3 SAC stories without producing an
+      error at transport time.
+    detection: >
+      Transport requests that include changes to existing shared objects
+      without a Gate 1 record are flagged by the release manager.
+    required_action: >
+      Gate 1 must be completed retrospectively before the transport is
+      released to QA. If an impact is identified that was not assessed,
+      the transport is held until the impact is confirmed as managed.
+
+  - id: ap_03
+    name: "Business review without business user present"
+    description: >
+      Gate 3 conducted as a developer-only exercise, with a developer or
+      consultant confirming on behalf of the business owner. This may be
+      framed as "the business owner is too busy" or "I showed them a
+      screenshot and they were happy."
+    severity: critical
+    consequence: >
+      Production data that does not match business expectations. The business
+      owner, having not personally validated the data, discovers discrepancies
+      only after go-live — at which point historical data in the system may
+      already be incorrect and require manual correction.
+    detection: >
+      Gate 3 sign-off records must include the business owner's name.
+      Sign-offs recorded by a non-business-owner role are flagged for
+      the project manager.
+    required_action: >
+      Gate 3 is reopened. Business owner must personally complete the UAT
+      checklist. No PROD transport is released until this is done.
+
+  - id: ap_04
+    name: "Deploying to PROD on Friday"
+    description: >
+      Scheduling production transports for Friday afternoon or the last
+      working day before a long weekend or public holiday, when the team's
+      capacity to respond to incidents is reduced.
+    severity: high
+    consequence: >
+      A production issue discovered Friday evening may not be resolved until
+      Monday. Depending on the nature of the issue, this can mean a weekend
+      of incorrect data loading into the production system, potentially
+      requiring extensive data correction.
+    detection: >
+      The release manager's approval in Gate 3 must confirm that the
+      deployment window is not Friday or a pre-holiday. Automated scheduling
+      checks flag transports queued for Friday deployment.
+    required_action: >
+      Reschedule to the following Monday or the next suitable change window.
+      If a Friday deployment is genuinely required (e.g., month-end fix),
+      a formal risk acceptance must be signed by the project manager and
+      an on-call resource must be nominated for the weekend.
+
+  - id: ap_05
+    name: "No rollback plan documented"
+    description: >
+      Proceeding to PROD transport without a documented rollback plan, based
+      on the assumption that "we can always figure it out if something goes
+      wrong." Rollback planning is mentally deferred and then never done.
+    severity: critical
+    consequence: >
+      When a production incident occurs, the team improvises the rollback
+      under time pressure. Transport dependencies are not understood, data
+      rollback requirements are discovered late, and the responsible person
+      is unclear. Rollback time is extended from minutes to hours.
+    detection: >
+      Gate 3 checklist item ck_g3_06 is mandatory. Gate 3 cannot be closed
+      without this item confirmed. The release manager's approval is
+      conditional on the rollback plan being present.
+    required_action: >
+      Rollback plan must be documented before Gate 3 approval is given.
+      Minimum content: transport IDs to reverse, data rollback required
+      (yes/no — if yes, procedure), responsible person, maximum rollback window.
+
+  - id: ap_06
+    name: "Bundling unrelated changes in a single transport"
+    description: >
+      Combining multiple unrelated features, bug fixes, or experimental
+      changes in a single transport request, either to save time or to
+      meet a deadline by "piggy-backing" on another feature's approved transport.
+    severity: high
+    consequence: >
+      When one change in the transport causes a problem, the entire transport
+      must be rolled back — including the unrelated changes that were working
+      correctly. Selective rollback of a single change becomes impossible.
+      The scope of Gate reviews becomes unclear because reviewers cannot
+      easily isolate the effect of each change.
+    detection: >
+      Gate 2 checklist item ck_g2_25 flags bundled transports. The reviewer
+      checks the transport content list against the scope of the change ticket.
+    required_action: >
+      Transport must be split by feature. Each feature has its own transport
+      request and its own gate record.
+
+  - id: ap_07
+    name: "Authorization as an afterthought"
+    description: >
+      Building and testing all layers without implementing the data access
+      control, planning to "add the DAC before go-live." Often arises because
+      the authorization concept is not finalized at the start of the sprint.
+    severity: critical
+    consequence: >
+      Authorization requirements reveal data model gaps (missing org-unit
+      columns) that require HARMONIZED or MART changes. Retrofitting into
+      a near-production model causes schedule impact and introduces regression
+      risk. In the worst case, the object goes to PROD without proper DAC,
+      exposing restricted data to unauthorized users.
+    detection: >
+      Gate 2 automated check g2_dac flags CONSUMPTION objects without an
+      active DAC. Gate 2 blocks QA transport for any DAC-missing model.
+    required_action: >
+      Authorization concept must be reviewed in Gate 1 (ck_g1_07). DAC must
+      be implemented and tested in DEV before Gate 2. No exceptions.
+
+  - id: ap_08
+    name: "Owner field set to a departed team member"
+    description: >
+      Object ownership not updated when a consultant or team member leaves
+      the project, resulting in objects owned by someone who has no knowledge
+      of or responsibility for the object.
+    severity: medium
+    consequence: >
+      Support requests and change impact reviews are sent to the wrong
+      person or go unanswered. Governance reviews cannot identify a
+      responsible party. The object effectively becomes ownerless.
+    detection: >
+      Traceability check (level 5) compares owner field values against the
+      current team roster. Objects with owners not on the active roster are
+      flagged automatically.
+    required_action: >
+      Owner must be reassigned within 10 business days of identifying the
+      stale owner. The technical lead is responsible for initiating the
+      reassignment.
+
+  - id: ap_09
+    name: "SAC story with hardcoded date filters"
+    description: >
+      SAC stories or SAC-facing analytic models that use hardcoded date
+      ranges (e.g., always showing 2024) rather than parameterized input
+      variables for the date range. The story shows stale data after the
+      hardcoded period passes.
+    severity: high
+    consequence: >
+      The story silently shows no data (or last-period data) when the
+      hardcoded period expires. Business users may not notice immediately,
+      leading to decisions based on stale information. Updating the hardcoded
+      value requires a DEV → QA → PROD transport cycle.
+    detection: >
+      Gate 2 SQL quality check flags hardcoded date literals in CONSUMPTION
+      views and analytic model input parameters.
+    required_action: >
+      Replace hardcoded dates with relative date parameters (current month,
+      current fiscal year, etc.) or with user-selectable input variables
+      in the analytic model.
+
+  - id: ap_10
+    name: "Skipping volume testing for 'small' objects"
+    description: >
+      Omitting volume testing for objects that are perceived as small or
+      simple, based on the assumption that a lightweight object will
+      inherently perform well. Volume testing is deferred to QA or PROD.
+    severity: high
+    consequence: >
+      Objects that perform acceptably on DEV data volumes (typically
+      anonymized extracts of 10-30K rows) can exhibit order-of-magnitude
+      performance degradation on production volumes (100M+ rows). SAC
+      stories time out or report errors in production.
+    detection: >
+      Gate 2 checklist item ck_g2_13 is mandatory. Absence of volume test
+      evidence blocks Gate 2 approval.
+    required_action: >
+      Volume test must be conducted on a production-scale data set.
+      QA environment must have a production data copy refreshed at
+      minimum monthly. Volume test results must be attached to the
+      Gate 2 record before sign-off.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 7 — SCORING
+# ─────────────────────────────────────────────────────────────────────────────
+
+scoring:
+  description: >
+    Point values used by the review agent when computing the confidence score
+    for an artifact. Points are accumulated per dimension (see Section 4).
+    The scoring model is additive — every check that passes adds points.
+    Points are never deducted for passing checks; the denominator for each
+    dimension is the total possible points for that dimension.
+
+  automated_check_pass: 10
+  automated_check_fail: 0
+  human_check_confirmed: 15
+  human_check_pending: 0
+
+  checklist_item_weights:
+    must: 10
+    should: 5
+    nice: 2
+
+  gate_record_bonuses:
+    all_must_items_passed: 20
+    no_open_findings: 10
+    evidence_attached_proactively: 5
+
+  penalties:
+    no_brs_link: -20
+    no_owner: -15
+    dac_missing_on_consumption_object: -30
+    test_evidence_missing: -25
+    orphan_object_flag: -20
+    stale_owner: -10
+    tst_or_tmp_object_in_transport: -15
+    friday_deployment_without_risk_acceptance: -20
+    bundled_unrelated_changes: -10
+    gate_skipped_without_documented_exception: -40
+
+  aggregate_gate_score:
+    description: >
+      In addition to per-dimension scores, the review agent computes an
+      aggregate gate readiness score as a simple percentage of mandatory
+      checklist items that have been confirmed. This score is used in the
+      gate dashboard to show at a glance how close an artifact is to
+      clearing the current gate.
+    formula: >
+      gate_readiness_percent = (must_items_passed / total_must_items) * 100
+    thresholds:
+      ready_to_submit_for_approval: 100
+      in_progress: 50
+      not_started: 0
+    note: >
+      Gate readiness is binary for must items — every must item must be
+      confirmed before the gate is submitted for human approval. A gate
+      readiness of 99% means the artifact is not ready.
