@@ -8,7 +8,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - LLM_PROVIDER=${SPEC2SPHERE_LLM_PROVIDER:-${LLM_PROVIDER:-router}}
-      - LLM_ROUTER_URL=${SPEC2SPHERE_LLM_ROUTER_URL:-${LLM_ROUTER_URL:-http://192.168.0.50:8070}}
+      - LLM_ROUTER_URL=${SPEC2SPHERE_LLM_ROUTER_URL:-${LLM_ROUTER_URL:-http://192.168.0.50:8070/v1}}
       - LLM_ROUTER_API_KEY=${SPEC2SPHERE_LLM_ROUTER_API_KEY:-${LLM_ROUTER_API_KEY:-}}
       - LLM_ROUTER_MODEL=${SPEC2SPHERE_LLM_ROUTER_MODEL:-${LLM_ROUTER_MODEL:-qwen2.5:14b}}
       - MULTI_TENANT=${SPEC2SPHERE_MULTI_TENANT:-${MULTI_TENANT:-true}}
@@ -41,7 +41,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - LLM_PROVIDER=${LLM_PROVIDER:-router}
-      - LLM_ROUTER_URL=${LLM_ROUTER_URL:-http://192.168.0.50:8070}
+      - LLM_ROUTER_URL=${LLM_ROUTER_URL:-http://192.168.0.50:8070/v1}
       - LLM_ROUTER_API_KEY=${LLM_ROUTER_API_KEY:-}
       - LLM_ROUTER_MODEL=${LLM_ROUTER_MODEL:-qwen2.5:14b}
     volumes:
