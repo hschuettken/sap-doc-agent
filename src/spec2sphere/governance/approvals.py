@@ -77,6 +77,16 @@ CHECKLISTS = {
         {"key": "design_score_acceptable", "label": "Design quality score meets threshold", "required": False},
         {"key": "rollback_plan_documented", "label": "Rollback plan documented", "required": True},
     ],
+    "release": [
+        {"key": "hla_approved", "label": "HLA approved", "required": True},
+        {"key": "tech_spec_approved", "label": "Technical specification approved", "required": True},
+        {"key": "test_spec_approved", "label": "Test specification approved", "required": True},
+        {"key": "sandbox_qa_passed", "label": "Sandbox QA passed", "required": True},
+        {"key": "reconciliation_acceptable", "label": "Reconciliation results acceptable", "required": True},
+        {"key": "open_issues_reviewed", "label": "Open issues register reviewed", "required": True},
+        {"key": "documentation_generated", "label": "As-built documentation generated", "required": True},
+        {"key": "rollback_plan_ready", "label": "Rollback plan documented", "required": True},
+    ],
 }
 
 # Map artifact_type to the DB table that holds the artifact and its status column
@@ -86,6 +96,7 @@ ARTIFACT_TABLES = {
     "tech_spec": "tech_specs",
     "sac_blueprint": "sac_blueprints",
     "test_spec": "test_specs",
+    "release": "release_packages",
 }
 
 VALID_DECISIONS = {"approve", "reject", "rework"}

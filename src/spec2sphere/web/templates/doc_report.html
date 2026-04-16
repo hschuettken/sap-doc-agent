@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — As-Built Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', -apple-system, sans-serif; color: #333; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        h1 { color: #05415A; font-size: 28px; border-bottom: 3px solid #C8963E; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #05415A; font-size: 22px; margin-top: 40px; margin-bottom: 16px; border-left: 4px solid #C8963E; padding-left: 12px; }
+        h3 { color: #353434; font-size: 18px; margin-top: 24px; margin-bottom: 12px; }
+        .report-header { background: #05415A; color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
+        .report-header h1 { color: white; border-bottom-color: #C8963E; }
+        .report-header .subtitle { color: #C8963E; font-size: 16px; margin-top: 8px; }
+        .report-header .meta { color: #aac8d4; font-size: 13px; margin-top: 12px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+        .summary-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .summary-card .number { font-size: 36px; font-weight: 700; color: #05415A; }
+        .summary-card .label { font-size: 14px; color: #666; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th { background: #05415A; color: white; padding: 12px 16px; text-align: left; font-weight: 600; font-size: 14px; }
+        td { padding: 10px 16px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f5f5f5; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .badge-pass { background: #e8f5e9; color: #2e7d32; }
+        .badge-fail { background: #ffebee; color: #c62828; }
+        .badge-tolerance { background: #fff3e0; color: #e65100; }
+        .badge-approved { background: #e8f5e9; color: #2e7d32; }
+        .badge-draft { background: #e3f2fd; color: #1565c0; }
+        .badge-pending { background: #fff8e1; color: #f57f17; }
+        .badge-migrate { background: #e3f2fd; color: #1565c0; }
+        .badge-simplify { background: #f3e5f5; color: #7b1fa2; }
+        .badge-replace { background: #fff3e0; color: #e65100; }
+        .badge-drop { background: #ffebee; color: #c62828; }
+        .badge-clarify { background: #fff8e1; color: #f57f17; }
+        .badge-trivial { background: #e8f5e9; color: #2e7d32; }
+        .badge-moderate { background: #fff3e0; color: #e65100; }
+        .badge-complex { background: #ffebee; color: #c62828; }
+        .badge-staging { background: #e0f7fa; color: #006064; }
+        .badge-harmonization { background: #e8eaf6; color: #283593; }
+        .badge-mart { background: #fce4ec; color: #880e4f; }
+        .badge-consumption { background: #f3e5f5; color: #4a148c; }
+        .section { background: white; border-radius: 8px; padding: 24px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .sql-block { background: #263238; color: #eeffff; padding: 16px; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 13px; overflow-x: auto; white-space: pre-wrap; margin: 8px 0; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 40px; padding: 20px; border-top: 1px solid #e0e0e0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .tag { display: inline-block; background: #e8eaf6; color: #283593; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+        .reconciliation-bar { display: flex; height: 24px; border-radius: 12px; overflow: hidden; margin: 12px 0; }
+        .reconciliation-bar .bar-pass { background: #2e7d32; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; }
+        .reconciliation-bar .bar-tolerance { background: #e65100; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; }
+        .reconciliation-bar .bar-fail { background: #c62828; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; }
+        @media print { body { background: white; } .section { box-shadow: none; border: 1px solid #ddd; } }
+    </style>
+</head>
+<body>
+
+<!-- Report Header -->
+<div class="report-header">
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
+    <div class="meta">
+        <strong>Customer:</strong> {{ customer_name }} &nbsp;|&nbsp;
+        <strong>Project:</strong> {{ project_name }} &nbsp;|&nbsp;
+        <strong>Generated:</strong> {{ generated_at }}
+    </div>
+</div>
+
+<!-- Summary Cards -->
+{% if summary_cards %}
+<div class="summary-grid">
+    {% for card in summary_cards %}
+    <div class="summary-card">
+        <div class="number">{{ card.value }}</div>
+        <div class="label">{{ card.label }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Dynamic Sections -->
+{% for section in sections %}
+<h2>{{ section.title }}</h2>
+<div class="section">
+    {{ section.html_content | safe }}
+</div>
+{% endfor %}
+
+<!-- Traceability Matrix -->
+{% if traceability_rows %}
+<h2>Traceability Matrix</h2>
+<div class="section">
+    <table>
+        <thead>
+            <tr>
+                <th>Requirement</th>
+                <th>HLA Decision</th>
+                <th>Technical Objects</th>
+                <th>Test Cases</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in traceability_rows %}
+        <tr>
+            <td>{{ row.requirement }}</td>
+            <td>{{ row.hla_decision }}</td>
+            <td>
+                <div class="tag-list">
+                {% for obj in row.tech_objects %}
+                    <span class="tag">{{ obj }}</span>
+                {% endfor %}
+                </div>
+            </td>
+            <td>
+                <div class="tag-list">
+                {% for tc in row.test_cases %}
+                    <span class="tag">{{ tc }}</span>
+                {% endfor %}
+                </div>
+            </td>
+            <td><span class="badge badge-{{ row.result_class }}">{{ row.result }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Decision Log -->
+{% if decision_log %}
+<h2>Architecture Decision Log</h2>
+<div class="section">
+    <table>
+        <thead>
+            <tr>
+                <th>Topic</th>
+                <th>Choice</th>
+                <th>Rationale</th>
+                <th>Platform Placement</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entry in decision_log %}
+        <tr>
+            <td><strong>{{ entry.topic }}</strong></td>
+            <td>{{ entry.choice }}</td>
+            <td>{{ entry.rationale }}</td>
+            <td>{{ entry.platform_placement }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Reconciliation Summary -->
+{% if reconciliation %}
+<h2>Reconciliation Summary</h2>
+<div class="section">
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="number">{{ reconciliation.total_tests }}</div>
+            <div class="label">Total Tests</div>
+        </div>
+        <div class="summary-card">
+            <div class="number" style="color: #2e7d32;">{{ reconciliation.passed }}</div>
+            <div class="label">Passed</div>
+        </div>
+        <div class="summary-card">
+            <div class="number" style="color: #e65100;">{{ reconciliation.tolerance }}</div>
+            <div class="label">Within Tolerance</div>
+        </div>
+        <div class="summary-card">
+            <div class="number" style="color: #c62828;">{{ reconciliation.failed }}</div>
+            <div class="label">Failed</div>
+        </div>
+    </div>
+    {% set total = reconciliation.total_tests %}
+    {% if total > 0 %}
+    <div class="reconciliation-bar">
+        {% if reconciliation.passed > 0 %}
+        <div class="bar-pass" style="width: {{ (reconciliation.passed / total * 100)|round(1) }}%">
+            PASS ({{ reconciliation.passed }})
+        </div>
+        {% endif %}
+        {% if reconciliation.tolerance > 0 %}
+        <div class="bar-tolerance" style="width: {{ (reconciliation.tolerance / total * 100)|round(1) }}%">
+            TOL ({{ reconciliation.tolerance }})
+        </div>
+        {% endif %}
+        {% if reconciliation.failed > 0 %}
+        <div class="bar-fail" style="width: {{ (reconciliation.failed / total * 100)|round(1) }}%">
+            FAIL ({{ reconciliation.failed }})
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Technical Object Inventory -->
+{% if technical_objects %}
+<h2>Technical Object Inventory</h2>
+<div class="section">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Platform</th>
+                <th>Layer</th>
+                <th>Status</th>
+                <th>Generated Artifact</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for obj in technical_objects %}
+        <tr>
+            <td><code>{{ obj.name }}</code></td>
+            <td>{{ obj.object_type }}</td>
+            <td>{{ obj.platform }}</td>
+            <td>{{ obj.layer }}</td>
+            <td><span class="badge badge-{{ obj.status }}">{{ obj.status }}</span></td>
+            <td>
+                {% if obj.generated_artifact %}
+                <div class="sql-block">{{ obj.generated_artifact }}</div>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="footer">
+    Generated by Spec2Sphere &mdash; Horvath &amp; Partners &mdash; {{ generated_at }}
+</div>
+
+</body>
+</html>
