@@ -27,9 +27,15 @@
     transition: transform 0.2s;
 }
 
-.sidebar a { color: rgba(255,255,255,0.7); transition: color 0.15s, background 0.15s; }
-.sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,0.1); }
-.sidebar a.active { border-left: 3px solid var(--color-accent); }
+.sidebar .nav-link { color: rgba(255,255,255,0.7); transition: color 0.15s, background 0.15s; }
+.sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
+.sidebar .nav-link.active { border-left: 3px solid var(--color-accent); }
+
+/* Collapsible nav groups */
+.nav-group .nav-group-items { display: none; }
+.nav-group.expanded .nav-group-items { display: block; }
+.nav-group.expanded .chevron { transform: rotate(90deg); }
+.nav-group-toggle:hover { background: rgba(255,255,255,0.05); }
 
 .main-content { margin-left: 240px; min-height: 100vh; background: var(--color-bg-alt); }
 
