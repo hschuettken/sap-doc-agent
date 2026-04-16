@@ -341,7 +341,7 @@ def create_governance_routes() -> APIRouter:
             else:
                 return JSONResponse({"error": f"Unknown format: {fmt}"}, status_code=400)
         except Exception as exc:
-            logger.error("generate_report render error: %s", exc)
+            logger.error("generate_report render error: %s", exc, exc_info=True)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
     # ── API: Assemble Release ─────────────────────────────────────────────────
