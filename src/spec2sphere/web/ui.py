@@ -371,6 +371,17 @@ def create_ui_router(output_dir: Path, config_path: Path | None = None) -> APIRo
             },
         )
 
+    @router.get("/llm-routing", response_class=HTMLResponse)
+    async def llm_routing_page(request: Request):
+        from spec2sphere.llm.quality_router import get_quality_router
+
+        state = get_quality_router().get_full_state()
+        return _render(
+            request,
+            "partials/llm_routing.html",
+            {"active_page": "llm-routing", "state": state},
+        )
+
     @router.get("/admin", response_class=HTMLResponse)
     async def admin_page(request: Request):
         return _render(request, "partials/admin.html", {"active_page": "admin"})

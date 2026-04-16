@@ -274,6 +274,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount copilot routes: %s", exc)
 
+    # Mount LLM routing API
+    try:
+        from spec2sphere.web.llm_routing import router as llm_routing_router
+
+        app.include_router(llm_routing_router)
+    except ImportError as exc:
+        logger.warning("Could not mount LLM routing API: %s", exc)
+
     # Auth middleware (password from env, defaults to "admin" for dev)
     # In multi-tenant mode, user email+password login is also supported
     pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))
@@ -910,7 +918,7 @@ def create_app(
             result = await provider.generate(
                 "Respond with exactly: OK",
                 system="You are a connectivity test. Respond with exactly the word OK.",
-                tier="small",
+                tier="test_llm",
             )
             latency = round((time.monotonic() - start) * 1000)
 

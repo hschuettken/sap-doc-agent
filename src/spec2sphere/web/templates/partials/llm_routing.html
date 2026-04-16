@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% block title %}LLM Routing — Spec2Sphere{% endblock %}
+{% block page_title %}LLM Quality Routing{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6" id="llm-routing-root">
+
+  {# ── Section 1: Active Profile ── #}
+  <div class="card">
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h3 class="font-heading text-base text-[#1a2332]">Active Profile</h3>
+        <p class="text-sm text-gray-500 mt-1">Select which quality-to-model mapping is applied to all pipeline actions.</p>
+      </div>
+      <div id="profile-badge"></div>
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3 mb-5">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Profile</label>
+        <select id="profile-select"
+                class="bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm text-[#1a2332] focus:outline-none focus:border-petrol min-w-[180px]"
+                onchange="onProfileChange()">
+          {% for name in state.profiles %}
+          <option value="{{ name }}" {% if name == state.active_profile %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button id="btn-save-profile"
+              onclick="saveActiveProfile()"
+              class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">
+        Save
+      </button>
+    </div>
+
+    {# Q1-Q5 model strip #}
+    <div class="grid grid-cols-5 gap-2" id="profile-model-strip">
+      {% set q_colors = {
+        "Q1": ("bg-gray-100", "text-gray-700", "border-gray-200"),
+        "Q2": ("bg-blue-50",  "text-blue-700",  "border-blue-200"),
+        "Q3": ("bg-green-50", "text-green-700", "border-green-200"),
+        "Q4": ("bg-amber-50", "text-amber-700", "border-amber-200"),
+        "Q5": ("bg-red-50",   "text-red-700",   "border-red-200"),
+      } %}
+      {% for level_id, level_info in state.quality_levels.items() %}
+      {% set bg, fg, border = q_colors[level_id] %}
+      {% set profile_data = state.profiles.get(state.active_profile, {}) %}
+      {% set model = profile_data.get(level_id, {}).get("model", "—") %}
+      <div class="rounded border {{ border }} {{ bg }} px-3 py-2">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-semibold {{ fg }}">{{ level_id }}</span>
+          <span class="text-xs {{ fg }} opacity-70">{{ level_info.name }}</span>
+        </div>
+        <div class="text-xs text-gray-600 font-mono truncate" title="{{ model }}">{{ model }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Section 2: Actions by Cluster ── #}
+  <div>
+    <h3 class="font-heading text-base text-[#1a2332] mb-3">Actions by Cluster</h3>
+
+    {% for cluster in state.clusters %}
+    {% set cluster_actions = state.actions | selectattr("cluster", "equalto", cluster.cluster_id) | list %}
+    <div class="card mb-3" data-cluster-id="{{ cluster.cluster_id }}">
+
+      {# Cluster header — always visible #}
+      <div class="flex items-start justify-between cursor-pointer select-none"
+           onclick="toggleCluster('{{ cluster.cluster_id }}')">
+        <div class="flex-1 min-w-0 pr-4">
+          <div class="flex items-center gap-2">
+            <svg id="chevron-{{ cluster.cluster_id }}"
+                 class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform rotate-90"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+            <span class="font-medium text-sm text-[#1a2332]">{{ cluster.display_name }}</span>
+            <span class="text-xs text-gray-400">({{ cluster_actions | length }} action{{ 's' if cluster_actions | length != 1 else '' }})</span>
+          </div>
+          {% if cluster.description %}
+          <p class="text-xs text-gray-500 mt-0.5 ml-6">{{ cluster.description }}</p>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">
+          <label class="text-xs text-gray-500 whitespace-nowrap">Cluster override</label>
+          <select class="bg-[#F5F5F5] border border-[#E5E5E5] rounded px-2 py-1 text-xs text-[#1a2332] focus:outline-none focus:border-petrol"
+                  onchange="setClusterOverride('{{ cluster.cluster_id }}', this.value)">
+            <option value="" {% if not cluster.quality_override %}selected{% endif %}>No override</option>
+            {% for level_id, level_info in state.quality_levels.items() %}
+            <option value="{{ level_id }}" {% if cluster.quality_override == level_id %}selected{% endif %}>
+              {{ level_id }} — {{ level_info.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      {# Action rows — collapsible body #}
+      <div id="cluster-body-{{ cluster.cluster_id }}" class="mt-3">
+        {% if cluster_actions %}
+        <div class="border border-gray-100 rounded overflow-hidden">
+          {% for action in cluster_actions %}
+          {% set is_action_override = action.override_source == "action" %}
+          {% set is_cluster_override = action.override_source == "cluster" %}
+          {% set row_indicator = "border-l-2 border-amber-400" if is_action_override else ("border-l-2 border-blue-400" if is_cluster_override else "border-l-2 border-transparent") %}
+          <div class="flex items-center gap-3 px-3 py-2.5 {{ row_indicator }} {{ 'bg-white' if loop.index is odd else 'bg-[#FAFAFA]' }} hover:bg-gray-50"
+               data-action-id="{{ action.action_id }}">
+
+            {# Name + description #}
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-[#1a2332] truncate">{{ action.display_name }}</div>
+              {% if action.description %}
+              <div class="text-xs text-gray-500 truncate">{{ action.description }}</div>
+              {% endif %}
+            </div>
+
+            {# Default quality badge #}
+            {% set dq = action.default_quality %}
+            {% set dbg, dfg, dborder = q_colors[dq] %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ dbg }} {{ dfg }} flex-shrink-0"
+                  title="Default quality">
+              {{ dq }}
+            </span>
+
+            {# Effective quality dropdown #}
+            {% set eq = action.effective_quality %}
+            {% set ebg, efg, eborder = q_colors[eq] %}
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <select class="border rounded px-2 py-1 text-xs focus:outline-none focus:border-petrol {{ ebg }} {{ efg }} {{ eborder }}"
+                      onchange="setActionOverride('{{ action.action_id }}', this.value, this)"
+                      title="Effective quality (change to override)">
+                <option value="" {% if action.effective_quality == action.default_quality and action.override_source == 'default' %}selected{% endif %}>
+                  Inherit ({{ action.default_quality }})
+                </option>
+                {% for level_id, level_info in state.quality_levels.items() %}
+                <option value="{{ level_id }}"
+                        {% if is_action_override and action.effective_quality == level_id %}selected{% endif %}>
+                  {{ level_id }} — {{ level_info.name }}
+                </option>
+                {% endfor %}
+              </select>
+
+              {# Effective model label #}
+              <span class="text-xs text-gray-500 font-mono truncate max-w-[140px]" title="{{ action.effective_model }}">
+                {{ action.effective_model }}
+              </span>
+
+              {# Override source indicator #}
+              {% if is_action_override %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 flex-shrink-0">action</span>
+              {% elif is_cluster_override %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 flex-shrink-0">cluster</span>
+              {% else %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 flex-shrink-0">default</span>
+              {% endif %}
+            </div>
+
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-gray-400 py-2 ml-6">No actions in this cluster.</p>
+        {% endif %}
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Section 3: Profile Editor ── #}
+  <div class="card" id="profile-editor-card">
+    <div class="flex items-center justify-between cursor-pointer select-none"
+         onclick="toggleProfileEditor()">
+      <div>
+        <h3 class="font-heading text-base text-[#1a2332]">Profile Editor</h3>
+        <p class="text-sm text-gray-500 mt-0.5">Edit model assignments per quality level, save as a custom profile, or reset all overrides.</p>
+      </div>
+      <svg id="chevron-profile-editor"
+           class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+      </svg>
+    </div>
+
+    <div id="profile-editor-body" class="hidden mt-4">
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="border-b border-gray-200">
+            <th class="text-left py-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">Level</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Name</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+            <th class="text-left py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Model</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for level_id, level_info in state.quality_levels.items() %}
+          {% set bg, fg, border = q_colors[level_id] %}
+          {% set profile_data = state.profiles.get(state.active_profile, {}) %}
+          {% set model = profile_data.get(level_id, {}).get("model", "") %}
+          <tr class="border-b border-gray-100">
+            <td class="py-2.5 pr-4">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {{ bg }} {{ fg }}">{{ level_id }}</span>
+            </td>
+            <td class="py-2.5 pr-4 text-sm text-[#1a2332] font-medium">{{ level_info.name }}</td>
+            <td class="py-2.5 pr-4 text-xs text-gray-500">{{ level_info.description }}</td>
+            <td class="py-2.5">
+              <input type="text"
+                     id="editor-model-{{ level_id }}"
+                     value="{{ model }}"
+                     placeholder="e.g. qwen2.5:7b or claude-haiku-..."
+                     class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-1.5 text-xs font-mono text-[#1a2332] focus:outline-none focus:border-petrol min-w-[260px]">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+        <button onclick="saveAsCustomProfile()"
+                class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">
+          Save as Custom Profile
+        </button>
+        <button onclick="resetAllOverrides()"
+                class="px-4 py-2 border border-red-300 text-red-600 rounded text-sm font-medium hover:bg-red-50">
+          Reset All Overrides
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block head %}
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+
+let routingState = {{ state | tojson }};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function apiCall(method, path, body) {
+  const opts = {
+    method,
+    headers: {'Content-Type': 'application/json'},
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const resp = await fetch('/api/llm-routing' + path, opts);
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({detail: resp.statusText}));
+    throw new Error(err.detail || resp.statusText);
+  }
+  return resp.json();
+}
+
+async function refreshState() {
+  try {
+    routingState = await apiCall('GET', '/');
+    renderProfileStrip();
+    renderProfileSelect();
+    renderActionRows();
+    renderProfileEditorTable();
+    renderProfileBadge();
+  } catch (err) {
+    showToast('Failed to refresh routing state: ' + err.message, 'error');
+  }
+}
+
+// ─── Profile strip (Q1-Q5 model names in Section 1) ──────────────────────────
+
+function renderProfileStrip() {
+  const profileData = routingState.profiles[routingState.active_profile] || {};
+  const strip = document.getElementById('profile-model-strip');
+  if (!strip) return;
+  strip.querySelectorAll('[data-level-model]').forEach(el => {
+    const level = el.dataset.levelModel;
+    el.textContent = (profileData[level] || {}).model || '—';
+  });
+}
+
+function renderProfileSelect() {
+  const sel = document.getElementById('profile-select');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '';
+  for (const name of Object.keys(routingState.profiles)) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    if (name === routingState.active_profile) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  renderProfileBadge();
+}
+
+function renderProfileBadge() {
+  const badge = document.getElementById('profile-badge');
+  if (!badge) return;
+  const profile = routingState.active_profile;
+  const builtins = ['default', 'all-local', 'all-cloud'];
+  const isBuiltin = builtins.includes(profile);
+  badge.innerHTML = isBuiltin
+    ? '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">built-in</span>'
+    : '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent border border-accent/20">custom</span>';
+}
+
+// ─── Section 2: action rows ───────────────────────────────────────────────────
+
+function qColorClasses(level) {
+  const map = {
+    Q1: {bg: 'bg-gray-100',   fg: 'text-gray-700',  border: 'border-gray-200'},
+    Q2: {bg: 'bg-blue-50',    fg: 'text-blue-700',   border: 'border-blue-200'},
+    Q3: {bg: 'bg-green-50',   fg: 'text-green-700',  border: 'border-green-200'},
+    Q4: {bg: 'bg-amber-50',   fg: 'text-amber-700',  border: 'border-amber-200'},
+    Q5: {bg: 'bg-red-50',     fg: 'text-red-700',    border: 'border-red-200'},
+  };
+  return map[level] || map.Q3;
+}
+
+function renderActionRows() {
+  // After state refresh, re-render each action row in place to avoid full DOM replace
+  routingState.actions.forEach(action => {
+    const row = document.querySelector(`[data-action-id="${action.action_id}"]`);
+    if (!row) return;
+
+    // Update left border color coding
+    row.className = row.className.replace(/border-l-2 border-\w+-\d+|border-l-2 border-transparent/g, '').trim();
+    if (action.override_source === 'action') {
+      row.classList.add('border-l-2', 'border-amber-400');
+    } else if (action.override_source === 'cluster') {
+      row.classList.add('border-l-2', 'border-blue-400');
+    } else {
+      row.classList.add('border-l-2', 'border-transparent');
+    }
+
+    // Update effective quality dropdown styling
+    const sel = row.querySelector('select');
+    if (sel) {
+      const {bg, fg, border} = qColorClasses(action.effective_quality);
+      // Remove old color classes and apply new
+      sel.className = sel.className
+        .replace(/bg-\w+-\d+|text-\w+-\d+|border-\w+-\d+/g, '').trim();
+      sel.classList.add(bg, fg, border);
+    }
+
+    // Update effective model text
+    const modelSpan = row.querySelector('[data-model-label]');
+    if (modelSpan) {
+      modelSpan.textContent = action.effective_model;
+      modelSpan.title = action.effective_model;
+    }
+
+    // Update override badge
+    const badgeSpan = row.querySelector('[data-override-badge]');
+    if (badgeSpan) {
+      if (action.override_source === 'action') {
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 flex-shrink-0';
+        badgeSpan.textContent = 'action';
+      } else if (action.override_source === 'cluster') {
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 flex-shrink-0';
+        badgeSpan.textContent = 'cluster';
+      } else {
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 flex-shrink-0';
+        badgeSpan.textContent = 'default';
+      }
+    }
+  });
+}
+
+function renderProfileEditorTable() {
+  const profileData = routingState.profiles[routingState.active_profile] || {};
+  Object.keys(routingState.quality_levels).forEach(level => {
+    const input = document.getElementById(`editor-model-${level}`);
+    if (input) input.value = (profileData[level] || {}).model || '';
+  });
+}
+
+// ─── Section 1 interactions ───────────────────────────────────────────────────
+
+function onProfileChange() {
+  const sel = document.getElementById('profile-select');
+  const newProfile = sel.value;
+  // Preview the model strip immediately from cached state
+  const profileData = routingState.profiles[newProfile] || {};
+  const strip = document.getElementById('profile-model-strip');
+  if (strip) {
+    strip.querySelectorAll('[data-level-model]').forEach(el => {
+      el.textContent = (profileData[el.dataset.levelModel] || {}).model || '—';
+    });
+  }
+}
+
+async function saveActiveProfile() {
+  const profile = document.getElementById('profile-select').value;
+  const btn = document.getElementById('btn-save-profile');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    await apiCall('PUT', '/profile', {profile_name: profile});
+    routingState.active_profile = profile;
+    renderProfileBadge();
+    renderProfileEditorTable();
+    showToast('Active profile set to "' + profile + '"', 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+// ─── Section 2 interactions ───────────────────────────────────────────────────
+
+function toggleCluster(clusterId) {
+  const body = document.getElementById(`cluster-body-${clusterId}`);
+  const chevron = document.getElementById(`chevron-${clusterId}`);
+  if (!body) return;
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', isOpen);
+  chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+async function setClusterOverride(clusterId, value) {
+  try {
+    if (value === '') {
+      await apiCall('DELETE', `/clusters/${clusterId}/override`);
+    } else {
+      await apiCall('PUT', `/clusters/${clusterId}/override`, {quality_level: value});
+    }
+    await refreshState();
+    showToast(value ? `Cluster override set to ${value}` : 'Cluster override cleared', 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+    await refreshState(); // revert UI
+  }
+}
+
+async function setActionOverride(actionId, value, selectEl) {
+  try {
+    if (value === '') {
+      await apiCall('DELETE', `/actions/${actionId}/override`);
+    } else {
+      await apiCall('PUT', `/actions/${actionId}/override`, {quality_level: value});
+    }
+    await refreshState();
+    showToast(value ? `Action override set to ${value}` : 'Action override cleared', 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+    await refreshState(); // revert UI
+  }
+}
+
+// ─── Section 3 interactions ───────────────────────────────────────────────────
+
+function toggleProfileEditor() {
+  const body = document.getElementById('profile-editor-body');
+  const chevron = document.getElementById('chevron-profile-editor');
+  if (!body) return;
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', isOpen);
+  chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+async function saveAsCustomProfile() {
+  const name = window.prompt('Enter a name for the new custom profile:', '');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+
+  const models = {};
+  Object.keys(routingState.quality_levels).forEach(level => {
+    const input = document.getElementById(`editor-model-${level}`);
+    if (input && input.value.trim()) {
+      models[level] = {model: input.value.trim()};
+    }
+  });
+
+  try {
+    await apiCall('PUT', '/profiles/' + encodeURIComponent(trimmed), {models});
+    await refreshState();
+    // Select the newly created profile
+    const sel = document.getElementById('profile-select');
+    if (sel) sel.value = trimmed;
+    showToast('Profile "' + trimmed + '" saved', 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+  }
+}
+
+async function resetAllOverrides() {
+  if (!window.confirm('This will clear all cluster and action overrides. Continue?')) return;
+  try {
+    await apiCall('DELETE', '/overrides');
+    await refreshState();
+    showToast('All overrides reset', 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+// Add data attributes to dynamic nodes after Jinja renders them
+// (so renderActionRows() / renderProfileStrip() can find them without full re-render)
+document.addEventListener('DOMContentLoaded', () => {
+  // Tag model-strip cells with data-level-model for JS updates
+  const strip = document.getElementById('profile-model-strip');
+  if (strip) {
+    const levels = Object.keys(routingState.quality_levels);
+    strip.querySelectorAll('.font-mono').forEach((el, i) => {
+      if (levels[i]) el.dataset.levelModel = levels[i];
+    });
+  }
+
+  // Tag action rows with data-model-label and data-override-badge
+  document.querySelectorAll('[data-action-id]').forEach(row => {
+    const spans = row.querySelectorAll('span.font-mono');
+    if (spans.length) spans[spans.length - 1].dataset.modelLabel = '';
+    const badges = row.querySelectorAll('span.rounded');
+    if (badges.length) badges[badges.length - 1].dataset.overrideBadge = '';
+  });
+});
+</script>
+{% endblock %}

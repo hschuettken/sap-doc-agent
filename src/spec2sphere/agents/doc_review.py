@@ -605,7 +605,7 @@ class DocReviewAgent:
             f"Parse this documentation standard:\n\n{content[:8000]}",
             schema=schema,
             system=system_prompt,
-            tier="large",
+            tier="doc_review",
         )
 
         if result and "document_types" in result:

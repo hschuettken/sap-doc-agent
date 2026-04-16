@@ -138,7 +138,7 @@ async def design_chain_views(
     """
     prompt = _build_design_prompt(classified, chain)
     data = await generate_json_with_retry(
-        llm, prompt, schema=_DESIGN_SCHEMA, system=_ARCHITECT_SYSTEM, tier="reasoning"
+        llm, prompt, schema=_DESIGN_SCHEMA, system=_ARCHITECT_SYSTEM, tier="migration_architect"
     )
 
     if data and "views" in data:

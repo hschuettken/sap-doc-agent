@@ -224,7 +224,7 @@ async def _llm_placement(
             "Decide where each artifact belongs based on SAP best practices."
         ),
         max_retries=2,
-        tier="reasoning",
+        tier="placement",
     )
 
     if result is None:

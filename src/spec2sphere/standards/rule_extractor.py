@@ -49,7 +49,7 @@ async def extract_rules(text: str, llm: "LLMProvider") -> dict:
         return result or {"sections": [], "naming_rules": [], "field_requirements": [], "custom_rules": []}
 
     prompt = f"Extract all documentation rules from the following standard:\n\n{text}"
-    result = await generate_json_with_retry(llm, prompt, RULE_SCHEMA, system=SYSTEM_PROMPT, tier="medium")
+    result = await generate_json_with_retry(llm, prompt, RULE_SCHEMA, system=SYSTEM_PROMPT, tier="rule_extractor")
 
     if result is None:
         logger.warning("Rule extraction returned None, using empty result")
