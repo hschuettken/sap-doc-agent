@@ -244,8 +244,8 @@ def create_governance_routes() -> APIRouter:
             conn = await _get_conn()
             exp_rows = await conn.fetch(
                 """
-                SELECT id, platform, object_type, experiment_type, route,
-                       status, created_at
+                SELECT id, platform, object_type, experiment_type, route_used,
+                       success, created_at
                 FROM lab_experiments
                 ORDER BY created_at DESC
                 LIMIT 30

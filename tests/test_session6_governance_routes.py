@@ -98,12 +98,24 @@ def test_download_release_api(client):
     assert resp.status_code == 404
 
 
-def test_demo_seed_api(client):
-    """POST /api/demo/seed creates demo data or reports existing."""
+def test_demo_seed_api_already_exists(client):
+    """POST /api/demo/seed returns already_exists when demo customer found with complete data."""
+    import uuid
+
     conn = make_mock_conn()
-    # Mock sequence: 1) customer check → None, 2) tenant check → None (will create)
-    conn.fetchrow = AsyncMock(side_effect=[None, None])
+    customer_id = uuid.uuid4()
+    project_id = uuid.uuid4()
+    # Mock: 1) customer check → found, 2) project check → found, 3) object count → 3
+    conn.fetchrow = AsyncMock(
+        side_effect=[
+            {"id": customer_id},  # customer exists
+            {"id": project_id},  # project exists
+        ]
+    )
+    conn.fetchval = AsyncMock(return_value=3)  # 3 technical objects
     with patch("spec2sphere.web.governance_routes._get_conn", return_value=conn):
         resp = client.post("/api/demo/seed")
-    # May fail due to mock limitations but should not 500
-    assert resp.status_code in (200, 500)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "already_exists"
+    assert body["project_id"] == str(project_id)
