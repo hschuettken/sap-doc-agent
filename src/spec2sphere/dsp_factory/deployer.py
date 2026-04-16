@@ -272,17 +272,62 @@ async def _deploy_via_cdp(
     environment: str,
 ) -> None:
     """Deploy by driving the SAP Datasphere UI via Chrome DevTools Protocol."""
-    from spec2sphere.browser.pool import get_pool  # noqa: PLC0415
+    import os  # noqa: PLC0415
 
-    pool = get_pool()
-    session = await pool.get_session(ctx.tenant_id, environment)
-    logger.info(
-        "CDP deploy: object=%r env=%r session=%r",
-        obj.get("name"),
-        environment,
-        session,
-    )
-    # REQUIRES: Live SAP Datasphere tenant. Drives the DSP SQL editor UI via Chrome DevTools Protocol.
+    from spec2sphere.browser.cdp_helpers import get_cdp_session_for_tenant  # noqa: PLC0415
+
+    dsp_base_url = os.environ.get("DSP_BASE_URL", "")
+    if not dsp_base_url:
+        raise RuntimeError("DSP_BASE_URL is not set — cannot construct DSP SQL console URL for CDP deploy")
+
+    session = await get_cdp_session_for_tenant(ctx.tenant_id, environment)
+    if session is None:
+        raise RuntimeError("Chrome CDP not available — no session returned for tenant")
+
+    object_name: str = obj.get("name", "unknown")
+    sql: str = obj.get("generated_artifact") or obj.get("definition", {}).get("sql", "")
+    if not sql:
+        raise RuntimeError(f"No SQL found in object {object_name!r} for CDP deploy")
+
+    # Construct SQL console URL — DSP uses hash-based routing per space/object
+    sql_console_url = f"{dsp_base_url.rstrip('/')}/dwaas-ui/index.html#/sql-console"
+
+    try:
+        if await session.is_session_expired():
+            raise RuntimeError("CDP session is expired — re-authentication required")
+
+        logger.info("CDP deploy: navigating to SQL console for object=%r env=%r", object_name, environment)
+        await session.navigate(sql_console_url)
+        await session.wait_for_element(".ace_editor")
+
+        # Clear existing content and type the new SQL
+        # Ace editor doesn't fire change events — select all, delete, then type
+        await session.click(".ace_editor")
+        await session.press_key("a", modifiers=["Control"])  # Select all
+        await session.press_key("Delete")
+        await session.type_text(".ace_editor", sql)
+
+        # Save: Ctrl+S then wait for busy indicator to clear (DSP quirk)
+        await session.sap_save()
+        await session.wait_for_busy_clear()
+
+        # Deploy: click deploy button, confirm dialog, wait for busy to clear
+        await session.sap_deploy()
+        await session.wait_for_busy_clear()
+
+        # Verify no errors appeared
+        errors = await session.check_for_errors()
+        if errors:
+            raise RuntimeError(f"CDP deploy reported errors for {object_name!r}: {errors}")
+
+        logger.info("CDP deploy succeeded: object=%r env=%r", object_name, environment)
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"CDP deploy failed for object {object_name!r}: {exc}") from exc
+    finally:
+        await session.close()
 
 
 async def _deploy_via_api(
@@ -290,14 +335,55 @@ async def _deploy_via_api(
     obj: dict,
     environment: str,
 ) -> None:
-    """Deploy via SAP Datasphere REST API (stub)."""
+    """Deploy via SAP Datasphere REST API."""
+    import json as _json  # noqa: PLC0415
+    import os  # noqa: PLC0415
+
+    import httpx  # noqa: PLC0415
+
+    dsp_base_url = os.environ.get("DSP_BASE_URL", "")
+    dsp_api_token = os.environ.get("DSP_API_TOKEN", "")
+    if not dsp_base_url:
+        raise RuntimeError("DSP_BASE_URL is not set — cannot call DSP REST API")
+
+    object_name: str = obj.get("name", "unknown")
+    object_type: str = obj.get("object_type", "relational_view")
+
+    # DSP REST API endpoint for view/object management
+    api_url = f"{dsp_base_url.rstrip('/')}/api/v1/dwc/repository/objects"
+
+    headers = {"Content-Type": "application/json"}
+    if dsp_api_token:
+        headers["Authorization"] = f"Bearer {dsp_api_token}"
+
+    payload = {
+        "name": object_name,
+        "type": object_type,
+        "definition": obj.get("definition", {}),
+        "sql": obj.get("generated_artifact") or obj.get("definition", {}).get("sql", ""),
+    }
+
     logger.info(
-        "API deploy: object=%r env=%r customer=%s",
-        obj.get("name"),
+        "API deploy: POST %s object=%r env=%r customer=%s",
+        api_url,
+        object_name,
         environment,
         ctx.customer_id,
     )
-    # REQUIRES: Live SAP Datasphere tenant with REST API access configured.
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(api_url, headers=headers, content=_json.dumps(payload))
+            if resp.status_code not in (200, 201, 204):
+                raise RuntimeError(f"DSP API returned {resp.status_code} for {object_name!r}: {resp.text[:500]}")
+    except httpx.ConnectError as exc:
+        raise RuntimeError(f"Could not connect to DSP API at {api_url}: {exc}") from exc
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"DSP API deploy failed for {object_name!r}: {exc}") from exc
+
+    logger.info("API deploy succeeded: object=%r env=%r", object_name, environment)
 
 
 async def _deploy_via_csn(
@@ -306,11 +392,95 @@ async def _deploy_via_csn(
     environment: str,
 ) -> None:
     """Deploy by generating a CSN definition and importing it into DSP."""
+    import json as _json  # noqa: PLC0415
+    import os  # noqa: PLC0415
+
+    import httpx  # noqa: PLC0415
+
+    from spec2sphere.browser.cdp_helpers import get_cdp_session_for_tenant  # noqa: PLC0415
+
     csn = generate_csn_definition(obj)
+    object_name: str = obj.get("name", "unknown")
     logger.info(
         "CSN deploy: object=%r env=%r csn_keys=%r",
-        obj.get("name"),
+        object_name,
         environment,
         list(csn.get("definitions", {}).keys()),
     )
-    # REQUIRES: Live SAP Datasphere tenant. POSTs the CSN/JSON to DSP import endpoint.
+
+    dsp_base_url = os.environ.get("DSP_BASE_URL", "")
+    if not dsp_base_url:
+        raise RuntimeError("DSP_BASE_URL is not set — cannot perform CSN import deploy")
+
+    csn_json = _json.dumps(csn)
+
+    # Try REST import endpoint first (preferred, no UI needed)
+    dsp_api_token = os.environ.get("DSP_API_TOKEN", "")
+    import_url = f"{dsp_base_url.rstrip('/')}/api/v1/dwc/repository/import"
+    headers = {"Content-Type": "application/json"}
+    if dsp_api_token:
+        headers["Authorization"] = f"Bearer {dsp_api_token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(import_url, headers=headers, content=csn_json)
+            if resp.status_code in (200, 201, 204):
+                logger.info("CSN import via REST succeeded: object=%r env=%r", object_name, environment)
+                return
+            logger.warning(
+                "CSN REST import returned %d for %r — falling back to CDP import UI",
+                resp.status_code,
+                object_name,
+            )
+    except httpx.ConnectError:
+        logger.warning("DSP REST import endpoint unreachable — falling back to CDP import UI")
+    except Exception as exc:
+        logger.warning("DSP REST import failed for %r: %s — falling back to CDP", object_name, exc)
+
+    # CDP fallback: navigate to DSP import UI and upload the CSN JSON
+    session = await get_cdp_session_for_tenant(ctx.tenant_id, environment)
+    if session is None:
+        raise RuntimeError(f"CSN deploy for {object_name!r}: REST import failed and Chrome CDP not available")
+
+    import_ui_url = f"{dsp_base_url.rstrip('/')}/dwaas-ui/index.html#/import"
+
+    try:
+        if await session.is_session_expired():
+            raise RuntimeError("CDP session is expired — re-authentication required")
+
+        await session.navigate(import_ui_url)
+
+        # Wait for the import dialog to appear (space switcher area is a reliable landmark)
+        await session.wait_for_element("[id$='spaceSelector']")
+
+        # Inject the CSN JSON directly via evaluate — DSP import UI uses an internal model
+        inject_result = await session.evaluate(
+            f"""
+            (function() {{
+                const csn = {csn_json};
+                if (window.sap && window.sap.fpa && window.sap.fpa.shell) {{
+                    window.sap.fpa.shell.importCSN(csn);
+                    return 'injected';
+                }}
+                return 'no-shell-api';
+            }})()
+            """
+        )
+
+        if inject_result != "injected":
+            raise RuntimeError(f"CSN inject via CDP returned {inject_result!r} — SAP shell API not accessible")
+
+        await session.wait_for_busy_clear()
+
+        errors = await session.check_for_errors()
+        if errors:
+            raise RuntimeError(f"CSN import reported errors for {object_name!r}: {errors}")
+
+        logger.info("CSN deploy via CDP succeeded: object=%r env=%r", object_name, environment)
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"CSN CDP import failed for {object_name!r}: {exc}") from exc
+    finally:
+        await session.close()

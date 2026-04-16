@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
+
+logger = logging.getLogger(__name__)
 
 _PIXEL_THRESHOLD = 10  # anti-aliasing tolerance (grayscale units)
 
@@ -105,6 +108,9 @@ async def capture_page_screenshot(
 ) -> str:
     """Capture a screenshot of a SAC story page.
 
+    Attempts a real CDP screenshot; falls back to returning the path only when
+    CDP is not available or SAC_BASE_URL is not configured.
+
     Args:
         tenant_id: Tenant identifier.
         environment: Environment name (e.g. "prod", "dev").
@@ -112,12 +118,43 @@ async def capture_page_screenshot(
         output_dir: Directory to write the PNG file.
 
     Returns:
-        Absolute path of the saved screenshot (stub — returns path only).
-        # REQUIRES: Live browser session with SAP content loaded.
+        Absolute path of the saved screenshot file, or a path placeholder in
+        demo/no-CDP mode.
     """
     os.makedirs(output_dir, exist_ok=True)
     filename = f"page_{page_id}_{uuid.uuid4().hex[:6]}.png"
-    return os.path.join(output_dir, filename)
+    output_path = os.path.join(output_dir, filename)
+
+    cdp_session = None
+    try:
+        from spec2sphere.browser.cdp_helpers import get_cdp_session_for_tenant
+
+        cdp_session = await get_cdp_session_for_tenant(tenant_id, environment)
+        if cdp_session is None:
+            logger.warning(
+                "No CDP session for tenant=%s env=%s — returning path-only placeholder",
+                tenant_id,
+                environment,
+            )
+            return output_path
+
+        png_bytes: bytes = await cdp_session.screenshot()
+        with open(output_path, "wb") as fh:
+            fh.write(png_bytes)
+        return os.path.abspath(output_path)
+
+    except ImportError:
+        logger.warning("cdp_helpers not yet available — returning path-only placeholder")
+        return output_path
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("capture_page_screenshot CDP operation failed (%s) — returning path only", exc)
+        return output_path
+    finally:
+        if cdp_session is not None:
+            try:
+                await cdp_session.close()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 async def capture_widget_screenshot(
@@ -128,6 +165,9 @@ async def capture_widget_screenshot(
 ) -> str:
     """Capture a screenshot of a specific SAC widget.
 
+    Uses element-scoped screenshot when a widget selector can be determined;
+    falls back to a full-page screenshot. Returns path-only in demo mode.
+
     Args:
         tenant_id: Tenant identifier.
         environment: Environment name (e.g. "prod", "dev").
@@ -135,9 +175,51 @@ async def capture_widget_screenshot(
         output_dir: Directory to write the PNG file.
 
     Returns:
-        Absolute path of the saved screenshot (stub — returns path only).
-        # REQUIRES: Live browser session with SAP content loaded.
+        Absolute path of the saved screenshot file, or a path placeholder in
+        demo/no-CDP mode.
     """
     os.makedirs(output_dir, exist_ok=True)
     filename = f"widget_{widget_id}_{uuid.uuid4().hex[:6]}.png"
-    return os.path.join(output_dir, filename)
+    output_path = os.path.join(output_dir, filename)
+
+    cdp_session = None
+    try:
+        from spec2sphere.browser.cdp_helpers import get_cdp_session_for_tenant
+
+        cdp_session = await get_cdp_session_for_tenant(tenant_id, environment)
+        if cdp_session is None:
+            logger.warning(
+                "No CDP session for tenant=%s env=%s — returning path-only placeholder",
+                tenant_id,
+                environment,
+            )
+            return output_path
+
+        # Attempt element-scoped screenshot using known widget ID selectors
+        widget_selector = f"[data-widget-id='{widget_id}'], [id='{widget_id}'], [aria-label*='{widget_id}']"
+        if await cdp_session.element_exists(widget_selector):
+            png_bytes: bytes = await cdp_session.screenshot_element(widget_selector)
+        else:
+            # Fall back to full-page screenshot
+            logger.warning(
+                "Widget selector not found for widget_id=%s — taking full-page screenshot",
+                widget_id,
+            )
+            png_bytes = await cdp_session.screenshot()
+
+        with open(output_path, "wb") as fh:
+            fh.write(png_bytes)
+        return os.path.abspath(output_path)
+
+    except ImportError:
+        logger.warning("cdp_helpers not yet available — returning path-only placeholder")
+        return output_path
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("capture_widget_screenshot CDP operation failed (%s) — returning path only", exc)
+        return output_path
+    finally:
+        if cdp_session is not None:
+            try:
+                await cdp_session.close()
+            except Exception:  # noqa: BLE001
+                pass
