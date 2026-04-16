@@ -190,15 +190,15 @@ def create_governance_routes() -> APIRouter:
                 params.append(f"%{resource_type}%")
                 idx += 1
             if trace_id:
-                conditions.append(f"trace_id::text = ${idx}")
-                params.append(trace_id)
+                conditions.append(f"id::text ILIKE ${idx}")
+                params.append(f"%{trace_id}%")
                 idx += 1
 
             where = " AND ".join(conditions)
             rows = await conn.fetch(
                 f"""
                 SELECT id, created_at, action, resource_type, resource_id,
-                       user_id, status_code, duration_ms, trace_id, details
+                       user_id, details
                 FROM audit_log
                 WHERE {where}
                 ORDER BY created_at DESC
@@ -256,7 +256,7 @@ def create_governance_routes() -> APIRouter:
             tmpl_rows = await conn.fetch(
                 """
                 SELECT id, platform, object_type, approved, confidence,
-                       reviewer_id, created_at
+                       created_at
                 FROM learned_templates
                 ORDER BY created_at DESC
                 LIMIT 30

@@ -2,9 +2,7 @@
 {% block title %}Landscape Explorer — Spec2Sphere{% endblock %}
 {% block page_title %}Landscape Explorer{% endblock %}
 
-{% block head %}
-<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block content %}
 <div id="content-inner" class="p-6 space-y-6">
@@ -328,10 +326,7 @@ function hideDetailPanel() {
 // ── Dependency graph ──────────────────────────────────────────
 let visNetwork = null;
 
-async function loadGraph() {
-  document.getElementById('graph-loading').classList.remove('hidden');
-  document.getElementById('graph-container').innerHTML = '';
-
+async function _doLoadGraph() {
   try {
     const resp = await fetch('/api/landscape/graph');
     const data = await resp.json();
@@ -373,6 +368,20 @@ async function loadGraph() {
       '<div class="flex items-center justify-center h-full text-red-400 text-sm">Failed to load graph: ' + err.message + '</div>';
   } finally {
     document.getElementById('graph-loading').classList.add('hidden');
+  }
+}
+
+function loadGraph() {
+  document.getElementById('graph-loading').classList.remove('hidden');
+  document.getElementById('graph-container').innerHTML = '';
+
+  if (typeof vis === 'undefined') {
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js';
+    s.onload = function() { _doLoadGraph(); };
+    document.head.appendChild(s);
+  } else {
+    _doLoadGraph();
   }
 }
 

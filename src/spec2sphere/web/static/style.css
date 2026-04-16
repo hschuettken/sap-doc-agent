@@ -19,12 +19,13 @@
     background: var(--color-primary);
     color: #fff;
     width: 240px;
-    min-height: 100vh;
+    height: 100vh;
     position: fixed;
     left: 0;
     top: 0;
     z-index: 40;
     transition: transform 0.2s;
+    overflow-y: auto;
 }
 
 .sidebar .nav-link { color: rgba(255,255,255,0.7); transition: color 0.15s, background 0.15s; }

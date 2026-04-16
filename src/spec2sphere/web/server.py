@@ -149,7 +149,75 @@ def create_app(
         except Exception as e:
             logger.warning("Could not bootstrap default tenant (DB may not be ready): %s", e)
 
-        # 3. Configure modules from config.yaml
+        # 3. Seed Horváth design tokens (idempotent — skips existing rows)
+        try:
+            from spec2sphere.core.design_system.tokens import seed_horvath_defaults
+
+            n = await seed_horvath_defaults()
+            if n:
+                logger.info("Seeded %d Horváth design tokens", n)
+        except Exception as e:
+            logger.warning("Failed to seed Horváth design tokens: %s", e)
+
+        # 3b. Seed Horváth knowledge-base standards from standards/horvath/*.yaml
+        try:
+            import uuid as _uuid
+            from pathlib import Path as _Path
+
+            import asyncpg as _asyncpg
+            import yaml as _yaml
+
+            from spec2sphere.tenant.context import _DEFAULT_TENANT_ID
+
+            _standards_dir = _Path(__file__).parents[3] / "standards" / "horvath"
+            _yaml_files = list(_standards_dir.glob("*.yaml"))
+
+            if _yaml_files and _DEFAULT_TENANT_ID:
+                _db_url = (
+                    __import__("os")
+                    .environ.get("DATABASE_URL", "")
+                    .replace("postgresql+psycopg://", "postgresql://")
+                    .replace("postgresql+asyncpg://", "postgresql://")
+                )
+                _conn = await _asyncpg.connect(_db_url)
+                try:
+                    _kb_inserted = 0
+                    for _yf in _yaml_files:
+                        _title = _yf.stem.replace("_", " ").title() + " (Horváth Standard)"
+                        _exists = await _conn.fetchrow(
+                            "SELECT 1 FROM knowledge_items WHERE tenant_id IS NOT DISTINCT FROM $1 AND customer_id IS NULL AND title = $2",
+                            _DEFAULT_TENANT_ID,
+                            _title,
+                        )
+                        if _exists:
+                            continue
+                        with open(_yf) as _fh:
+                            _raw = _yaml.safe_load(_fh) or {}
+                        _content = _raw.get("description") or _raw.get("name") or ""
+                        if not _content:
+                            # Serialize the whole YAML as content so it's searchable
+                            _content = _yf.read_text()
+                        await _conn.execute(
+                            """
+                            INSERT INTO knowledge_items
+                                (id, tenant_id, customer_id, project_id, category, title, content, source, confidence)
+                            VALUES ($1, $2, NULL, NULL, 'standard', $3, $4, $5, 1.0)
+                            """,
+                            _uuid.uuid4(),
+                            _DEFAULT_TENANT_ID,
+                            _title,
+                            _content,
+                            _yf.name,
+                        )
+                        _kb_inserted += 1
+                    if _kb_inserted:
+                        logger.info("Seeded %d Horváth knowledge-base standards", _kb_inserted)
+                finally:
+                    await _conn.close()
+        except Exception as e:
+            logger.warning("Failed to seed Horváth knowledge-base standards: %s", e)
+
+        # 4. Configure modules from config.yaml
         try:
             from spec2sphere.modules import configure_modules, mount_enabled_routes
 
@@ -167,7 +235,7 @@ def create_app(
         except Exception as e:
             logger.warning("Failed to configure modules: %s", e)
 
-        # 4. Mount workspace routes when multi_tenant enabled
+        # 5. Mount workspace routes when multi_tenant enabled
         try:
             from spec2sphere.modules import is_enabled
 

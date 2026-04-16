@@ -93,14 +93,14 @@ def create_factory_routes() -> APIRouter:
                        p.name AS project_name
                 FROM deployment_runs dr
                 LEFT JOIN projects p ON p.id = dr.project_id
-                ORDER BY dr.created_at DESC
+                ORDER BY dr.started_at DESC
                 LIMIT 20
                 """
             )
             runs = [_str_record(r) for r in rows]
             # Find active run for SSE stream
             active_row = await conn.fetchrow(
-                "SELECT id FROM deployment_runs WHERE status = 'running' ORDER BY created_at DESC LIMIT 1"
+                "SELECT id FROM deployment_runs WHERE status = 'running' ORDER BY started_at DESC LIMIT 1"
             )
             if active_row:
                 active_run_id = str(active_row["id"])
@@ -159,7 +159,7 @@ def create_factory_routes() -> APIRouter:
                 """
                 SELECT id FROM deployment_runs
                 WHERE status = 'running'
-                ORDER BY created_at DESC
+                ORDER BY started_at DESC
                 LIMIT 1
                 """
             )
@@ -482,7 +482,7 @@ def create_factory_routes() -> APIRouter:
                 FROM deployment_runs dr
                 LEFT JOIN projects p ON p.id = dr.project_id
                 WHERE dr.status = 'running'
-                ORDER BY dr.created_at DESC
+                ORDER BY dr.started_at DESC
                 LIMIT 1
                 """
             )

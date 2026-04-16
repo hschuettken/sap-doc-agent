@@ -167,7 +167,7 @@ def create_pipeline_routes() -> APIRouter:
             from spec2sphere.governance.approvals import list_approvals
 
             requirements = await list_requirements(ctx=ctx, limit=20)
-            hlas = await list_hla_documents(ctx=ctx, limit=20)
+            hlas = await list_hla_documents(ctx=ctx)
             approvals = await list_approvals(ctx=ctx, limit=50)
 
             for r in requirements:
@@ -293,7 +293,7 @@ def create_pipeline_routes() -> APIRouter:
             if req:
                 _str_ids(req)
                 # Deserialise JSON columns
-                for col in ("parsed_entities", "parsed_kpis", "parsed_grain", "open_questions", "migration_objects"):
+                for col in ("parsed_entities", "parsed_kpis", "parsed_grain", "open_questions"):
                     req[col] = _safe_json(req.get(col))
 
                 try:
@@ -545,12 +545,13 @@ def create_pipeline_routes() -> APIRouter:
                 except Exception:
                     pass
 
-                # SAC blueprints generated from this HLA
+                # SAC blueprints generated from this HLA (via tech_specs)
                 try:
                     from spec2sphere.pipeline.blueprint_generator import list_blueprints
 
+                    ts_ids = {str(ts.get("id", "")) for ts in tech_specs}
                     all_bp = await list_blueprints(ctx)
-                    blueprints = [_str_ids(bp) or bp for bp in all_bp if str(bp.get("hla_id", "")) == hla_id]
+                    blueprints = [_str_ids(bp) or bp for bp in all_bp if str(bp.get("tech_spec_id", "")) in ts_ids]
                 except Exception:
                     pass
 
@@ -1169,7 +1170,6 @@ def create_pipeline_routes() -> APIRouter:
             if blueprint:
                 _str_ids(blueprint)
                 blueprint["pages"] = _safe_json(blueprint.get("pages"))
-                blueprint["widgets"] = _safe_json(blueprint.get("widgets"))
 
                 try:
                     approval = await get_approval_for_artifact("sac_blueprint", bp_id)

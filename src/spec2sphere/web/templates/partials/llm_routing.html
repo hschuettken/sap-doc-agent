@@ -5,6 +5,61 @@
 {% block content %}
 <div class="max-w-6xl mx-auto space-y-6" id="llm-routing-root">
 
+  {# ── Intro card ── #}
+  <div class="card border-l-4 border-petrol">
+    <div class="flex items-start gap-4">
+      <div class="flex-1">
+        <h3 class="font-heading text-base text-[#1a2332] mb-1">What is this page?</h3>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          Every AI-powered action in Spec2Sphere has a <strong>quality level</strong> (Q1–Q5).
+          This page lets you control which model handles each action — balancing cost against capability.
+        </p>
+        <div class="flex flex-wrap gap-2 mt-3">
+          {% set intro_levels = [
+            ("Q1", "Trivial", "bg-gray-100", "text-gray-700", "Fastest, cheapest — simple lookups &amp; formatting"),
+            ("Q2", "Basic", "bg-blue-50", "text-blue-700", "Lightweight reasoning &amp; summaries"),
+            ("Q3", "Capable", "bg-green-50", "text-green-700", "Standard analysis &amp; generation"),
+            ("Q4", "Expert", "bg-amber-50", "text-amber-700", "Complex reasoning, long-form output"),
+            ("Q5", "Frontier", "bg-red-50", "text-red-700", "Hardest tasks — best model available"),
+          ] %}
+          {% for lid, lname, lbg, lfg, ldesc in intro_levels %}
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs {{ lbg }} {{ lfg }}">
+            <span class="font-semibold">{{ lid }}</span>
+            <span class="opacity-80">{{ lname }}</span>
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="hidden md:block flex-shrink-0 text-right">
+        <p class="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Override priority</p>
+        <div class="text-xs text-gray-600 space-y-0.5">
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> Action override (highest)</div>
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span> Cluster override</div>
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span> Profile default (lowest)</div>
+        </div>
+      </div>
+    </div>
+
+    {# How it works — collapsible #}
+    <div class="mt-4 border-t border-gray-100 pt-3">
+      <button class="flex items-center gap-1.5 text-xs text-petrol font-medium hover:underline focus:outline-none"
+              onclick="toggleHowItWorks()">
+        <svg id="chevron-how-it-works" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+        How it works
+      </button>
+      <div id="how-it-works-body" class="hidden mt-2 text-sm text-gray-600 leading-relaxed">
+        <ol class="list-decimal ml-4 space-y-1">
+          <li>A pipeline action runs (e.g. <em>generate a technical spec</em>).</li>
+          <li>Spec2Sphere looks up the action's <strong>effective quality level</strong>: action override → cluster override → profile default.</li>
+          <li>It maps that quality level to a model name using the <strong>active profile</strong> below.</li>
+          <li>The model is called. You can tune any level at any time — changes take effect immediately.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
   {# ── Section 1: Active Profile ── #}
   <div class="card">
     <div class="flex items-start justify-between mb-4">
@@ -34,6 +89,7 @@
     </div>
 
     {# Q1-Q5 model strip #}
+    <p class="text-xs text-gray-500 mb-2">Model assigned to each quality level in the active profile:</p>
     <div class="grid grid-cols-5 gap-2" id="profile-model-strip">
       {% set q_colors = {
         "Q1": ("bg-gray-100", "text-gray-700", "border-gray-200"),
@@ -46,12 +102,12 @@
       {% set bg, fg, border = q_colors[level_id] %}
       {% set profile_data = state.profiles.get(state.active_profile, {}) %}
       {% set model = profile_data.get(level_id, {}).get("model", "—") %}
-      <div class="rounded border {{ border }} {{ bg }} px-3 py-2">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-xs font-semibold {{ fg }}">{{ level_id }}</span>
-          <span class="text-xs {{ fg }} opacity-70">{{ level_info.name }}</span>
+      <div class="rounded border-2 {{ border }} {{ bg }} px-3 py-3 flex flex-col gap-1">
+        <div class="flex items-center gap-1.5">
+          <span class="text-sm font-bold {{ fg }}">{{ level_id }}</span>
+          <span class="text-xs font-medium {{ fg }}">{{ level_info.name }}</span>
         </div>
-        <div class="text-xs text-gray-600 font-mono truncate" title="{{ model }}">{{ model }}</div>
+        <div class="text-[11px] text-gray-500 font-mono truncate leading-tight" title="{{ model }}">{{ model }}</div>
       </div>
       {% endfor %}
     </div>
@@ -59,7 +115,17 @@
 
   {# ── Section 2: Actions by Cluster ── #}
   <div>
-    <h3 class="font-heading text-base text-[#1a2332] mb-3">Actions by Cluster</h3>
+    <div class="flex items-end justify-between mb-3">
+      <div>
+        <h3 class="font-heading text-base text-[#1a2332]">Actions by Cluster</h3>
+        <p class="text-xs text-gray-500 mt-0.5">Each action has a default quality level. Use the dropdown to override it for individual actions or whole clusters.</p>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-gray-500 pb-0.5">
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> action override</span>
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span> cluster override</span>
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block"></span> default</span>
+      </div>
+    </div>
 
     {% for cluster in state.clusters %}
     {% set cluster_actions = state.actions | selectattr("cluster", "equalto", cluster.cluster_id) | list %}
@@ -112,26 +178,20 @@
               <div class="text-sm font-medium text-[#1a2332] truncate">{{ action.display_name }}</div>
               {% if action.description %}
               <div class="text-xs text-gray-500 truncate">{{ action.description }}</div>
+              {% else %}
+              <div class="text-xs text-gray-400 truncate italic">No description</div>
               {% endif %}
             </div>
 
-            {# Default quality badge #}
-            {% set dq = action.default_quality %}
-            {% set dbg, dfg, dborder = q_colors[dq] %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ dbg }} {{ dfg }} flex-shrink-0"
-                  title="Default quality">
-              {{ dq }}
-            </span>
-
-            {# Effective quality dropdown #}
+            {# Quality selector — shows effective quality; "Inherit" option shows the default #}
             {% set eq = action.effective_quality %}
             {% set ebg, efg, eborder = q_colors[eq] %}
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              <select class="border rounded px-2 py-1 text-xs focus:outline-none focus:border-petrol {{ ebg }} {{ efg }} {{ eborder }}"
+            <div class="flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[160px]">
+              <select class="border-2 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:border-petrol {{ ebg }} {{ efg }} {{ eborder }} w-full"
                       onchange="setActionOverride('{{ action.action_id }}', this.value, this)"
-                      title="Effective quality (change to override)">
-                <option value="" {% if action.effective_quality == action.default_quality and action.override_source == 'default' %}selected{% endif %}>
-                  Inherit ({{ action.default_quality }})
+                      title="Set quality level for this action">
+                <option value="" {% if action.override_source == 'default' or action.override_source == 'cluster' and not is_action_override %}selected{% endif %}>
+                  Default ({{ action.default_quality }} — {{ state.quality_levels[action.default_quality].name }})
                 </option>
                 {% for level_id, level_info in state.quality_levels.items() %}
                 <option value="{{ level_id }}"
@@ -140,20 +200,17 @@
                 </option>
                 {% endfor %}
               </select>
-
-              {# Effective model label #}
-              <span class="text-xs text-gray-500 font-mono truncate max-w-[140px]" title="{{ action.effective_model }}">
-                {{ action.effective_model }}
-              </span>
-
-              {# Override source indicator #}
-              {% if is_action_override %}
-              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 flex-shrink-0">action</span>
-              {% elif is_cluster_override %}
-              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 flex-shrink-0">cluster</span>
-              {% else %}
-              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 flex-shrink-0">default</span>
-              {% endif %}
+              {# Source + model on one compact line #}
+              <div class="flex items-center gap-1.5 w-full">
+                {% if is_action_override %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 flex-shrink-0" data-override-badge="">overridden</span>
+                {% elif is_cluster_override %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 flex-shrink-0" data-override-badge="">cluster</span>
+                {% else %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500 flex-shrink-0" data-override-badge="">default</span>
+                {% endif %}
+                <span class="text-[10px] text-gray-400 font-mono truncate" title="{{ action.effective_model }}">{{ action.effective_model }}</span>
+              </div>
             </div>
 
           </div>
@@ -174,10 +231,13 @@
          onclick="toggleProfileEditor()">
       <div>
         <h3 class="font-heading text-base text-[#1a2332]">Profile Editor</h3>
-        <p class="text-sm text-gray-500 mt-0.5">Edit model assignments per quality level, save as a custom profile, or reset all overrides.</p>
+        <p class="text-sm text-gray-500 mt-0.5">
+          A <strong>profile</strong> maps each quality level (Q1–Q5) to a specific model.
+          Edit the model names below, then save as a named custom profile to apply those mappings everywhere.
+        </p>
       </div>
       <svg id="chevron-profile-editor"
-           class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform"
+           class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ml-4"
            fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
       </svg>
@@ -344,8 +404,8 @@ function renderActionRows() {
       sel.classList.add(bg, fg, border);
     }
 
-    // Update effective model text
-    const modelSpan = row.querySelector('[data-model-label]');
+    // Update effective model text (now the font-mono span inside the sub-line)
+    const modelSpan = row.querySelector('span.font-mono.truncate');
     if (modelSpan) {
       modelSpan.textContent = action.effective_model;
       modelSpan.title = action.effective_model;
@@ -355,13 +415,13 @@ function renderActionRows() {
     const badgeSpan = row.querySelector('[data-override-badge]');
     if (badgeSpan) {
       if (action.override_source === 'action') {
-        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 flex-shrink-0';
-        badgeSpan.textContent = 'action';
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 flex-shrink-0';
+        badgeSpan.textContent = 'overridden';
       } else if (action.override_source === 'cluster') {
-        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 flex-shrink-0';
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 flex-shrink-0';
         badgeSpan.textContent = 'cluster';
       } else {
-        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 flex-shrink-0';
+        badgeSpan.className = 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-500 flex-shrink-0';
         badgeSpan.textContent = 'default';
       }
     }
@@ -451,6 +511,17 @@ async function setActionOverride(actionId, value, selectEl) {
   }
 }
 
+// ─── Intro card interactions ──────────────────────────────────────────────────
+
+function toggleHowItWorks() {
+  const body = document.getElementById('how-it-works-body');
+  const chevron = document.getElementById('chevron-how-it-works');
+  if (!body) return;
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', isOpen);
+  chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
 // ─── Section 3 interactions ───────────────────────────────────────────────────
 
 function toggleProfileEditor() {
@@ -500,25 +571,19 @@ async function resetAllOverrides() {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
-// Add data attributes to dynamic nodes after Jinja renders them
-// (so renderActionRows() / renderProfileStrip() can find them without full re-render)
+// Tag model-strip cells with data-level-model for JS updates after Jinja renders
+// (renderProfileStrip() needs these to update model names on profile switch)
 document.addEventListener('DOMContentLoaded', () => {
-  // Tag model-strip cells with data-level-model for JS updates
   const strip = document.getElementById('profile-model-strip');
   if (strip) {
     const levels = Object.keys(routingState.quality_levels);
-    strip.querySelectorAll('.font-mono').forEach((el, i) => {
-      if (levels[i]) el.dataset.levelModel = levels[i];
+    // Each strip cell has one .font-mono div (the model name) — tag it by cell order
+    strip.querySelectorAll(':scope > div').forEach((cell, i) => {
+      const modelEl = cell.querySelector('.font-mono');
+      if (modelEl && levels[i]) modelEl.dataset.levelModel = levels[i];
     });
   }
-
-  // Tag action rows with data-model-label and data-override-badge
-  document.querySelectorAll('[data-action-id]').forEach(row => {
-    const spans = row.querySelectorAll('span.font-mono');
-    if (spans.length) spans[spans.length - 1].dataset.modelLabel = '';
-    const badges = row.querySelectorAll('span.rounded');
-    if (badges.length) badges[badges.length - 1].dataset.overrideBadge = '';
-  });
+  // data-override-badge is already set in Jinja HTML — no re-tagging needed
 });
 </script>
 {% endblock %}

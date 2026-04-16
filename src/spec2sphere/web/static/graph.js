@@ -14,7 +14,8 @@ let network = null;
 let allNodes = [];
 let allEdges = [];
 
-function initGraph() {
+function initGraph(data) {
+    if (data) { graphData = data; }
     if (!graphData || !graphData.nodes) return;
 
     const connectionCount = {};

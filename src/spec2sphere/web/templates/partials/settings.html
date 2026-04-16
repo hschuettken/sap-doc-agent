@@ -15,6 +15,9 @@
 
   <!-- ===== LLM Provider Tab ===== -->
   <div id="tab-llm" class="settings-tab">
+    <div class="bg-blue-50 border border-blue-300 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800">
+      For granular model routing per pipeline action, use the <a href="/ui/llm-routing" class="font-medium underline hover:text-blue-900">LLM Routing</a> page.
+    </div>
     <div class="card">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -338,10 +341,30 @@
 {% block head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js"></script>
 <script>
 let editor;
+
+function _initCodeMirrorEditor() {
+  if (!editor) {
+    editor = CodeMirror(document.getElementById('config-editor-container'), {
+      value: {{ config_yaml | tojson }},
+      mode: 'yaml', theme: 'dracula', lineNumbers: true, lineWrapping: true, tabSize: 2,
+    });
+  }
+}
+
+function _loadSettingsCM(cb) {
+  if (typeof CodeMirror !== 'undefined') { cb(); return; }
+  var s1 = document.createElement('script');
+  s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js';
+  s1.onload = function() {
+    var s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js';
+    s2.onload = cb;
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
 
 function showSettingsTab(evt, name) {
   document.querySelectorAll('.settings-tab').forEach(t => t.classList.add('hidden'));
@@ -350,12 +373,9 @@ function showSettingsTab(evt, name) {
     b.className = 'px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap';
   });
   evt.target.className = 'px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap';
-  // Lazy-init CodeMirror
+  // Lazy-load CodeMirror then init editor
   if (name === 'advanced' && !editor) {
-    editor = CodeMirror(document.getElementById('config-editor-container'), {
-      value: {{ config_yaml | tojson }},
-      mode: 'yaml', theme: 'dracula', lineNumbers: true, lineWrapping: true, tabSize: 2,
-    });
+    _loadSettingsCM(_initCodeMirrorEditor);
   }
 }
 

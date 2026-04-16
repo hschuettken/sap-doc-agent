@@ -3,9 +3,6 @@
 {% block page_title %}Agent Terminal{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <style>
   .session-dot {
     display: inline-block;
@@ -199,14 +196,44 @@ let _ws = null;
 let _currentSessionId = null;
 let _sessionListData = [];
 
+// ── xterm.js CSS ───────────────────────────────────────────────────────────
+(function() {
+  if (!document.querySelector('link[href*="xterm.min.css"]')) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css';
+    document.head.appendChild(link);
+  }
+})();
+
 // ── Init on page load ──────────────────────────────────────────────────────
 (function init() {
-  initTerminal();
-  {% if selected %}
-  connectToSession('{{ selected.id }}', '{{ selected.name|e }}', '{{ selected.status }}');
-  {% endif %}
-  // Kick off the first session-list refresh immediately
-  fetchSessionList();
+  function run() {
+    initTerminal();
+    {% if selected %}
+    connectToSession('{{ selected.id }}', '{{ selected.name|e }}', '{{ selected.status }}');
+    {% endif %}
+    // Kick off the first session-list refresh immediately
+    fetchSessionList();
+  }
+
+  if (typeof Terminal === 'undefined') {
+    var s1 = document.createElement('script');
+    s1.src = 'https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js';
+    s1.onload = function() {
+      if (typeof FitAddon === 'undefined') {
+        var s2 = document.createElement('script');
+        s2.src = 'https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js';
+        s2.onload = run;
+        document.head.appendChild(s2);
+      } else {
+        run();
+      }
+    };
+    document.head.appendChild(s1);
+  } else {
+    run();
+  }
 })();
 
 // ── Terminal setup ─────────────────────────────────────────────────────────

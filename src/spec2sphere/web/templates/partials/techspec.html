@@ -1,14 +1,8 @@
 {% extends "base.html" %}
-{% block title %}{{ tech_spec.title if tech_spec else 'Tech Spec' }} — Spec2Sphere{% endblock %}
+{% block title %}Tech Spec {{ 'v' + tech_spec.version|string if tech_spec and tech_spec.version else '' }} — Spec2Sphere{% endblock %}
 {% block page_title %}Tech Spec Detail{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
-<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block content %}
 <div id="content-inner" class="p-6 space-y-5">
@@ -403,8 +397,28 @@
 </div>
 
 <script>
-// ── Dependency graph via vis.js ──────────────────────────────────────
+// ── Lazy-load CSS ──────────────────────────────────────────────────────────
 (function() {
+  function addCss(href) {
+    if (!document.querySelector('link[href="' + href + '"]')) {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = href;
+      document.head.appendChild(l);
+    }
+  }
+  addCss('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css');
+  addCss('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css');
+})();
+
+// ── Shared lazy-loader ─────────────────────────────────────────────────────
+function _loadScript(src, cb) {
+  var s = document.createElement('script');
+  s.src = src; s.onload = cb;
+  document.head.appendChild(s);
+}
+
+// ── Dependency graph via vis.js (lazy) ────────────────────────────────────
+function _initDepGraph() {
   const depGraph = {{ tech_spec.dependency_graph | tojson if (tech_spec and tech_spec.dependency_graph is defined) else '{}' }};
   const container = document.getElementById('dep-graph');
   if (!container) return;
@@ -445,7 +459,7 @@
     interaction: { dragNodes: true, zoomView: true, hover: true },
     edges: { smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 } },
   });
-})();
+}
 
 // ── SQL viewer ───────────────────────────────────────────────────────
 const objectsData = JSON.parse(document.getElementById('objects-data').textContent || '[]');
@@ -464,6 +478,19 @@ function switchSqlTab(tab) {
     : 'px-4 py-2 text-sm font-medium text-gray-500 hover:text-charcoal border-b-2 border-transparent -mb-px';
 }
 
+function _doInitSqlEditor(sql, editorContainer) {
+  editorContainer.innerHTML = '';
+  sqlEditor = CodeMirror(editorContainer, {
+    value: sql,
+    mode: 'sql',
+    theme: 'material-darker',
+    lineNumbers: true,
+    readOnly: true,
+    lineWrapping: false,
+    viewportMargin: Infinity,
+  });
+}
+
 function loadObjectDetail(objId) {
   const obj = objectsData.find(o => String(o.id) === String(objId));
   if (!obj) return;
@@ -477,16 +504,15 @@ function loadObjectDetail(objId) {
     sqlEmpty.classList.add('hidden');
     sqlContent.classList.remove('hidden');
     const editorContainer = document.getElementById('sql-editor-container');
-    editorContainer.innerHTML = '';
-    sqlEditor = CodeMirror(editorContainer, {
-      value: sql,
-      mode: 'sql',
-      theme: 'material-darker',
-      lineNumbers: true,
-      readOnly: true,
-      lineWrapping: false,
-      viewportMargin: Infinity,
-    });
+    if (typeof CodeMirror !== 'undefined') {
+      _doInitSqlEditor(sql, editorContainer);
+    } else {
+      _loadScript('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js', function() {
+        _loadScript('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js', function() {
+          _doInitSqlEditor(sql, editorContainer);
+        });
+      });
+    }
   } else {
     sqlEmpty.textContent = 'No SQL available for this object';
     sqlEmpty.classList.remove('hidden');
@@ -520,5 +546,14 @@ function sortTable(colIndex) {
   });
   rows.forEach(row => tbody.appendChild(row));
 }
+
+// ── Boot: lazy-load vis-network then init dep graph ────────────────────────
+(function() {
+  if (typeof vis === 'undefined') {
+    _loadScript('https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js', _initDepGraph);
+  } else {
+    _initDepGraph();
+  }
+})();
 </script>
 {% endblock %}

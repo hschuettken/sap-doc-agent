@@ -2,15 +2,11 @@
 {% block title %}Dependencies — SAP Doc Agent{% endblock %}
 {% block page_title %}Dependency Graph{% endblock %}
 
-{% block head %}
-<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+{% block content %}
 <style>
 #graph-container { height: calc(100vh - 180px); background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 #node-panel { position: absolute; right: 1.5rem; top: 8rem; width: 300px; z-index: 20; display: none; }
 </style>
-{% endblock %}
-
-{% block content %}
 <!-- Filters -->
 <div class="card mb-4 flex flex-wrap items-center gap-3">
     <input type="text" id="graph-search" placeholder="Search nodes..."
@@ -38,7 +34,15 @@
 </div>
 
 <script>
-const graphData = {{ graph_data | safe }};
+if (typeof vis === 'undefined') {
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js';
+    s.onload = function() { const graphData = {{ graph_data | safe }}; initGraph(graphData); };
+    document.head.appendChild(s);
+} else {
+    const graphData = {{ graph_data | safe }};
+    initGraph(graphData);
+}
 </script>
 <script src="/static/graph.js"></script>
 {% endblock %}
