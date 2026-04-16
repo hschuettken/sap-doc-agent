@@ -433,4 +433,55 @@ def create_governance_routes() -> APIRouter:
             logger.error("graduate_template error: %s", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
+    # ── API: Experiment Detail ────────────────────────────────────────────────
+
+    @router.get("/api/lab/experiments/{experiment_id}")
+    async def get_experiment_detail(experiment_id: str):
+        """Get experiment detail with diff for viewer."""
+        conn = await _get_conn()
+        try:
+            row = await conn.fetchrow("SELECT * FROM lab_experiments WHERE id = $1::uuid", experiment_id)
+        finally:
+            await conn.close()
+        if not row:
+            return JSONResponse({"error": "Experiment not found"}, status_code=404)
+        return JSONResponse(_str_record(row))
+
+    # ── API: Mutation Catalog ─────────────────────────────────────────────────
+
+    @router.get("/api/lab/mutations")
+    async def list_mutations(platform: str = "dsp", object_type: str = "relational_view"):
+        """Browse the mutation catalog."""
+        from spec2sphere.artifact_lab.mutation_catalog import get_mutations  # noqa: PLC0415
+
+        mutations = get_mutations(platform, object_type)
+        return JSONResponse({"platform": platform, "object_type": object_type, "mutations": mutations})
+
+    # ── API: Audit Compliance Summary ─────────────────────────────────────────
+
+    @router.get("/api/audit/compliance-summary")
+    async def compliance_summary():
+        """Compliance summary: approval coverage and pending items."""
+        conn = await _get_conn()
+        try:
+            stats = await conn.fetchrow("""
+                SELECT
+                    COUNT(*) AS total_approvals,
+                    COUNT(*) FILTER (WHERE status = 'approved' OR status = 'approved_for_production') AS approved,
+                    COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+                    COUNT(*) FILTER (WHERE status = 'rejected') AS rejected,
+                    COUNT(*) FILTER (WHERE status = 'rework') AS rework
+                FROM approvals
+            """)
+            return JSONResponse(
+                _str_record(stats)
+                if stats
+                else {"total_approvals": 0, "approved": 0, "pending": 0, "rejected": 0, "rework": 0}
+            )
+        except Exception as exc:
+            logger.warning("compliance_summary: %s", exc)
+            return JSONResponse({"total_approvals": 0, "approved": 0, "pending": 0, "rejected": 0, "rework": 0})
+        finally:
+            await conn.close()
+
     return router

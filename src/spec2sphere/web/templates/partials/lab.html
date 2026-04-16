@@ -27,7 +27,7 @@
         </thead>
         <tbody class="divide-y divide-gray-100">
             {% for exp in experiments %}
-            <tr class="hover:bg-gray-50 transition-colors">
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick="showExperiment('{{ exp.id }}')">
                 <td class="px-4 py-3">
                     <span class="px-2 py-0.5 rounded text-xs font-medium
                         {% if exp.platform == 'dsp' %}bg-blue-100 text-blue-700
@@ -55,6 +55,17 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Experiment Detail Modal -->
+<div id="exp-detail-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="font-heading text-lg text-[#1a2332]">Experiment Detail</h3>
+            <button onclick="document.getElementById('exp-detail-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">&times;</button>
+        </div>
+        <div id="exp-detail-content"></div>
+    </div>
 </div>
 {% else %}
 <div class="card text-center py-8 mb-8">
@@ -117,6 +128,27 @@
 {% endif %}
 
 <script>
+async function showExperiment(id) {
+    const resp = await fetch(`/api/lab/experiments/${id}`);
+    if (!resp.ok) { showToast('Failed to load experiment', 'error'); return; }
+    const exp = await resp.json();
+    let html = `<div class="space-y-3">`;
+    html += `<p><strong>Platform:</strong> ${exp.platform} | <strong>Type:</strong> ${exp.object_type} | <strong>Route:</strong> ${exp.route_used || '—'}</p>`;
+    html += `<p><strong>Status:</strong> ${exp.success ? 'Success' : 'Failed'}</p>`;
+    if (exp.input_definition) {
+        html += `<h4 class="font-medium text-sm mt-3">Input</h4><pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto">${JSON.stringify(exp.input_definition, null, 2)}</pre>`;
+    }
+    if (exp.output_definition) {
+        html += `<h4 class="font-medium text-sm mt-3">Output</h4><pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto">${JSON.stringify(exp.output_definition, null, 2)}</pre>`;
+    }
+    if (exp.diff) {
+        html += `<h4 class="font-medium text-sm mt-3">Diff</h4><pre class="bg-amber-50 p-3 rounded text-xs overflow-x-auto">${JSON.stringify(exp.diff, null, 2)}</pre>`;
+    }
+    html += `</div>`;
+    document.getElementById('exp-detail-content').innerHTML = html;
+    document.getElementById('exp-detail-modal').classList.remove('hidden');
+}
+
 async function graduateTemplate(templateId, approved) {
     const actionsEl = document.getElementById('tmpl-actions-' + templateId);
     if (actionsEl) {

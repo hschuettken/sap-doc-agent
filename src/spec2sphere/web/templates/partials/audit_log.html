@@ -50,6 +50,27 @@
     </form>
 </div>
 
+<!-- Compliance Summary Bar -->
+<div id="compliance-bar" class="card mb-4 hidden">
+    <div class="flex gap-6 items-center flex-wrap">
+        <div class="text-center"><div id="comp-total" class="text-xl font-bold text-petrol">-</div><div class="text-xs text-gray-400">Total</div></div>
+        <div class="text-center"><div id="comp-approved" class="text-xl font-bold text-green-600">-</div><div class="text-xs text-gray-400">Approved</div></div>
+        <div class="text-center"><div id="comp-pending" class="text-xl font-bold text-amber-600">-</div><div class="text-xs text-gray-400">Pending</div></div>
+        <div class="text-center"><div id="comp-rejected" class="text-xl font-bold text-red-600">-</div><div class="text-xs text-gray-400">Rejected</div></div>
+        <div class="text-center"><div id="comp-rework" class="text-xl font-bold text-gray-600">-</div><div class="text-xs text-gray-400">Rework</div></div>
+    </div>
+</div>
+<script>
+fetch('/api/audit/compliance-summary').then(r=>r.json()).then(d=>{
+    document.getElementById('comp-total').textContent=d.total_approvals||0;
+    document.getElementById('comp-approved').textContent=d.approved||0;
+    document.getElementById('comp-pending').textContent=d.pending||0;
+    document.getElementById('comp-rejected').textContent=d.rejected||0;
+    document.getElementById('comp-rework').textContent=d.rework||0;
+    document.getElementById('compliance-bar').classList.remove('hidden');
+}).catch(()=>{});
+</script>
+
 <!-- Entries Table -->
 {% if entries %}
 <div class="card p-0 overflow-hidden">
