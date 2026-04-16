@@ -5,7 +5,7 @@ ENV DISPLAY=:99
 ENV CHROME_FLAGS="--no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --window-size=1920,1080"
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     xvfb \
@@ -28,9 +28,9 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     libgbm1 \
-    libasound2 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
+    && (apt-get install -y libasound2 || apt-get install -y libasound2t64 || true) \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome stable
