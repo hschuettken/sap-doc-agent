@@ -6,12 +6,13 @@ build_* functions and compute_diff.
 
 from __future__ import annotations
 
+import pytest
 
 from spec2sphere.artifact_lab.mutation_catalog import (
     get_mutations,
     is_safe_mutation,
 )
-from spec2sphere.artifact_lab.lab_runner import compute_diff
+from spec2sphere.artifact_lab.lab_runner import compute_diff, run_experiment  # noqa: F401
 from spec2sphere.artifact_lab.experiment_tracker import build_experiment_record
 from spec2sphere.artifact_lab.template_store import build_template_from_experiment
 
@@ -142,3 +143,40 @@ def test_compute_diff_with_removals():
     assert "gone" in diff["removals"]
     assert diff["removals"]["gone"] == "bye"
     assert diff["additions"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Lab Runner — run_experiment (2 tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_run_experiment_with_cdp_fallback():
+    """run_experiment falls back to simulation when Chrome is not available."""
+    result = await run_experiment(
+        platform="dsp",
+        object_type="relational_view",
+        experiment_type="create",
+        input_definition={"name": "V_TEST", "test_url": "https://example.com"},
+        route="cdp",
+        environment="sandbox",
+    )
+    assert result.success is True
+    assert result.diff["changed"] is True
+    # Whether real CDP or simulation, we get a valid result
+    assert result.route_used == "cdp"
+
+
+@pytest.mark.asyncio
+async def test_run_experiment_rejects_production():
+    """run_experiment refuses to run in production environment."""
+    result = await run_experiment(
+        platform="dsp",
+        object_type="relational_view",
+        experiment_type="create",
+        input_definition={"name": "V_TEST"},
+        route="cdp",
+        environment="production",
+    )
+    assert result.success is False
+    assert "sandbox" in result.error.lower()

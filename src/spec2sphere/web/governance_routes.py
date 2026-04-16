@@ -484,4 +484,259 @@ def create_governance_routes() -> APIRouter:
         finally:
             await conn.close()
 
+    # ── API: Demo Seed ────────────────────────────────────────────────────────
+
+    @router.post("/api/demo/seed")
+    async def demo_seed(request: Request):
+        """Seed the database with Horvath Demo customer, project, and sample artifacts."""
+        import json as _json  # noqa: PLC0415
+        import uuid as _uuid  # noqa: PLC0415
+
+        conn = await _get_conn()
+        try:
+            # Check if demo already exists
+            existing = await conn.fetchrow("SELECT id FROM customers WHERE slug = 'horvath-demo'")
+            if existing:
+                customer_id = str(existing["id"])
+                project_row = await conn.fetchrow(
+                    "SELECT id FROM projects WHERE customer_id = $1 AND slug = 'sales-planning'",
+                    existing["id"],
+                )
+                project_id = str(project_row["id"]) if project_row else None
+                return JSONResponse(
+                    {
+                        "status": "already_exists",
+                        "customer_id": customer_id,
+                        "project_id": project_id,
+                    }
+                )
+
+            # Get or create default tenant
+            tenant = await conn.fetchrow("SELECT id FROM tenants LIMIT 1")
+            if not tenant:
+                tenant_id = str(_uuid.uuid4())
+                await conn.execute(
+                    "INSERT INTO tenants (id, name, slug) VALUES ($1::uuid, 'Default', 'default')",
+                    tenant_id,
+                )
+            else:
+                tenant_id = str(tenant["id"])
+
+            # Create customer
+            customer_id = str(_uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO customers (id, tenant_id, name, slug, branding)
+                   VALUES ($1::uuid, $2::uuid, 'Horvath Demo', 'horvath-demo',
+                           '{"primary_color": "#05415A", "accent_color": "#C8963E"}'::jsonb)""",
+                customer_id,
+                tenant_id,
+            )
+
+            # Create project
+            project_id = str(_uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO projects (id, customer_id, name, slug, environment, status)
+                   VALUES ($1::uuid, $2::uuid, 'Sales Planning', 'sales-planning', 'sandbox', 'active')""",
+                project_id,
+                customer_id,
+            )
+
+            # Create requirement
+            req_id = str(_uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO requirements (id, project_id, title, business_domain, description,
+                                            parsed_entities, parsed_kpis, status)
+                   VALUES ($1::uuid, $2::uuid, 'Revenue KPI Model', 'Finance',
+                           'Revenue reporting with regional drill-down and product analysis',
+                           '{"fact_tables": ["revenue_fact"], "dimensions": ["time", "product", "region"]}'::jsonb,
+                           '[{"name": "Net Revenue", "formula": "gross - discounts"}, {"name": "Gross Margin", "formula": "(net_rev - cogs) / net_rev"}]'::jsonb,
+                           'approved')""",
+                req_id,
+                project_id,
+            )
+
+            # Create HLA
+            hla_id = str(_uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO hla_documents (id, project_id, requirement_id, version, content, narrative, status)
+                   VALUES ($1::uuid, $2::uuid, $3::uuid, 1,
+                           '{"layers": ["raw", "harmonized", "mart"], "strategy": "star_schema"}'::jsonb,
+                           'Three-layer architecture with star schema at mart level for SAC consumption.',
+                           'approved')""",
+                hla_id,
+                project_id,
+                req_id,
+            )
+
+            # Create architecture decisions
+            for topic, choice, rationale, platform in [
+                ("Aggregation Strategy", "Pre-aggregate at mart level", "Reduces SAC query time", "dsp"),
+                ("Time Hierarchy", "DSP hierarchy view", "Reusable across multiple models", "dsp"),
+                ("KPI Calculation", "DSP calculated columns", "Single source of truth", "dsp"),
+            ]:
+                await conn.execute(
+                    """INSERT INTO architecture_decisions (id, project_id, requirement_id, topic, choice, rationale, platform_placement, status)
+                       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, 'approved')""",
+                    str(_uuid.uuid4()),
+                    project_id,
+                    req_id,
+                    topic,
+                    choice,
+                    rationale,
+                    platform,
+                )
+
+            # Create tech spec
+            spec_id = str(_uuid.uuid4())
+            objects_json = _json.dumps(
+                [
+                    {"name": "V_RAW_REVENUE", "object_type": "relational_view", "layer": "raw"},
+                    {"name": "V_HARM_REVENUE", "object_type": "relational_view", "layer": "harmonized"},
+                    {"name": "V_MART_REVENUE", "object_type": "fact_view", "layer": "mart"},
+                ]
+            )
+            deploy_order = _json.dumps(["V_RAW_REVENUE", "V_HARM_REVENUE", "V_MART_REVENUE"])
+            await conn.execute(
+                """INSERT INTO tech_specs (id, project_id, hla_id, version, objects, deployment_order, status)
+                   VALUES ($1::uuid, $2::uuid, $3::uuid, 1, $4::jsonb, $5::jsonb, 'approved')""",
+                spec_id,
+                project_id,
+                hla_id,
+                objects_json,
+                deploy_order,
+            )
+
+            # Create technical objects
+            for name, obj_type, layer, sql in [
+                (
+                    "V_RAW_REVENUE",
+                    "relational_view",
+                    "raw",
+                    "CREATE VIEW V_RAW_REVENUE AS\nSELECT\n  order_id,\n  product_id,\n  region_id,\n  order_date,\n  gross_amount,\n  discount_amount\nFROM SRC_SALES_ORDERS",
+                ),
+                (
+                    "V_HARM_REVENUE",
+                    "relational_view",
+                    "harmonized",
+                    "CREATE VIEW V_HARM_REVENUE AS\nSELECT\n  r.order_id,\n  r.product_id,\n  r.region_id,\n  r.order_date,\n  r.gross_amount,\n  r.discount_amount,\n  r.gross_amount - r.discount_amount AS net_revenue\nFROM V_RAW_REVENUE r",
+                ),
+                (
+                    "V_MART_REVENUE",
+                    "fact_view",
+                    "mart",
+                    "CREATE VIEW V_MART_REVENUE AS\nSELECT\n  region_id,\n  product_id,\n  DATE_TRUNC('month', order_date) AS month,\n  SUM(net_revenue) AS net_revenue,\n  SUM(gross_amount) AS gross_amount,\n  CASE WHEN SUM(net_revenue) > 0\n    THEN (SUM(net_revenue) - SUM(cogs)) / SUM(net_revenue)\n    ELSE 0 END AS gross_margin\nFROM V_HARM_REVENUE\nGROUP BY region_id, product_id, DATE_TRUNC('month', order_date)",
+                ),
+            ]:
+                await conn.execute(
+                    """INSERT INTO technical_objects (id, tech_spec_id, project_id, name, object_type, platform, layer, generated_artifact, status)
+                       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, 'dsp', $6, $7, 'deployed')""",
+                    str(_uuid.uuid4()),
+                    spec_id,
+                    project_id,
+                    name,
+                    obj_type,
+                    layer,
+                    sql,
+                )
+
+            # Create reconciliation results
+            for key, delta_status, baseline, candidate in [
+                ("revenue_total_q1", "pass", {"total": 2450000}, {"total": 2450000}),
+                ("margin_avg_q1", "within_tolerance", {"avg": 0.352}, {"avg": 0.349}),
+                ("region_count", "pass", {"count": 12}, {"count": 12}),
+            ]:
+                await conn.execute(
+                    """INSERT INTO reconciliation_results (id, project_id, test_case_key, baseline_value, candidate_value, delta_status)
+                       VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, $5::jsonb, $6)""",
+                    str(_uuid.uuid4()),
+                    project_id,
+                    key,
+                    _json.dumps(baseline),
+                    _json.dumps(candidate),
+                    delta_status,
+                )
+
+            return JSONResponse(
+                {
+                    "status": "seeded",
+                    "customer_id": customer_id,
+                    "project_id": project_id,
+                    "objects_created": {
+                        "customer": 1,
+                        "project": 1,
+                        "requirement": 1,
+                        "hla": 1,
+                        "decisions": 3,
+                        "tech_spec": 1,
+                        "technical_objects": 3,
+                        "reconciliation": 3,
+                    },
+                }
+            )
+        except Exception as exc:
+            logger.warning("demo_seed: %s", exc)
+            return JSONResponse({"status": "error", "error": str(exc)}, status_code=500)
+        finally:
+            await conn.close()
+
+    # ── API: Demo Run ─────────────────────────────────────────────────────────
+
+    @router.post("/api/demo/run")
+    async def demo_run(request: Request):
+        """One-click demo: seed data + generate full report + assemble release package.
+
+        Returns: {status, project_id, preview_url, download_urls}
+        """
+        import json as _json  # noqa: PLC0415
+
+        # Step 1: Seed
+        seed_resp = await demo_seed(request)
+        seed_body = _json.loads(seed_resp.body)
+        project_id = seed_body.get("project_id")
+        if not project_id:
+            return JSONResponse({"status": "error", "error": "Failed to seed demo data"}, status_code=500)
+
+        # Step 2: Generate reports and assemble release
+        try:
+            conn = await _get_conn()
+            try:
+                data = await _fetch_project_data(conn, project_id)
+            finally:
+                await conn.close()
+
+            from spec2sphere.governance.doc_generator import render_html_report, render_markdown_report  # noqa: PLC0415
+            from spec2sphere.governance.release import assemble_release_package  # noqa: PLC0415
+
+            html_report = render_html_report(data)
+            md_report = render_markdown_report(data)
+
+            # Save reports to filesystem for preview
+            reports_dir = Path("output/reports")
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            (reports_dir / "demo_report.html").write_text(html_report)
+            (reports_dir / "demo_report.md").write_text(md_report)
+
+            # Assemble release
+            zip_bytes = assemble_release_package(data, version="demo-1.0")
+            (reports_dir / "demo_release.zip").write_bytes(zip_bytes)
+
+            return JSONResponse(
+                {
+                    "status": "complete",
+                    "project_id": project_id,
+                    "seed": seed_body.get("status"),
+                    "reports_generated": ["demo_report.html", "demo_report.md"],
+                    "release_package": "demo_release.zip",
+                    "preview_url": "/reports/demo_report.html",
+                    "download_urls": {
+                        "html": "/reports/demo_report.html",
+                        "markdown": "/reports/demo_report.md",
+                        "release_zip": "/reports/demo_release.zip",
+                    },
+                }
+            )
+        except Exception as exc:
+            logger.warning("demo_run: %s", exc)
+            return JSONResponse({"status": "partial", "project_id": project_id, "error": str(exc)}, status_code=500)
+
     return router
