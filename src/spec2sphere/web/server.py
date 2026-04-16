@@ -224,6 +224,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount factory routes: %s", exc)
 
+    # Mount governance routes (reports, audit log, lab)
+    try:
+        from spec2sphere.web.governance_routes import create_governance_routes
+
+        app.include_router(create_governance_routes())
+    except ImportError as exc:
+        logger.warning("Could not mount governance routes: %s", exc)
+
     # Mount migration routers
     try:
         from spec2sphere.web.migration_routes import (

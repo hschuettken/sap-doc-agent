@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Artifact Learning Lab — SAP Doc Agent{% endblock %}
+{% block page_title %}Artifact Learning Lab{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+    {{ error }}
+</div>
+{% endif %}
+
+<!-- Experiments Table -->
+<h2 class="font-heading text-sm uppercase tracking-wider text-gray-500 mb-3">Experiments</h2>
+{% if experiments %}
+<div class="card mb-8 p-0 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-petrol text-white">
+            <tr>
+                <th class="px-4 py-3 text-left font-medium text-xs">Platform</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Object Type</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Type</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Route</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Status</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Date</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for exp in experiments %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                    <span class="px-2 py-0.5 rounded text-xs font-medium
+                        {% if exp.platform == 'dsp' %}bg-blue-100 text-blue-700
+                        {% elif exp.platform == 'sac' %}bg-purple-100 text-purple-700
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
+                        {{ exp.platform or '—' }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-700">{{ exp.object_type or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ exp.experiment_type or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs max-w-[200px] truncate">{{ exp.route or '—' }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-0.5 rounded text-xs font-medium
+                        {% if exp.status == 'pass' or exp.status == 'passed' %}bg-green-100 text-green-700
+                        {% elif exp.status == 'fail' or exp.status == 'failed' %}bg-red-100 text-red-700
+                        {% elif exp.status == 'running' %}bg-blue-100 text-blue-700
+                        {% else %}bg-amber-100 text-amber-700{% endif %}">
+                        {{ exp.status or 'pending' }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-xs">
+                    {{ exp.created_at|string|truncate(16, True, '') if exp.created_at else '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card text-center py-8 mb-8">
+    <p class="text-gray-400 text-sm">No experiments recorded yet.</p>
+</div>
+{% endif %}
+
+<!-- Learned Templates Grid -->
+<h2 class="font-heading text-sm uppercase tracking-wider text-gray-500 mb-3">Learned Templates</h2>
+{% if templates %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for tmpl in templates %}
+    <div class="card">
+        <div class="flex items-start justify-between mb-3">
+            <div>
+                <span class="px-2 py-0.5 rounded text-xs font-medium
+                    {% if tmpl.platform == 'dsp' %}bg-blue-100 text-blue-700
+                    {% elif tmpl.platform == 'sac' %}bg-purple-100 text-purple-700
+                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {{ tmpl.platform or 'unknown' }}
+                </span>
+                <h3 class="font-heading text-sm text-[#1a2332] mt-2">{{ tmpl.object_type or 'Unknown Type' }}</h3>
+            </div>
+            <span class="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2
+                {% if tmpl.approved == true %}bg-green-100 text-green-700
+                {% elif tmpl.approved == false %}bg-red-100 text-red-700
+                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                {% if tmpl.approved == true %}Approved
+                {% elif tmpl.approved == false %}Rejected
+                {% else %}Pending{% endif %}
+            </span>
+        </div>
+        {% if tmpl.confidence is not none %}
+        <div class="flex items-center gap-2 mb-3">
+            <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                <div class="bg-petrol h-1.5 rounded-full" style="width: {{ (tmpl.confidence * 100)|round|int }}%"></div>
+            </div>
+            <span class="text-xs text-gray-500">{{ (tmpl.confidence * 100)|round|int }}%</span>
+        </div>
+        {% endif %}
+        {% if tmpl.approved is none %}
+        <div class="flex gap-2 mt-2" id="tmpl-actions-{{ tmpl.id }}">
+            <button onclick="graduateTemplate('{{ tmpl.id }}', true)"
+                    class="flex-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 transition-colors">
+                Approve
+            </button>
+            <button onclick="graduateTemplate('{{ tmpl.id }}', false)"
+                    class="flex-1 px-3 py-1.5 border border-red-500 text-red-600 rounded text-xs font-medium hover:bg-red-50 transition-colors">
+                Reject
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card text-center py-8">
+    <p class="text-gray-400 text-sm">No learned templates yet.</p>
+</div>
+{% endif %}
+
+<script>
+async function graduateTemplate(templateId, approved) {
+    const actionsEl = document.getElementById('tmpl-actions-' + templateId);
+    if (actionsEl) {
+        actionsEl.innerHTML = '<span class="text-xs text-gray-400">Saving…</span>';
+    }
+    try {
+        const resp = await fetch('/api/lab/templates/' + templateId + '/graduate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({approved: approved})
+        });
+        const data = await resp.json();
+        if (actionsEl) {
+            if (resp.ok) {
+                actionsEl.innerHTML = '<span class="text-xs ' + (approved ? 'text-green-600' : 'text-red-600') + '">'
+                    + (approved ? 'Approved' : 'Rejected') + '</span>';
+            } else {
+                actionsEl.innerHTML = '<span class="text-xs text-red-600">Error: ' + (data.error || resp.statusText) + '</span>';
+            }
+        }
+    } catch(e) {
+        if (actionsEl) {
+            actionsEl.innerHTML = '<span class="text-xs text-red-600">Request failed</span>';
+        }
+    }
+}
+</script>
+{% endblock %}

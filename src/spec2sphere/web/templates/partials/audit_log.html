@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — SAP Doc Agent{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+    {{ error }}
+</div>
+{% endif %}
+
+<!-- Filter Form -->
+<div class="card mb-6">
+    <form method="GET" action="/ui/audit-log" class="flex flex-wrap gap-3 items-end">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">User</label>
+            <input type="text" name="user" value="{{ filter_user }}"
+                   placeholder="User ID fragment"
+                   class="border border-gray-200 rounded px-3 py-2 text-sm w-40 focus:outline-none focus:border-petrol">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Action</label>
+            <input type="text" name="action" value="{{ filter_action }}"
+                   placeholder="e.g. POST /api/..."
+                   class="border border-gray-200 rounded px-3 py-2 text-sm w-48 focus:outline-none focus:border-petrol">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Resource Type</label>
+            <input type="text" name="resource_type" value="{{ filter_resource }}"
+                   placeholder="e.g. project"
+                   class="border border-gray-200 rounded px-3 py-2 text-sm w-36 focus:outline-none focus:border-petrol">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Trace ID</label>
+            <input type="text" name="trace_id" value="{{ filter_trace }}"
+                   placeholder="UUID"
+                   class="border border-gray-200 rounded px-3 py-2 text-sm w-40 focus:outline-none focus:border-petrol">
+        </div>
+        <div class="flex gap-2">
+            <button type="submit"
+                    class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark transition-colors">
+                Filter
+            </button>
+            <a href="/ui/audit-log"
+               class="px-4 py-2 border border-gray-300 text-gray-600 rounded text-sm font-medium hover:bg-gray-50 transition-colors">
+                Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Entries Table -->
+{% if entries %}
+<div class="card p-0 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-petrol text-white">
+            <tr>
+                <th class="px-4 py-3 text-left font-medium text-xs">Time</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Action</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Resource</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">User</th>
+                <th class="px-4 py-3 text-left font-medium text-xs">Details</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for entry in entries %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                    {{ entry.created_at|string|truncate(19, True, '') if entry.created_at else '—' }}
+                </td>
+                <td class="px-4 py-3">
+                    <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs text-gray-700">{{ entry.action or '—' }}</code>
+                </td>
+                <td class="px-4 py-3 text-gray-600 text-xs">
+                    {% if entry.resource_type %}
+                    <span class="font-medium">{{ entry.resource_type }}</span>
+                    {% if entry.resource_id %}
+                    <span class="text-gray-400">:{{ entry.resource_id[:8] if entry.resource_id|length > 8 else entry.resource_id }}</span>
+                    {% endif %}
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-400 font-mono text-xs">
+                    {{ entry.user_id[:8] if entry.user_id and entry.user_id|length > 8 else (entry.user_id or '—') }}…
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-500">
+                    {% if entry.status_code %}
+                    <span class="px-1.5 py-0.5 rounded text-xs font-medium mr-1
+                        {% if entry.status_code < 300 %}bg-green-100 text-green-700
+                        {% elif entry.status_code < 400 %}bg-blue-100 text-blue-700
+                        {% elif entry.status_code < 500 %}bg-amber-100 text-amber-700
+                        {% else %}bg-red-100 text-red-700{% endif %}">
+                        {{ entry.status_code }}
+                    </span>
+                    {% endif %}
+                    {% if entry.duration_ms %}
+                    <span class="text-gray-400">{{ entry.duration_ms }}ms</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card text-center py-12">
+    {% if filter_user or filter_action or filter_resource or filter_trace %}
+    <p class="text-gray-400 mb-2">No entries match your filters.</p>
+    <a href="/ui/audit-log" class="text-sm text-petrol hover:underline">Clear filters</a>
+    {% else %}
+    <p class="text-gray-400">No audit log entries yet.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

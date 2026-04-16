@@ -1,0 +1,20 @@
+customer:
+  name: "Horvath Demo"
+  slug: "horvath-demo"
+  branding:
+    primary_color: "#05415A"
+    accent_color: "#C8963E"
+
+project:
+  name: "Sales Planning"
+  slug: "sales-planning"
+  environment: "sandbox"
+
+modules:
+  core: true
+  migration_accelerator: true
+  dsp_factory: true
+  sac_factory: true
+  governance: true
+  artifact_lab: true
+  multi_tenant: false
