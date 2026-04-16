@@ -167,10 +167,11 @@ def create_app(
             import asyncpg as _asyncpg
             import yaml as _yaml
 
-            from spec2sphere.tenant.context import _DEFAULT_TENANT_ID
+            import spec2sphere.tenant.context as _tenant_ctx
 
             _standards_dir = _Path(__file__).parents[3] / "standards" / "horvath"
             _yaml_files = list(_standards_dir.glob("*.yaml"))
+            _DEFAULT_TENANT_ID = _tenant_ctx._DEFAULT_TENANT_ID
 
             if _yaml_files and _DEFAULT_TENANT_ID:
                 _db_url = (
