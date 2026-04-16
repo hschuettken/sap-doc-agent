@@ -754,7 +754,7 @@ def create_governance_routes() -> APIRouter:
                 }
             )
         except Exception as exc:
-            logger.warning("demo_run: %s", exc)
+            logger.error("demo_run: %s", exc, exc_info=True)
             return JSONResponse({"status": "partial", "project_id": project_id, "error": str(exc)}, status_code=500)
 
     return router

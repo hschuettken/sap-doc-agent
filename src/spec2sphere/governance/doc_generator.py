@@ -106,12 +106,29 @@ def _customer_name(data: dict) -> str:
     return data.get("customer", {}).get("name", "Unknown Customer")
 
 
+def _parse_jsonb(value):
+    """Parse a JSONB field that may be a string (asyncpg sometimes returns text)."""
+    if isinstance(value, str):
+        import json  # noqa: PLC0415
+
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return value
+    return value
+
+
 def _all_tech_objects(data: dict) -> list[dict]:
     """Merge explicit technical_objects list with objects embedded in tech_specs."""
     objects: list[dict] = list(data.get("technical_objects", []))
-    seen_names = {o.get("name") for o in objects}
+    seen_names = {o.get("name") for o in objects if isinstance(o, dict)}
     for spec in data.get("tech_specs", []):
-        for obj in spec.get("objects", []):
+        spec_objects = _parse_jsonb(spec.get("objects", []))
+        if not isinstance(spec_objects, list):
+            continue
+        for obj in spec_objects:
+            if not isinstance(obj, dict):
+                continue
             name = obj.get("name")
             if name and name not in seen_names:
                 objects.append(obj)
@@ -121,8 +138,8 @@ def _all_tech_objects(data: dict) -> list[dict]:
 
 def _deployment_order(data: dict) -> list[str]:
     for spec in data.get("tech_specs", []):
-        order = spec.get("deployment_order")
-        if order:
+        order = _parse_jsonb(spec.get("deployment_order"))
+        if order and isinstance(order, list):
             return list(order)
     return []
 
@@ -227,12 +244,14 @@ def generate_functional_doc(data: dict) -> dict:
             lines.append(f"- **Status:** {status}")
 
             # KPIs
-            kpis = req.get("parsed_kpis", [])
-            if kpis:
+            kpis = _parse_jsonb(req.get("parsed_kpis", []))
+            if isinstance(kpis, list) and kpis:
                 lines.append("")
                 lines.append("**KPIs:**")
                 lines.append("")
                 for kpi in kpis:
+                    if not isinstance(kpi, dict):
+                        continue
                     kpi_name = kpi.get("name", "unnamed")
                     formula = kpi.get("formula", "")
                     if formula:
@@ -241,7 +260,7 @@ def generate_functional_doc(data: dict) -> dict:
                         lines.append(f"- **{kpi_name}**")
 
             # Parsed entities
-            entities = req.get("parsed_entities", {})
+            entities = _parse_jsonb(req.get("parsed_entities", {}))
             if entities:
                 lines.append("")
                 lines.append("**Entities:**")
