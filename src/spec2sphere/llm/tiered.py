@@ -25,11 +25,13 @@ from spec2sphere.llm.base import DEFAULT_TIER, LLMProvider
 logger = logging.getLogger(__name__)
 
 # Tier → default model/backend mapping
+# When using the homelab LLM Router, Claude model names route to the Claude
+# sidecar adapter automatically. No separate Anthropic provider needed.
 _TIER_DEFAULTS = {
     "small": "qwen2.5:7b",
     "medium": "qwen2.5:14b",
-    "large": "anthropic",
-    "reasoning": "anthropic",
+    "large": "claude-haiku-4-5-20251001",
+    "reasoning": "claude-sonnet-4-6",
 }
 
 
@@ -56,6 +58,7 @@ class TieredProvider(LLMProvider):
         self._tier_map: dict[str, str] = {}
 
         # Build tier map: env vars > explicit tier_map > defaults
+        # When no cloud provider, replace "anthropic" defaults with best local model
         for tier, default_model in _TIER_DEFAULTS.items():
             env_key = f"LLM_TIER_{tier.upper()}"
             env_val = os.environ.get(env_key)
@@ -63,6 +66,9 @@ class TieredProvider(LLMProvider):
                 self._tier_map[tier] = env_val
             elif tier_map and tier in tier_map:
                 self._tier_map[tier] = tier_map[tier]
+            elif default_model == "anthropic" and cloud_provider is None:
+                # No cloud backend — use best available local model
+                self._tier_map[tier] = _TIER_DEFAULTS["medium"]
             else:
                 self._tier_map[tier] = default_model
 

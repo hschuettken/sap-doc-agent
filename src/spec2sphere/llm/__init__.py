@@ -79,32 +79,26 @@ def _create_from_provider_name(provider: str, cfg: LLMConfig, output_dir: Option
     raise ValueError(f"Unknown LLM provider: {provider!r}")
 
 
-def _try_create_cloud_provider() -> Optional[LLMProvider]:
-    """Try to create an Anthropic cloud provider for high-tier calls.
-
-    Returns None if ANTHROPIC_API_KEY is not set (no cloud backend available).
-    """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return None
-    try:
-        from spec2sphere.llm.anthropic import AnthropicProvider
-
-        return AnthropicProvider()
-    except Exception:
-        return None
-
-
 def _wrap_with_tiered(local_provider: LLMProvider) -> LLMProvider:
-    """Wrap a local provider with TieredProvider if a cloud backend is available.
+    """Wrap a local provider with TieredProvider for tier-based model selection.
 
-    If ANTHROPIC_API_KEY is set, returns a TieredProvider that routes
-    small/medium to local and large/reasoning to Anthropic.
-    Otherwise returns the local provider unchanged.
+    The TieredProvider uses the same local provider for all tiers, but
+    selects different models per tier (e.g. qwen2.5:7b for small,
+    claude-sonnet-4-6 for reasoning). The LLM Router handles routing
+    Claude model names to its Claude sidecar automatically.
+
+    If ANTHROPIC_API_KEY is set, a dedicated Anthropic provider is used
+    as cloud backend for large/reasoning tiers (direct API, no router).
     """
-    cloud = _try_create_cloud_provider()
-    if cloud is None:
-        return local_provider
+    cloud = None
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if api_key:
+        try:
+            from spec2sphere.llm.anthropic import AnthropicProvider
+
+            cloud = AnthropicProvider()
+        except Exception:
+            pass
 
     from spec2sphere.llm.tiered import TieredProvider
 

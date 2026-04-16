@@ -22,12 +22,11 @@ services:
       - BOOKSTACK_TOKEN=${BOOKSTACK_TOKEN:-}
       - SECRET_KEY=${SPEC2SPHERE_SECRET_KEY:-${SECRET_KEY:-spec2sphere-demo-secret-change-me}}
       - ENABLED_MODULES=${SPEC2SPHERE_ENABLED_MODULES:-${ENABLED_MODULES:-core,migration_accelerator,dsp_factory,sac_factory,governance,artifact_lab,multi_tenant}}
-      # Tiered LLM: Anthropic for large/reasoning, local router for small/medium
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Tiered LLM: all via LLM Router (local models + Claude sidecar)
       - LLM_TIER_SMALL=${LLM_TIER_SMALL:-qwen2.5:7b}
       - LLM_TIER_MEDIUM=${LLM_TIER_MEDIUM:-qwen2.5:14b}
-      - LLM_TIER_LARGE=${LLM_TIER_LARGE:-anthropic}
-      - LLM_TIER_REASONING=${LLM_TIER_REASONING:-anthropic}
+      - LLM_TIER_LARGE=${LLM_TIER_LARGE:-claude-haiku-4-5-20251001}
+      - LLM_TIER_REASONING=${LLM_TIER_REASONING:-claude-sonnet-4-6}
     volumes:
       - output-data:/app/output
       - ./config.yaml:/app/config.yaml:ro
@@ -50,11 +49,10 @@ services:
       - LLM_ROUTER_URL=${LLM_ROUTER_URL:-http://192.168.0.50:8070/v1}
       - LLM_ROUTER_API_KEY=${LLM_ROUTER_API_KEY:-}
       - LLM_ROUTER_MODEL=${LLM_ROUTER_MODEL:-qwen2.5:14b}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - LLM_TIER_SMALL=${LLM_TIER_SMALL:-qwen2.5:7b}
       - LLM_TIER_MEDIUM=${LLM_TIER_MEDIUM:-qwen2.5:14b}
-      - LLM_TIER_LARGE=${LLM_TIER_LARGE:-anthropic}
-      - LLM_TIER_REASONING=${LLM_TIER_REASONING:-anthropic}
+      - LLM_TIER_LARGE=${LLM_TIER_LARGE:-claude-haiku-4-5-20251001}
+      - LLM_TIER_REASONING=${LLM_TIER_REASONING:-claude-sonnet-4-6}
     volumes:
       - output-data:/app/output
       - ./config.yaml:/app/config.yaml:ro

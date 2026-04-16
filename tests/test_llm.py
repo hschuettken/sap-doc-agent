@@ -121,6 +121,15 @@ async def test_passthrough_includes_system(passthrough_provider, tmp_path: Path)
 # --- Factory tests ---
 
 
+def _unwrap_provider(provider):
+    """Unwrap TieredProvider to get the underlying local provider."""
+    from spec2sphere.llm.tiered import TieredProvider
+
+    if isinstance(provider, TieredProvider):
+        return provider._local
+    return provider
+
+
 def test_factory_noop():
     assert isinstance(create_llm_provider(LLMConfig(mode="none")), NoopLLMProvider)
 
@@ -141,7 +150,7 @@ def test_factory_direct(monkeypatch):
         api_key_env="LLM_API_KEY",
         model="test",
     )
-    assert isinstance(create_llm_provider(cfg), DirectLLMProvider)
+    assert isinstance(_unwrap_provider(create_llm_provider(cfg)), DirectLLMProvider)
 
 
 def test_factory_direct_missing_env():
@@ -158,5 +167,5 @@ def test_factory_gemini_via_env(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     from spec2sphere.llm.gemini import GeminiProvider
 
-    provider = create_llm_provider(LLMConfig())
+    provider = _unwrap_provider(create_llm_provider(LLMConfig()))
     assert isinstance(provider, GeminiProvider)
