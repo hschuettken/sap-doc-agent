@@ -88,8 +88,8 @@ def test_generate_report_api(client):
             "/api/governance/generate-report",
             json={"project_id": "00000000-0000-0000-0000-000000000001", "format": "html"},
         )
-    # 404 because project not found, or 200 if render succeeds — both are valid
-    assert resp.status_code in (200, 404, 500)
+    # fetchrow returns None → project not found → must be 404
+    assert resp.status_code == 404
 
 
 def test_download_release_api(client):

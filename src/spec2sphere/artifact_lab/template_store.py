@@ -46,7 +46,7 @@ async def save_template(rec: TemplateRecord) -> None:
     try:
         await conn.execute(
             """
-            INSERT INTO artifact_templates (
+            INSERT INTO learned_templates (
                 id, customer_id, platform, object_type, template_definition,
                 mutation_rules, deployment_hints, confidence, approved
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -94,7 +94,7 @@ async def list_templates(
         params.append(limit)
         where = " AND ".join(conditions)
         rows = await conn.fetch(
-            f"SELECT * FROM artifact_templates WHERE {where} ORDER BY id DESC LIMIT ${idx}",
+            f"SELECT * FROM learned_templates WHERE {where} ORDER BY id DESC LIMIT ${idx}",
             *params,
         )
     finally:
@@ -128,7 +128,7 @@ async def graduate_template(
     try:
         await conn.execute(
             """
-            UPDATE artifact_templates
+            UPDATE learned_templates
             SET approved = $1, reviewer_id = $2
             WHERE id = $3
             """,

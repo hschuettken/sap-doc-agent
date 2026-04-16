@@ -99,7 +99,14 @@ ARTIFACT_TABLES = {
     "release": "release_packages",
 }
 
-VALID_DECISIONS = {"approve", "reject", "rework"}
+VALID_DECISIONS = {
+    "approve",  # Generic approval
+    "reject",  # Rejected
+    "rework",  # Sent back for rework
+    "approved_for_production",  # Release gate: cleared for production
+    "approved_with_accepted_deltas",  # Release gate: approved with documented deltas
+    "redesign",  # Release gate: fundamental redesign required
+}
 
 
 async def _get_conn() -> asyncpg.Connection:

@@ -61,7 +61,7 @@ async def save_experiment(rec: ExperimentRecord) -> None:
     try:
         await conn.execute(
             """
-            INSERT INTO artifact_experiments (
+            INSERT INTO lab_experiments (
                 id, customer_id, platform, object_type, experiment_type,
                 input_definition, output_definition, diff, route_used, success, notes
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -96,7 +96,7 @@ async def list_experiments(
         if platform:
             rows = await conn.fetch(
                 """
-                SELECT * FROM artifact_experiments
+                SELECT * FROM lab_experiments
                 WHERE customer_id = $1 AND platform = $2
                 ORDER BY id DESC LIMIT $3
                 """,
@@ -107,7 +107,7 @@ async def list_experiments(
         else:
             rows = await conn.fetch(
                 """
-                SELECT * FROM artifact_experiments
+                SELECT * FROM lab_experiments
                 WHERE customer_id = $1
                 ORDER BY id DESC LIMIT $2
                 """,
@@ -143,7 +143,7 @@ async def get_experiment(experiment_id: str) -> Optional[ExperimentRecord]:
     conn = await _get_conn()
     try:
         row = await conn.fetchrow(
-            "SELECT * FROM artifact_experiments WHERE id = $1",
+            "SELECT * FROM lab_experiments WHERE id = $1",
             experiment_id,
         )
     finally:
