@@ -47,40 +47,43 @@ def _str_record(row) -> dict:
 
 async def _fetch_project_data(conn, project_id: str) -> dict:
     """Fetch all project data needed for report generation."""
-    project = await conn.fetchrow("SELECT * FROM projects WHERE id = $1", project_id)
+    from uuid import UUID as _UUID  # noqa: PLC0415
+
+    pid = _UUID(project_id) if isinstance(project_id, str) else project_id
+
+    project = await conn.fetchrow("SELECT * FROM projects WHERE id = $1", pid)
     if not project:
         return {}
     data: dict = {"project": _str_record(project)}
 
-    customer_row = await conn.fetchrow("SELECT * FROM customers WHERE id = $1", data["project"].get("customer_id"))
+    customer_id = project["customer_id"]
+    customer_row = await conn.fetchrow("SELECT * FROM customers WHERE id = $1", customer_id)
     data["customer"] = _str_record(customer_row) if customer_row else {}
 
-    rows = await conn.fetch("SELECT * FROM requirements WHERE project_id = $1 ORDER BY created_at", project_id)
+    rows = await conn.fetch("SELECT * FROM requirements WHERE project_id = $1 ORDER BY created_at", pid)
     data["requirements"] = [_str_record(r) for r in rows]
 
-    rows = await conn.fetch("SELECT * FROM hla_documents WHERE project_id = $1 ORDER BY created_at", project_id)
+    rows = await conn.fetch("SELECT * FROM hla_documents WHERE project_id = $1 ORDER BY created_at", pid)
     data["hla_documents"] = [_str_record(r) for r in rows]
 
-    rows = await conn.fetch("SELECT * FROM tech_specs WHERE project_id = $1 ORDER BY created_at", project_id)
+    rows = await conn.fetch("SELECT * FROM tech_specs WHERE project_id = $1 ORDER BY created_at", pid)
     data["tech_specs"] = [_str_record(r) for r in rows]
 
-    rows = await conn.fetch(
-        "SELECT * FROM architecture_decisions WHERE project_id = $1 ORDER BY created_at", project_id
-    )
+    rows = await conn.fetch("SELECT * FROM architecture_decisions WHERE project_id = $1 ORDER BY created_at", pid)
     data["architecture_decisions"] = [_str_record(r) for r in rows]
 
-    rows = await conn.fetch("SELECT * FROM technical_objects WHERE project_id = $1 ORDER BY created_at", project_id)
+    rows = await conn.fetch("SELECT * FROM technical_objects WHERE project_id = $1 ORDER BY created_at", pid)
     data["technical_objects"] = [_str_record(r) for r in rows]
 
     rows = await conn.fetch(
         "SELECT * FROM reconciliation_results WHERE project_id = $1 ORDER BY created_at DESC LIMIT 100",
-        project_id,
+        pid,
     )
     data["reconciliation_results"] = [_str_record(r) for r in rows]
 
     rows = await conn.fetch(
         "SELECT * FROM approvals WHERE project_id = $1 ORDER BY created_at DESC LIMIT 50",
-        project_id,
+        pid,
     )
     data["approvals"] = [_str_record(r) for r in rows]
 
