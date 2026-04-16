@@ -125,7 +125,51 @@
 </div>
 {% endif %}
 
+<!-- Mutation Catalog -->
+<h2 class="font-heading text-sm uppercase tracking-wider text-gray-500 mb-3 mt-8">Mutation Catalog</h2>
+<div class="card">
+    <div class="flex gap-3 items-end mb-4">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Platform</label>
+            <select id="mut-platform" class="border border-gray-200 rounded px-3 py-1.5 text-sm" onchange="loadMutations()">
+                <option value="dsp">DSP</option>
+                <option value="sac">SAC</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Object Type</label>
+            <select id="mut-object-type" class="border border-gray-200 rounded px-3 py-1.5 text-sm" onchange="loadMutations()">
+                <option value="relational_view">relational_view</option>
+                <option value="fact_view">fact_view</option>
+                <option value="dimension_view">dimension_view</option>
+                <option value="story">story</option>
+                <option value="app">app</option>
+            </select>
+        </div>
+    </div>
+    <div id="mut-results" class="text-sm text-gray-400">Select platform and object type above.</div>
+</div>
+
 <script>
+async function loadMutations() {
+    const platform = document.getElementById('mut-platform').value;
+    const objType = document.getElementById('mut-object-type').value;
+    const resp = await fetch(`/api/lab/mutations?platform=${platform}&object_type=${objType}`);
+    if (!resp.ok) { document.getElementById('mut-results').innerHTML = 'Failed to load'; return; }
+    const data = await resp.json();
+    if (!data.mutations || data.mutations.length === 0) {
+        document.getElementById('mut-results').innerHTML = '<p class="text-gray-400">No mutations for this combination.</p>';
+        return;
+    }
+    let html = '<table class="w-full text-sm"><thead><tr><th class="text-left px-3 py-2 bg-gray-50">Mutation</th><th class="text-left px-3 py-2 bg-gray-50">Safe</th><th class="text-left px-3 py-2 bg-gray-50">Description</th></tr></thead><tbody>';
+    for (const m of data.mutations) {
+        const cls = m.safe ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+        html += `<tr class="border-b border-gray-100"><td class="px-3 py-2 font-mono text-xs">${m.name}</td><td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium ${cls}">${m.safe ? 'safe' : 'unsafe'}</span></td><td class="px-3 py-2 text-gray-500">${m.description}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('mut-results').innerHTML = html;
+}
+
 async function showExperiment(id) {
     const resp = await fetch(`/api/lab/experiments/${id}`);
     if (!resp.ok) { showToast('Failed to load experiment', 'error'); return; }

@@ -40,6 +40,11 @@
                     class="px-4 py-2 bg-accent text-white rounded text-sm font-medium hover:opacity-90 transition-colors">
                 Assemble Release ZIP
             </button>
+            <button onclick="runDemo()"
+                    class="px-4 py-2 border-2 border-accent text-accent rounded text-sm font-medium hover:bg-accent hover:text-white transition-colors"
+                    title="Seed Horvath Demo data + generate all reports in one click">
+                One-Click Demo
+            </button>
         </div>
     </div>
     <div id="generate-status" class="mt-3 text-sm text-gray-500 hidden"></div>
@@ -189,6 +194,22 @@ async function assembleRelease() {
         _setStatus('Release ZIP downloaded. Reload to see updated package list.', false);
     } catch(e) {
         _setStatus('Request failed: ' + e.message, true);
+    }
+}
+
+async function runDemo() {
+    _setStatus('Running one-click demo — seeding data + generating reports...', false);
+    try {
+        const resp = await fetch('/api/demo/run', {method: 'POST', headers: {'Content-Type': 'application/json'}});
+        const data = await resp.json();
+        if (data.status === 'complete') {
+            _setStatus('Demo complete! Reports: ' + data.reports_generated.join(', '), false);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            _setStatus('Demo partial: ' + (data.error || 'unknown error'), true);
+        }
+    } catch(e) {
+        _setStatus('Demo failed: ' + e.message, true);
     }
 }
 </script>

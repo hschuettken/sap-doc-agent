@@ -129,11 +129,10 @@ async def graduate_template(
         await conn.execute(
             """
             UPDATE learned_templates
-            SET approved = $1, reviewer_id = $2
-            WHERE id = $3
+            SET approved = $1
+            WHERE id = $2
             """,
             approved,
-            reviewer_id,
             template_id,
         )
     finally:
