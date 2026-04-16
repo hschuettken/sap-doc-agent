@@ -86,6 +86,12 @@ async def _register_with_oracle() -> None:
                 {"method": "GET", "path": "/ui/browser-view", "purpose": "noVNC browser viewer"},
                 {"method": "POST", "path": "/api/factory/deploy/dsp", "purpose": "Trigger DSP deployment"},
                 {"method": "POST", "path": "/api/factory/deploy/sac", "purpose": "Trigger SAC deployment"},
+                {"method": "GET", "path": "/ui/reports", "purpose": "Reports & documentation browser"},
+                {"method": "GET", "path": "/ui/audit-log", "purpose": "Audit log viewer"},
+                {"method": "GET", "path": "/ui/lab", "purpose": "Artifact Learning Lab"},
+                {"method": "POST", "path": "/api/governance/generate-report", "purpose": "Generate as-built report"},
+                {"method": "POST", "path": "/api/governance/release", "purpose": "Assemble release package"},
+                {"method": "POST", "path": "/api/lab/templates/{id}/graduate", "purpose": "Graduate learned template"},
             ],
             "nats_subjects": [],
             "source_paths": [

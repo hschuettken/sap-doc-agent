@@ -90,12 +90,12 @@ _DEFAULT_MODULES = [
     ModuleSpec(
         name="governance",
         description="Approval workflow, confidence scoring, traceability, RBAC",
-        ui_sections=["governance", "approvals"],
+        ui_sections=["governance", "approvals", "reports", "audit_log"],
     ),
     ModuleSpec(
         name="artifact_lab",
         description="Sandbox experimentation, template learning, route fitness tracking",
-        ui_sections=["artifact_lab"],
+        ui_sections=["artifact_lab", "lab"],
     ),
     ModuleSpec(
         name="multi_tenant",
