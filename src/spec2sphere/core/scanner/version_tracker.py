@@ -169,22 +169,30 @@ async def snapshot_object(
     Copies the current state of the object (plus its fields as a JSONB blob)
     into object_history with an auto-incremented version_number.
 
-    object_history schema expected:
+    Matches the actual object_history schema from migration 009:
         id                   UUID PRIMARY KEY DEFAULT gen_random_uuid()
         landscape_object_id  UUID NOT NULL REFERENCES landscape_objects(id)
         scan_run_id          UUID REFERENCES scan_runs(id)
         version_number       INT NOT NULL
-        change_type          TEXT NOT NULL   -- 'created' | 'updated' | 'deleted'
-        changes              JSONB           -- field-level diff summary
-        snapshot             JSONB NOT NULL  -- full object state at this version
-        snapshotted_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+        object_name          TEXT
+        technical_name       TEXT
+        object_type          TEXT
+        platform             TEXT
+        layer                TEXT
+        metadata             JSONB
+        documentation        TEXT
+        dependencies         JSONB
+        content_hash         VARCHAR(64)
+        fields_snapshot      JSONB DEFAULT '[]'
+        change_type          TEXT NOT NULL
+        changes              JSONB DEFAULT '{}'
+        captured_at          TIMESTAMPTZ DEFAULT now()
     """
     # Fetch current object state
     obj_row = await conn.fetchrow(
         """
-        SELECT id, customer_id, project_id, platform, object_type,
-               object_name, technical_name, layer, metadata,
-               documentation, dependencies, last_scanned, content_hash
+        SELECT id, platform, object_type, object_name, technical_name,
+               layer, metadata, documentation, dependencies, content_hash
         FROM landscape_objects
         WHERE id = $1
         """,
@@ -194,7 +202,7 @@ async def snapshot_object(
         logger.warning("version_tracker: snapshot requested for unknown object %s", landscape_object_id)
         return
 
-    # Fetch current fields to include in snapshot
+    # Fetch current fields to include in the fields_snapshot JSONB array
     field_rows = await conn.fetch(
         """
         SELECT field_name, field_ordinal, data_type, expression,
@@ -202,24 +210,29 @@ async def snapshot_object(
                is_aggregated, aggregation_type, field_role
         FROM object_fields
         WHERE landscape_object_id = $1
-        ORDER BY field_ordinal
+        ORDER BY field_ordinal NULLS LAST, field_name
         """,
         landscape_object_id,
     )
+    fields_snapshot = [dict(r) for r in field_rows]
 
-    snapshot = dict(obj_row)
-    # Convert non-JSON-serialisable types
-    for k, v in snapshot.items():
-        if hasattr(v, "isoformat"):
-            snapshot[k] = v.isoformat()
-        elif isinstance(v, UUID):
-            snapshot[k] = str(v)
-        elif isinstance(v, (bytes, memoryview)):
-            snapshot[k] = str(v)
+    # Serialise metadata/dependencies (may be returned as string by asyncpg JSONB)
+    def _coerce_jsonb(val: Any) -> str:
+        if val is None:
+            return "{}"
+        if isinstance(val, str):
+            return val  # already JSON text
+        return json.dumps(val, default=str)
 
-    snapshot["fields"] = [dict(r) for r in field_rows]
+    # Determine next version number.
+    # Lock the landscape_objects row to prevent concurrent inserts from reading
+    # the same MAX(version_number), which would violate the unique constraint on
+    # (landscape_object_id, version_number) in object_history.
+    await conn.fetchval(
+        "SELECT id FROM landscape_objects WHERE id = $1 FOR UPDATE",
+        landscape_object_id,
+    )
 
-    # Determine next version number
     max_version = await conn.fetchval(
         """
         SELECT COALESCE(MAX(version_number), 0)
@@ -232,17 +245,34 @@ async def snapshot_object(
 
     await conn.execute(
         """
-        INSERT INTO object_history
-            (landscape_object_id, scan_run_id, version_number, change_type, changes, snapshot)
-        VALUES
-            ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+        INSERT INTO object_history (
+            landscape_object_id, scan_run_id, version_number,
+            object_name, technical_name, object_type, platform, layer,
+            metadata, documentation, dependencies, content_hash,
+            fields_snapshot, change_type, changes
+        ) VALUES (
+            $1, $2, $3,
+            $4, $5, $6, $7, $8,
+            $9::jsonb, $10, $11::jsonb, $12,
+            $13::jsonb, $14, $15::jsonb
+        )
+        ON CONFLICT (landscape_object_id, version_number) DO NOTHING
         """,
         landscape_object_id,
         scan_run_id,
         next_version,
+        obj_row["object_name"],
+        obj_row["technical_name"],
+        obj_row["object_type"],
+        obj_row["platform"],
+        obj_row["layer"],
+        _coerce_jsonb(obj_row["metadata"]),
+        obj_row["documentation"],
+        _coerce_jsonb(obj_row["dependencies"]),
+        obj_row["content_hash"],
+        json.dumps(fields_snapshot, default=str),
         change_type,
         json.dumps(changes or {}),
-        json.dumps(snapshot, default=str),
     )
     logger.debug(
         "version_tracker: snapshot v%d for object %s (%s)",
@@ -268,7 +298,8 @@ async def get_object_history(
         rows = await conn.fetch(
             """
             SELECT id, landscape_object_id, scan_run_id, version_number,
-                   change_type, changes, snapshotted_at
+                   object_name, technical_name, object_type, platform, layer,
+                   content_hash, change_type, changes, captured_at
             FROM object_history
             WHERE landscape_object_id = $1
             ORDER BY version_number DESC
@@ -288,14 +319,20 @@ async def get_object_at_version(
 ) -> Optional[dict]:
     """Get an object's full state snapshot at a specific version number.
 
-    Returns the snapshot JSONB (which includes fields) or None if not found.
+    Returns a dict containing all object_history columns plus a synthesized
+    "snapshot" key (for backward compatibility with diff_versions) that
+    combines the scalar columns and the fields_snapshot array.
+    Returns None if the version is not found.
     """
     oid = UUID(landscape_object_id) if isinstance(landscape_object_id, str) else landscape_object_id
     conn = await _get_conn()
     try:
         row = await conn.fetchrow(
             """
-            SELECT snapshot, version_number, change_type, snapshotted_at, scan_run_id
+            SELECT id, landscape_object_id, scan_run_id, version_number,
+                   object_name, technical_name, object_type, platform, layer,
+                   metadata, documentation, dependencies, content_hash,
+                   fields_snapshot, change_type, changes, captured_at
             FROM object_history
             WHERE landscape_object_id = $1
               AND version_number = $2
@@ -307,15 +344,41 @@ async def get_object_at_version(
         if not row:
             return None
         result = _row_to_dict(row)
-        # snapshot is JSONB; asyncpg may return string
-        snap = result.get("snapshot")
-        if isinstance(snap, str):
-            import json as _json
 
+        # Coerce JSONB columns that asyncpg may return as strings
+        for jsonb_col in ("metadata", "dependencies", "changes", "fields_snapshot"):
+            val = result.get(jsonb_col)
+            if isinstance(val, str):
+                try:
+                    result[jsonb_col] = json.loads(val)
+                except Exception:  # noqa: BLE001
+                    pass
+
+        # Build a synthetic "snapshot" dict for diff_versions compatibility.
+        # The "fields" key mirrors what snapshot_object previously stored.
+        snapshot: dict = {
+            k: result.get(k)
+            for k in (
+                "object_name",
+                "technical_name",
+                "object_type",
+                "platform",
+                "layer",
+                "metadata",
+                "documentation",
+                "dependencies",
+                "content_hash",
+            )
+        }
+        fields_raw = result.get("fields_snapshot") or []
+        # fields_snapshot may be a parsed list or still a string after coercion failure
+        if isinstance(fields_raw, str):
             try:
-                result["snapshot"] = _json.loads(snap)
+                fields_raw = json.loads(fields_raw)
             except Exception:  # noqa: BLE001
-                pass
+                fields_raw = []
+        snapshot["fields"] = fields_raw if isinstance(fields_raw, list) else []
+        result["snapshot"] = snapshot
         return result
     finally:
         await conn.close()

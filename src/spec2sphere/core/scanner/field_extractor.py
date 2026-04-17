@@ -63,6 +63,51 @@ _EXPR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# SQL reserved words that should never be interpreted as column aliases in
+# bare-alias detection (the "SELECT expr word" pattern without AS).
+_ALIAS_RESERVED = frozenset(
+    [
+        "NULL",
+        "TRUE",
+        "FALSE",
+        "AND",
+        "OR",
+        "NOT",
+        "IN",
+        "IS",
+        "END",
+        "THEN",
+        "ELSE",
+        "WHEN",
+        "CASE",
+        "OVER",
+        "BY",
+        "FROM",
+        "WHERE",
+        "GROUP",
+        "ORDER",
+        "HAVING",
+        "ON",
+        "JOIN",
+        "LEFT",
+        "RIGHT",
+        "INNER",
+        "OUTER",
+        "CROSS",
+        "FULL",
+        "UNION",
+        "EXCEPT",
+        "INTERSECT",
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "SET",
+        "INTO",
+        "AS",
+    ]
+)
+
 
 # ---------------------------------------------------------------------------
 # DSP SQL view parsing
@@ -77,21 +122,120 @@ def _strip_sql_comments(sql: str) -> str:
 
 
 def _extract_select_clause(sql: str) -> str | None:
-    """Return the raw text between SELECT and the first FROM at the top level."""
+    """Return the raw text between the outer SELECT and the first top-level FROM.
+
+    Skips CTE preambles (WITH ... AS (...)) so the regex matches the main
+    SELECT rather than one inside a CTE sub-query.
+    Also handles DISTINCT / TOP / LIMIT modifiers that appear between SELECT
+    and the column list.
+    """
     sql = _strip_sql_comments(sql)
-    # Find SELECT … FROM (ignore nested parens)
-    m = re.search(r"\bSELECT\b(.*?)\bFROM\b", sql, re.IGNORECASE | re.DOTALL)
-    if not m:
+
+    # Strip a leading CTE block: WITH name AS (...), ... <SELECT ...>
+    # We scan for the outermost SELECT that is not inside parens.
+    depth = 0
+    i = 0
+    main_select_pos = -1
+    while i < len(sql):
+        ch = sql[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif depth == 0:
+            m = re.match(r"\bSELECT\b", sql[i:], re.IGNORECASE)
+            if m:
+                main_select_pos = i
+                break
+        i += 1
+
+    if main_select_pos == -1:
         return None
-    return m.group(1).strip()
+
+    # Advance past SELECT keyword
+    after_select = sql[main_select_pos + len("SELECT") :]
+
+    # Strip optional DISTINCT / ALL / TOP N / FIRST N that can follow SELECT
+    after_select = re.sub(
+        r"^\s*(DISTINCT|ALL)\b\s*",
+        " ",
+        after_select,
+        flags=re.IGNORECASE,
+    )
+    after_select = re.sub(
+        r"^\s*TOP\s+\d+\s*",
+        " ",
+        after_select,
+        flags=re.IGNORECASE,
+    )
+
+    # Now collect everything up to the first top-level FROM
+    depth2 = 0
+    buf: list[str] = []
+    j = 0
+    in_single = False
+    in_double = False
+    while j < len(after_select):
+        ch = after_select[j]
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            buf.append(ch)
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+            buf.append(ch)
+        elif in_single or in_double:
+            buf.append(ch)
+        elif ch == "(":
+            depth2 += 1
+            buf.append(ch)
+        elif ch == ")":
+            depth2 -= 1
+            buf.append(ch)
+        elif depth2 == 0:
+            # Check for top-level FROM keyword
+            fm = re.match(r"\bFROM\b", after_select[j:], re.IGNORECASE)
+            if fm:
+                break
+            buf.append(ch)
+        else:
+            buf.append(ch)
+        j += 1
+
+    result = "".join(buf).strip()
+    return result if result else None
 
 
 def _extract_source_table(sql: str) -> str | None:
-    """Best-effort: return the first table name after FROM."""
+    """Best-effort: return the first table/view name after FROM.
+
+    Handles quoted identifiers: "name", `name`, [name], as well as
+    schema-qualified names (schema.table).  Skips subquery FROMs (opening
+    paren immediately follows FROM).
+    """
     sql = _strip_sql_comments(sql)
-    m = re.search(r"\bFROM\s+([\w\.\"\`]+)", sql, re.IGNORECASE)
-    if m:
-        return m.group(1).strip('"').strip("`")
+    # Match FROM followed by a table name (plain, quoted, or bracket-delimited)
+    pattern = re.compile(
+        r"\bFROM\s+"
+        r"("
+        r"\[[\w\s]+\](?:\.\[[\w\s]+\])*"  # bracket-quoted: [schema].[table]
+        r"|"
+        r"\"[\w\s]+\"(?:\.\"[\w\s]+\")*"  # double-quoted: "schema"."table"
+        r"|"
+        r"`[\w\s]+`(?:\.`[\w\s]+`)*"  # backtick-quoted
+        r"|"
+        r"[\w][\w\.]*"  # plain / schema-qualified
+        r")",
+        re.IGNORECASE,
+    )
+    for m in pattern.finditer(sql):
+        name = m.group(1).strip()
+        # Skip subqueries — FROM immediately followed by (
+        after = sql[m.end() :].lstrip()
+        if after.startswith("("):
+            continue
+        # Strip outer quote chars
+        name = name.strip('"').strip("`").strip("[]")
+        return name
     return None
 
 
@@ -103,9 +247,27 @@ def _parse_select_columns(select_clause: str) -> list[dict[str, Any]]:
     """
     columns: list[str] = []
     depth = 0
+    in_single = False  # inside a single-quoted string literal
+    in_double = False  # inside a double-quoted identifier
     current: list[str] = []
-    for ch in select_clause:
-        if ch == "(":
+    i = 0
+    while i < len(select_clause):
+        ch = select_clause[i]
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            current.append(ch)
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+            current.append(ch)
+        elif in_single or in_double:
+            # Escape sequences: '' inside single-quoted strings
+            if in_single and ch == "'" and i + 1 < len(select_clause) and select_clause[i + 1] == "'":
+                current.append(ch)
+                current.append(select_clause[i + 1])
+                i += 2
+                continue
+            current.append(ch)
+        elif ch == "(":
             depth += 1
             current.append(ch)
         elif ch == ")":
@@ -116,6 +278,7 @@ def _parse_select_columns(select_clause: str) -> list[dict[str, Any]]:
             current = []
         else:
             current.append(ch)
+        i += 1
     if current:
         columns.append("".join(current).strip())
     return [c for c in columns if c]
@@ -129,14 +292,23 @@ def _column_to_field(expr: str, ordinal: int, source_table: str | None) -> dict[
     alias: str | None = None
     field_name: str = expr
 
-    as_match = re.search(r"\bAS\s+([\w\"\`]+)\s*$", expr, re.IGNORECASE)
+    # Alias patterns: AS "quoted", AS `quoted`, AS [bracket quoted], AS plain_word
+    as_match = re.search(
+        r"\bAS\s+(\[[\w\s]+\]|\"[\w\s]+\"|`[\w\s]+`|[\w]+)\s*$",
+        expr,
+        re.IGNORECASE,
+    )
     if as_match:
-        alias = as_match.group(1).strip('"').strip("`")
+        alias = as_match.group(1).strip('"').strip("`").strip("[]")
         raw_expr = expr[: as_match.start()].strip()
     else:
         # No AS — check if the last token is a plain identifier (not a paren/operator)
         bare_match = re.search(r"^(.*?)\s+([\w]+)\s*$", expr, re.DOTALL)
-        if bare_match and not re.search(r"[\(\)\+\-\*/,]", bare_match.group(1)):
+        if (
+            bare_match
+            and bare_match.group(2).upper() not in _ALIAS_RESERVED
+            and not re.search(r"[\(\)\+\-\*/,]", bare_match.group(1))
+        ):
             alias = bare_match.group(2)
             raw_expr = bare_match.group(1).strip()
         else:
@@ -407,21 +579,32 @@ def extract_bw_fields(metadata: dict, object_type: str, source_code: str = "") -
 
     elif ot == "transformation":
         # Transformation: source → target field mappings
+        # source_object / target_object are NOT NULL in the migration schema.
+        # Pull them from top-level metadata first, then per-mapping overrides.
+        default_source_obj: str = (metadata.get("source_object") or metadata.get("source") or "UNKNOWN").upper()
+        default_target_obj: str = (metadata.get("target_object") or metadata.get("target") or "UNKNOWN").upper()
+
         mappings: list = metadata.get("field_mappings") or metadata.get("rules") or metadata.get("mappings") or []
         for i, mapping in enumerate(mappings):
             if not isinstance(mapping, dict):
                 continue
             src = mapping.get("source_field") or mapping.get("source") or ""
             tgt = mapping.get("target_field") or mapping.get("target") or ""
-            if not src and not tgt:
+            if not tgt:
+                # target_field is NOT NULL — skip entries with no target
                 continue
             transformation_rules.append(
                 {
                     "rule_sequence": i + 1,
+                    "source_object": (mapping.get("source_object") or default_source_obj).upper(),
+                    "target_object": (mapping.get("target_object") or default_target_obj).upper(),
                     "source_field": src.upper() if src else None,
-                    "target_field": tgt.upper() if tgt else None,
+                    "target_field": tgt.upper(),
                     "rule_type": mapping.get("rule_type") or "direct",
                     "formula": mapping.get("formula") or mapping.get("expression") or None,
+                    "rule_expression": mapping.get("rule_expression") or None,
+                    "routine_name": mapping.get("routine_name") or None,
+                    "routine_code": mapping.get("routine_code") or None,
                     "description": mapping.get("description") or None,
                 }
             )

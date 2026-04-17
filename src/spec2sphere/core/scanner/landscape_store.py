@@ -167,7 +167,9 @@ async def store_scan_results(
                             documentation  = $6,
                             dependencies   = $7::jsonb,
                             last_scanned   = $8,
-                            content_hash   = $9
+                            content_hash   = $9,
+                            version_number = COALESCE(version_number, 1) + 1,
+                            last_scan_run_id = $11
                         WHERE id = $10
                         """,
                         obj.object_type.value,
@@ -180,6 +182,7 @@ async def store_scan_results(
                         now,
                         content_hash,
                         existing["id"],
+                        run_id,
                     )
                     landscape_object_id = existing["id"]
                     updated += 1
@@ -190,10 +193,11 @@ async def store_scan_results(
                             (customer_id, project_id, platform, object_type,
                              object_name, technical_name, layer, metadata,
                              documentation, dependencies, last_scanned,
-                             content_hash)
+                             content_hash, first_seen_at, last_scan_run_id,
+                             version_number)
                         VALUES
                             ($1, $2, $3, $4, $5, $6, $7, $8::jsonb,
-                             $9, $10::jsonb, $11, $12)
+                             $9, $10::jsonb, $11, $12, $11, $13, 1)
                         RETURNING id
                         """,
                         ctx.customer_id,
@@ -208,6 +212,7 @@ async def store_scan_results(
                         deps_json,
                         now,
                         content_hash,
+                        run_id,
                     )
                     landscape_object_id = row["id"]
                     stored += 1
@@ -234,7 +239,10 @@ async def store_scan_results(
                     )
 
     except Exception as exc:
-        await fail_scan_run(run_id, str(exc))
+        try:
+            await fail_scan_run(run_id, str(exc))
+        except Exception as fail_exc:  # noqa: BLE001
+            logger.warning("landscape_store: failed to mark scan_run %s as failed: %s", run_id, fail_exc)
         raise
     finally:
         await conn.close()
@@ -245,11 +253,15 @@ async def store_scan_results(
         "unchanged": unchanged,
         "fields_extracted": fields_extracted,
     }
-    await complete_scan_run(
-        run_id,
-        stats=stats,
-        change_summary={"stored": stored, "updated": updated, "unchanged": unchanged},
-    )
+    try:
+        await complete_scan_run(
+            run_id,
+            stats=stats,
+            change_summary={"stored": stored, "updated": updated, "unchanged": unchanged},
+        )
+    except Exception as complete_exc:  # noqa: BLE001
+        # Non-fatal: scan data is already committed. Log and continue.
+        logger.warning("landscape_store: failed to mark scan_run %s as completed: %s", run_id, complete_exc)
 
     logger.info(
         "landscape_store: stored=%d updated=%d unchanged=%d fields=%d platform=%s customer=%s project=%s run=%s",
@@ -477,9 +489,9 @@ async def store_object_fields(
                 (landscape_object_id, scan_run_id, field_name, field_ordinal,
                  data_type, expression, source_object, source_field,
                  is_key, is_calculated, is_aggregated, aggregation_type,
-                 field_role, updated_at)
+                 field_role)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (landscape_object_id, field_name)
             DO UPDATE SET
                 scan_run_id      = EXCLUDED.scan_run_id,
@@ -492,8 +504,7 @@ async def store_object_fields(
                 is_calculated    = EXCLUDED.is_calculated,
                 is_aggregated    = EXCLUDED.is_aggregated,
                 aggregation_type = EXCLUDED.aggregation_type,
-                field_role       = EXCLUDED.field_role,
-                updated_at       = now()
+                field_role       = EXCLUDED.field_role
             """,
             landscape_object_id,
             scan_run_id,
@@ -517,49 +528,82 @@ async def store_transformation_rules(
     scan_run_id: Optional[UUID],
     conn: asyncpg.Connection,
 ) -> None:
-    """Upsert transformation rules for a landscape object.
+    """Insert transformation rules for a landscape object.
 
-    transformation_rules schema expected:
+    Matches the actual migration 009 schema:
         id                   UUID PRIMARY KEY DEFAULT gen_random_uuid()
         landscape_object_id  UUID NOT NULL REFERENCES landscape_objects(id)
         scan_run_id          UUID REFERENCES scan_runs(id)
-        rule_sequence        INT
+        source_object        TEXT NOT NULL
+        target_object        TEXT NOT NULL
         source_field         TEXT
-        target_field         TEXT
+        target_field         TEXT NOT NULL
         rule_type            TEXT
-        formula              TEXT
-        description          TEXT
-        updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+        rule_expression      TEXT
+        routine_name         TEXT
+        routine_code         TEXT
+        metadata             JSONB DEFAULT '{}'
 
-    Upserts on (landscape_object_id, rule_sequence).
+    There is no unique constraint on this table in migration 009, so we do a
+    plain INSERT rather than an upsert.  Callers should clear old rules before
+    calling this function if idempotency is required.
+
+    Rule dict keys accepted (from extract_bw_fields / field_extractor):
+        source_field, target_field, rule_type, formula (→ rule_expression),
+        description (→ metadata.description), source_object, target_object.
     """
+    # Delete existing rules for this object before re-inserting so we don't
+    # accumulate duplicate rows on every rescan (no unique index on this table).
+    await conn.execute(
+        "DELETE FROM transformation_rules WHERE landscape_object_id = $1",
+        landscape_object_id,
+    )
+
     for rule in rules:
+        source_field = rule.get("source_field") or ""
+        target_field = rule.get("target_field") or ""
+        source_object = rule.get("source_object") or ""
+        target_object = rule.get("target_object") or ""
+
+        # target_field and source/target objects are NOT NULL — skip invalid rows
+        if not target_field or not source_object or not target_object:
+            logger.debug("landscape_store: skipping transformation rule with missing required fields: %s", rule)
+            continue
+
+        # Map legacy field names to migration schema columns
+        rule_expression = rule.get("formula") or rule.get("rule_expression") or None
+        routine_name = rule.get("routine_name") or None
+        routine_code = rule.get("routine_code") or None
+
+        # Pack remaining metadata (e.g. description) into the metadata JSONB
+        extra: dict = {}
+        if rule.get("description"):
+            extra["description"] = rule["description"]
+        if rule.get("rule_sequence") is not None:
+            extra["rule_sequence"] = rule["rule_sequence"]
+
         await conn.execute(
             """
             INSERT INTO transformation_rules
-                (landscape_object_id, scan_run_id, rule_sequence,
-                 source_field, target_field, rule_type, formula,
-                 description, updated_at)
+                (landscape_object_id, scan_run_id,
+                 source_object, target_object,
+                 source_field, target_field,
+                 rule_type, rule_expression,
+                 routine_name, routine_code, metadata)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, now())
-            ON CONFLICT (landscape_object_id, rule_sequence)
-            DO UPDATE SET
-                scan_run_id  = EXCLUDED.scan_run_id,
-                source_field = EXCLUDED.source_field,
-                target_field = EXCLUDED.target_field,
-                rule_type    = EXCLUDED.rule_type,
-                formula      = EXCLUDED.formula,
-                description  = EXCLUDED.description,
-                updated_at   = now()
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
             """,
             landscape_object_id,
             scan_run_id,
-            rule.get("rule_sequence"),
-            rule.get("source_field"),
-            rule.get("target_field"),
+            source_object,
+            target_object,
+            source_field or None,
+            target_field,
             rule.get("rule_type") or "direct",
-            rule.get("formula"),
-            rule.get("description"),
+            rule_expression,
+            routine_name,
+            routine_code,
+            json.dumps(extra) if extra else "{}",
         )
 
 

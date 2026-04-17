@@ -331,8 +331,14 @@ async def search_rules(
 # ---------------------------------------------------------------------------
 
 
+_MAX_LINEAGE_DEPTH = 20
+
+
 @router.get("/api/fields/{field_name}/lineage", summary="Trace field lineage upstream")
-async def get_field_lineage(field_name: str) -> dict:
+async def get_field_lineage(
+    field_name: str,
+    max_depth: int = Query(_MAX_LINEAGE_DEPTH, ge=1, le=50, description="Maximum recursion depth for lineage tracing"),
+) -> dict:
     """Trace a field through the dependency chain, following source_object/source_field upstream.
 
     Returns a list of lineage nodes, each with the object it lives on, the
@@ -361,7 +367,9 @@ async def get_field_lineage(field_name: str) -> dict:
         # visited set prevents infinite loops in circular dependencies.
         visited: set[tuple[str, str]] = set()  # (object_name, field_name)
 
-        async def _build_node(obj_name: str, obj_tech: str, fname: str, expression: Optional[str]) -> dict:
+        async def _build_node(
+            obj_name: str, obj_tech: str, fname: str, expression: Optional[str], depth: int = 0
+        ) -> dict:
             node: dict[str, Any] = {
                 "object_name": obj_name,
                 "technical_name": obj_tech,
@@ -372,6 +380,9 @@ async def get_field_lineage(field_name: str) -> dict:
             key = (obj_name, fname)
             if key in visited:
                 node["cycle_detected"] = True
+                return node
+            if depth >= max_depth:
+                node["depth_limit_reached"] = True
                 return node
             visited.add(key)
 
@@ -417,6 +428,7 @@ async def get_field_lineage(field_name: str) -> dict:
                                 up["technical_name"],
                                 up["field_name"],
                                 up["expression"],
+                                depth + 1,
                             )
                         )
                 else:
@@ -510,8 +522,8 @@ async def get_object_version(object_id: str, version: int) -> dict:
             SELECT
                 id, landscape_object_id, scan_run_id, version_number,
                 object_name, technical_name, object_type, platform, layer,
-                metadata, documentation, dependencies, fields_snapshot,
-                content_hash, change_type, changes, captured_at
+                metadata, documentation, dependencies, content_hash,
+                fields_snapshot, change_type, changes, captured_at
             FROM object_history
             WHERE landscape_object_id = $1 AND version_number = $2
             """,
@@ -539,6 +551,8 @@ async def diff_object_versions(
     Compares metadata, documentation, content_hash, and fields_snapshot between
     the two specified versions.
     """
+    import json as _json
+
     oid = _uuid(object_id)
     conn = await _get_conn()
     try:
@@ -547,7 +561,7 @@ async def diff_object_versions(
             SELECT
                 version_number, object_name, technical_name, object_type,
                 platform, layer, metadata, documentation, dependencies,
-                fields_snapshot, content_hash, change_type, changes, captured_at
+                content_hash, fields_snapshot, change_type, changes, captured_at
             FROM object_history
             WHERE landscape_object_id = $1 AND version_number = ANY($2::int[])
             ORDER BY version_number
@@ -566,7 +580,15 @@ async def diff_object_versions(
         v_from = version_map[from_version]
         v_to = version_map[to_version]
 
-        # Scalar field diff
+        # Helper: coerce JSONB fields that asyncpg may return as strings
+        def _parse_jsonb(val: Any) -> Any:
+            if isinstance(val, str):
+                try:
+                    return _json.loads(val)
+                except Exception:  # noqa: BLE001
+                    return None
+            return val
+
         scalar_fields = [
             "object_name",
             "technical_name",
@@ -581,15 +603,15 @@ async def diff_object_versions(
             if v_from.get(field) != v_to.get(field):
                 scalar_diff[field] = {"from": v_from.get(field), "to": v_to.get(field)}
 
-        # Fields snapshot diff — by field_name
-        from_fields: dict[str, dict] = {
-            f["field_name"]: f
-            for f in (v_from.get("fields_snapshot") or [])
-            if isinstance(f, dict) and "field_name" in f
-        }
-        to_fields: dict[str, dict] = {
-            f["field_name"]: f for f in (v_to.get("fields_snapshot") or []) if isinstance(f, dict) and "field_name" in f
-        }
+        # Fields diff from the fields_snapshot JSONB array
+        def _fields_map(version_dict: dict) -> dict[str, dict]:
+            raw = _parse_jsonb(version_dict.get("fields_snapshot")) or []
+            if not isinstance(raw, list):
+                return {}
+            return {f["field_name"]: f for f in raw if isinstance(f, dict) and "field_name" in f}
+
+        from_fields: dict[str, dict] = _fields_map(v_from)
+        to_fields: dict[str, dict] = _fields_map(v_to)
 
         added_fields = [name for name in to_fields if name not in from_fields]
         removed_fields = [name for name in from_fields if name not in to_fields]
