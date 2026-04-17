@@ -2,7 +2,7 @@
 {% block title %}Agent Terminal — Spec2Sphere{% endblock %}
 {% block page_title %}Agent Terminal{% endblock %}
 
-{% block head %}
+{% block content %}
 <style>
   .session-dot {
     display: inline-block;
@@ -21,9 +21,6 @@
   #terminal-container .xterm { height: 100%; }
   #terminal-container .xterm-viewport { overflow-y: auto !important; }
 </style>
-{% endblock %}
-
-{% block content %}
 <div id="content-inner" class="flex gap-0 h-[calc(100vh-57px)] overflow-hidden">
 
   <!-- ── Left panel: session list ────────────────────────────────────── -->
