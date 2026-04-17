@@ -394,6 +394,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount widget routes: %s", exc)
 
+    # Mount SSE event streams (replace legacy setInterval polling)
+    try:
+        from spec2sphere.web.events_routes import router as events_router
+
+        app.include_router(events_router)
+    except ImportError as exc:
+        logger.warning("Could not mount events routes: %s", exc)
+
     # Mount field routes (object fields, transformation rules, version history, scan runs)
     try:
         from spec2sphere.web.field_routes import router as field_routes_router
