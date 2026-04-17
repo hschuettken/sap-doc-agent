@@ -421,7 +421,12 @@ def _feed_brain_from_graph(graph_file: Path, *, customer: str) -> None:
     )
 
     async def _run() -> None:
-        await feed_from_graph_json(customer, graph_file)
+        try:
+            await feed_from_graph_json(customer, graph_file)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Brain write-both failed (graph.json still authoritative)")
 
     try:
         loop = asyncio.get_running_loop()
