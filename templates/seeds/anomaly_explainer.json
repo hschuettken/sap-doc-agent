@@ -1,0 +1,30 @@
+{
+  "name": "Anomaly Explainer",
+  "kind": "action",
+  "mode": "live",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT * FROM public.sales_anomalies WHERE object_id = $1 ORDER BY detected_at DESC LIMIT 5",
+      "parameters": {"object_id": ""}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false
+  },
+  "prompt_template": "Explain the anomalies for {{ dsp_data[0].object_id if dsp_data else 'this object' }} in plain language.\n\nData:\n{{ dsp_data | tojson }}\n\nReturn JSON { explanation: string, suspected_causes: string[], severity: one of ('info','warn','critical'), headline: string, body: string }.",
+  "output_schema": {
+    "type": "object",
+    "required": ["explanation", "suspected_causes", "severity", "headline", "body"],
+    "properties": {
+      "explanation": {"type": "string"},
+      "suspected_causes": {"type": "array", "items": {"type": "string"}},
+      "severity": {"type": "string", "enum": ["info", "warn", "critical"]},
+      "headline": {"type": "string"},
+      "body": {"type": "string"}
+    }
+  },
+  "render_hint": "callout",
+  "ttl_seconds": 0
+}

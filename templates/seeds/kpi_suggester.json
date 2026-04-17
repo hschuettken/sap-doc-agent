@@ -1,0 +1,41 @@
+{
+  "name": "KPI Suggester",
+  "kind": "ranking",
+  "mode": "both",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT object_id, column_name FROM v_candidate_kpi_columns LIMIT 30",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (u:User {email: $user})-[:INTERESTED_IN]->(t:Topic) RETURN t.name AS name",
+      "parameters": {"user": "henning@x"}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": true,
+    "per_time": false,
+    "per_delta": false
+  },
+  "prompt_template": "Pick the 5 most useful KPIs to monitor for {{ user_id }}.\n\nCandidates: {{ dsp_data | tojson }}\n\nUser interests: {{ brain_nodes | tojson }}\n\nReturn JSON { items: [ { item_id: string, score: number 0-1, reason: string } ] }.",
+  "output_schema": {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["item_id", "score", "reason"],
+          "properties": {
+            "item_id": {"type": "string"},
+            "score": {"type": "number"},
+            "reason": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "ranked_list",
+  "ttl_seconds": 3600
+}

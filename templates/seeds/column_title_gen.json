@@ -1,0 +1,44 @@
+{
+  "name": "Column Title Gen",
+  "kind": "item_enrich",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT object_id, column_name, dtype FROM v_unlabeled_columns LIMIT 20",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (c:Column)-[:DESCRIBES]-(g:Glossary) RETURN c.id AS id, g.term AS term LIMIT 50",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false
+  },
+  "prompt_template": "For each column below, propose a business-friendly title + one-sentence description + 2–3 tags.\n\nColumns: {{ dsp_data | tojson }}\n\nHints from glossary: {{ brain_nodes | tojson }}\n\nReturn JSON { enrichments: [ { object_type: 'Column', object_id: string, title: string, description: string, tags: string[], kpi_suggestions: string[] } ] }.",
+  "output_schema": {
+    "type": "object",
+    "required": ["enrichments"],
+    "properties": {
+      "enrichments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["object_type", "object_id", "title"],
+          "properties": {
+            "object_type": {"type": "string"},
+            "object_id": {"type": "string"},
+            "title": {"type": "string"},
+            "description": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+            "kpi_suggestions": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "callout",
+  "ttl_seconds": 86400
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Narrative Overlay — Sales",
+  "kind": "narrative",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT date_trunc('day', order_date) AS d, SUM(amount) AS rev FROM public.sales WHERE order_date >= NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 1",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (g:Glossary)-[:DESCRIBES]->(o:DspObject {id: $obj}) RETURN g.term AS term, g.definition_source AS definition_source",
+      "parameters": {"obj": "public.sales"}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": true,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "Describe the 30-day sales trend in ≤3 bullets for {{ user_id }}.\n\nData:\n{% for r in dsp_data %}- {{ r.d }}: {{ r.rev }}\n{% endfor %}\n\nRelevant glossary terms: {% for b in brain_nodes %}{{ b.term }}; {% endfor %}\n\nReturn JSON { narrative_text: string, key_points: string[] }.",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "key_points"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "key_points": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "narrative_text",
+  "ttl_seconds": 1800
+}
