@@ -551,3 +551,25 @@ def get_quality_router() -> QualityRouter:
             if _instance is None:
                 _instance = QualityRouter()
     return _instance
+
+
+# ---------------------------------------------------------------------------
+# DSP-AI engine entry-point (stub — replaced in Task 10)
+# ---------------------------------------------------------------------------
+
+
+async def resolve_and_call(
+    action: str,
+    prompt: str,
+    *,
+    data_in_context: bool = False,
+    schema: dict | None = None,
+) -> tuple[Any, dict]:
+    """Route an LLM call through the quality router.
+
+    The full implementation lands in Task 10.  This stub lets Stage 5
+    (run_llm) import the function at module level so tests can monkeypatch
+    ``spec2sphere.dsp_ai.stages.run_llm.resolve_and_call`` without an
+    ImportError at collection time.
+    """
+    raise NotImplementedError("resolve_and_call is not yet implemented — see Task 10")
