@@ -14,7 +14,7 @@
 | Web UI | https://sap-docu.schuettken.net/ui/dashboard | Password: admin (change it!) |
 | BookStack | 192.168.0.50:8253 (admin@admin.com / password) | Running |
 | Outline | 192.168.0.50:8250 (SMTP magic link auth) | Running |
-| Tests | 1095 passing | Green |
+| Tests | 1265 passing | Green |
 
 ## Architecture
 
@@ -206,21 +206,21 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 | abapGit transport | **DONE** | Full staging+push implementation in z_doc_agent_scan.abap (2026-04-17) |
 | GitLab git backend | **DONE** | gitlab_backend.py via httpx REST v4 (2026-04-17) |
 | Azure DevOps git backend | **DONE** | azure_devops_backend.py via httpx REST v7.0 (2026-04-17) |
-| File Drop transport (Python) | Not implemented | ABAP side works, no Python pickup |
-| M365 Copilot Graph Connector | Not implemented | Sitemap exists; no Enterprise connector |
-| M365 Copilot Declarative Agent | Not implemented | No manifest, no knowledge URL config |
-| OIDC/SAML SSO | Not implemented | bcrypt password auth only |
-| OpenTelemetry traces | Not implemented | Prometheus metrics exist, OTel not wired |
-| Signed images / SBOM / Trivy | Not implemented | No supply chain CI |
-| Setup wizard | Not implemented | SPEC mentions wizard.py; doesn't exist |
-| LLM copilot_passthrough mode | Not implemented | Config schema defines it, no agent support |
+| File Drop transport (Python) | **DONE** | FileDropWatcher + Celery + /api/ingest/upload (2026-04-17 p2) |
+| M365 Copilot Graph Connector | **DONE** | GraphConnectorClient with Azure AD credentials flow (2026-04-17 p2) |
+| M365 Copilot Declarative Agent | **DONE** | /api/copilot/agent/manifest.yaml + openapi.yaml + action endpoints (2026-04-17 p2) |
+| OIDC/SAML SSO | Not implemented | bcrypt password auth only (deliberately deferred) |
+| OpenTelemetry traces | **DONE** | FastAPI/Celery/httpx/asyncpg + LLM + scanner spans (2026-04-17 p2) |
+| Signed images / SBOM / Trivy | **DONE** | .gitea/workflows/ci.yml — test+sbom+trivy+gitleaks (2026-04-17) |
+| Setup wizard | **DONE** | 7-step wizard, opt-in via SETUP_WIZARD_ENABLED (2026-04-17 p2) |
+| LLM copilot_passthrough mode | **DONE** | llm/passthrough.py writes prompts to files (pre-existing, confirmed 2026-04-17) |
 | Knowledge auto-learning loop | **DONE** | KnowledgeLearner wired into landscape_store (2026-04-17) |
-| DSP OAuth credentials | Not configured | Template ready, needs BTP service key |
+| DSP OAuth credentials | **DONE (code)** | OAuth client_credentials factory in place; still needs BTP service key at deploy (2026-04-17 p2) |
 
 ## TODO
 
 - [x] All 6 sessions complete
-- [x] 1095 tests passing
+- [x] 1265 tests passing
 - [x] 6 Horváth standards loaded
 - [x] Quality Router (Q1-Q5) with UI
 - [x] Privacy by design (local-only with data)
@@ -235,7 +235,13 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 - [x] GitLab + Azure DevOps git backends
 - [x] abapGit transport backend (ABAP side)
 - [x] Knowledge auto-learning loop
-- [ ] M365 Copilot: Declarative Agent manifest + knowledge URLs
-- [ ] OIDC/SAML SSO (Authlib)
-- [ ] OpenTelemetry tracing
+- [x] M365 Copilot: Graph Connector + Declarative Agent manifest + knowledge URLs (2026-04-17 p2)
+- [ ] OIDC/SAML SSO (Authlib) — deliberately deferred by user
+- [x] OpenTelemetry tracing (2026-04-17 p2)
 - [x] CI: SBOM generation + Trivy vuln scan + Gitleaks secret detection (2026-04-17)
+- [x] File Drop Python pickup (2026-04-17 p2)
+- [x] First-run Setup Wizard (2026-04-17 p2)
+- [x] DSP OAuth client_credentials factory (2026-04-17 p2)
+- [x] CSRF double-submit middleware + branded 404/500 pages (2026-04-17 p2)
+- [x] N+1 governance query batching (2026-04-17 p2)
+- [x] pipeline_routes.py refactor (1480 → 57-line aggregator + 7 submodules) (2026-04-17 p2)
