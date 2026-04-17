@@ -29,12 +29,13 @@ async def load_seed_file(path: Path) -> dict:
     return json.loads(Path(path).read_text())
 
 
-async def upsert_enhancement(config: dict, *, author: str = "system") -> str | None:
-    """Insert ``config`` as a draft Enhancement. Returns the new id, or
+async def upsert_enhancement(config: dict, *, author: str = "system", publish: bool = False) -> str | None:
+    """Insert ``config`` as a draft (or published) Enhancement. Returns the new id, or
     None if a row with that (name, version) already exists.
     """
     name = config["name"]
     kind = config["kind"]
+    status = "published" if publish else "draft"
     conn = await asyncpg.connect(postgres_dsn())
     try:
         existing = await conn.fetchval(
@@ -45,13 +46,22 @@ async def upsert_enhancement(config: dict, *, author: str = "system") -> str | N
         if existing:
             return None
         new_id = await conn.fetchval(
-            "INSERT INTO dsp_ai.enhancements (name, kind, config, author) "
-            "VALUES ($1, $2, $3::jsonb, $4) RETURNING id::text",
+            "INSERT INTO dsp_ai.enhancements (name, kind, status, config, author) "
+            "VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id::text",
             name,
             kind,
+            status,
             json.dumps(config),
             author,
         )
+        if new_id and publish:
+            try:
+                await conn.execute(
+                    "NOTIFY enhancement_published, $1",
+                    new_id,
+                )
+            except Exception:
+                pass  # best-effort NOTIFY
         return new_id
     finally:
         await conn.close()
@@ -78,17 +88,23 @@ async def ensure_all_seeds_loaded() -> dict[str, int]:
     ranking, item_enrich, action, briefing). Running this at dsp-ai
     startup guarantees the Studio's template library + ship criterion
     "all 5 kinds seeded" are satisfied on fresh compose.
+
+    Set DSPAI_AUTO_PUBLISH_SEEDS=true to publish all seeds on insert (demo
+    tenants). Defaults to false (draft) for safety.
     """
+    import os
+
+    publish = os.environ.get("DSPAI_AUTO_PUBLISH_SEEDS", "false").lower() == "true"
     if not SEEDS_DIR.exists():
         return {"seeded": 0, "skipped": 0, "errors": 0}
     seeded = skipped = errors = 0
     for path in sorted(SEEDS_DIR.glob("*.json")):
         try:
             config = await load_seed_file(path)
-            new_id = await upsert_enhancement(config, author="setup_wizard")
+            new_id = await upsert_enhancement(config, author="setup_wizard", publish=publish)
             if new_id:
                 seeded += 1
-                logger.info("Seeded %s id=%s", config.get("name", path.stem), new_id)
+                logger.info("Seeded %s id=%s (published=%s)", config.get("name", path.stem), new_id, publish)
             else:
                 skipped += 1
         except Exception:
