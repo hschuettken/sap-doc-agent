@@ -23,6 +23,7 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "redis>=5.0",
     "watchdog>=4.0",
+    "neo4j>=5.0",
 ]
 
 [project.scripts]
