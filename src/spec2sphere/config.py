@@ -35,9 +35,44 @@ class ScanScope(BaseModel):
 
 
 class OAuthConfig(BaseModel):
-    client_id_env: str
-    client_secret_env: str
-    token_url_env: str
+    """OAuth client credentials config (env-var style — used by existing YAML and DSPAuthFactory)."""
+
+    client_id_env: Optional[str] = None
+    client_secret_env: Optional[str] = None
+    token_url_env: Optional[str] = None
+    # Inline values (alternative to env var names)
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    token_url: Optional[str] = None
+
+
+class DSPBasicAuthConfig(BaseModel):
+    """Inline basic-auth credentials for Datasphere (resolved at runtime)."""
+
+    username_env: Optional[str] = None
+    password_env: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
+class DSPAuthConfig(BaseModel):
+    """
+    Top-level auth block on a SAPSystem entry.
+
+    type: basic | oauth
+      basic   → use DSPBasicAuthConfig fields (username/password)
+      oauth   → use DSPAuthConfig.oauth sub-block OR top-level SAPSystem.oauth
+
+    If ``type`` is omitted and an ``oauth`` sub-block is present → OAuth.
+    If ``type`` is omitted and username/username_env is set → basic.
+    """
+
+    type: Optional[Literal["basic", "oauth"]] = None
+    username_env: Optional[str] = None
+    password_env: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    oauth: Optional[OAuthConfig] = None
 
 
 class SAPSystem(BaseModel):
@@ -46,8 +81,12 @@ class SAPSystem(BaseModel):
     transport: Optional[Literal["abapgit", "api", "filedrop"]] = None
     scan_scope: Optional[ScanScope] = None
     mcp_server: Optional[str] = None
+    # Legacy OAuth block (env-var style) — kept for backward compat
     oauth: Optional[OAuthConfig] = None
+    # New inline auth block (supports both basic and oauth, inline values + env)
+    auth: Optional[DSPAuthConfig] = None
     spaces: Optional[list[str]] = None
+    base_url: Optional[str] = None
 
     @field_validator("transport")
     @classmethod

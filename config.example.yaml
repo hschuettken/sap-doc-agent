@@ -3,13 +3,31 @@
 # All secrets should be set as environment variables (referenced by *_env keys).
 
 sap_systems:
-  # SAP Datasphere tenant (OAuth credentials via env vars)
+  # SAP Datasphere tenant — OAuth via env vars (recommended for BTP)
   - name: "My Datasphere Tenant"
     type: datasphere
-    oauth:
-      client_id_env: DSP_CLIENT_ID
-      client_secret_env: DSP_CLIENT_SECRET
-      token_url_env: DSP_TOKEN_URL
+    base_url: "https://<tenant>.eu10.hcs.cloud.sap"
+    auth:
+      type: oauth
+      oauth:
+        token_url_env: DSP_TOKEN_URL      # https://<tenant>.authentication.eu10.hana.ondemand.com/oauth/token
+        client_id_env: DSP_CLIENT_ID
+        client_secret_env: DSP_CLIENT_SECRET
+    # Legacy style (still supported — kept for backward compat):
+    # oauth:
+    #   client_id_env: DSP_CLIENT_ID
+    #   client_secret_env: DSP_CLIENT_SECRET
+    #   token_url_env: DSP_TOKEN_URL
+
+  # Datasphere with basic auth (on-prem / custom IdP)
+  # - name: "My On-Prem DSP"
+  #   type: datasphere
+  #   base_url: "https://dsp.internal.example.com"
+  #   auth:
+  #     type: basic
+  #     username_env: DSP_USER
+  #     password_env: DSP_PASS
+
     scan_scope:
       object_types:
         - relational_dataset
