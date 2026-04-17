@@ -40,6 +40,18 @@
 | Artifact Lab | Active | Sandbox experimentation, template learning |
 | Multi-Tenant | Active | Workspace switching, tenant/customer/project CRUD |
 
+## Supply Chain Security
+
+[![CI Status](https://git.schuettken.net/atlas/sap-doc-agent/actions/workflows/ci.yml/badge.svg)](https://git.schuettken.net/atlas/sap-doc-agent/actions/workflows/ci.yml)
+
+**Gitea Actions workflow** (`.gitea/workflows/ci.yml`) runs on every push:
+- ✓ **Test suite** — pytest on 1095+ tests (Python 3.12 via uv)
+- ✓ **SBOM generation** — CycloneDX JSON artifact
+- ✓ **Trivy filesystem scan** — blocks on HIGH/CRITICAL vulns
+- ✓ **Gitleaks detection** — blocks on hardcoded secrets
+
+See `.trivyignore` for known false positives.
+
 ## Codebase Scale
 
 - **151 Python modules** across 20 subsystems
@@ -119,4 +131,4 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 - [ ] M365 Copilot: Declarative Agent manifest + knowledge URLs
 - [ ] OIDC/SAML SSO (Authlib)
 - [ ] OpenTelemetry tracing
-- [ ] CI: signed images, SBOM, vuln scan
+- [x] CI: SBOM generation + Trivy vuln scan + Gitleaks secret detection (2026-04-17)

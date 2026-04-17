@@ -1,0 +1,2 @@
+# Trivy ignore file for known false positives
+# Add entries in format: CVE-YYYY-XXXX (one per line)

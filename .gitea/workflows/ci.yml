@@ -1,0 +1,114 @@
+name: CI - SBOM, Trivy, Secret Scan, Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Suite (pytest)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv + Python 3.12
+        env:
+          UV_CACHE_DIR: /root/.cache/uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv python install 3.12
+
+      - name: Create virtualenv + install deps
+        env:
+          UV_CACHE_DIR: /root/.cache/uv
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv /root/.venv
+          source /root/.venv/bin/activate
+          uv pip install -e ".[dev]"
+
+      - name: Run pytest
+        run: |
+          source /root/.venv/bin/activate
+          pytest tests/ -q --tb=short
+
+  sbom:
+    runs-on: ubuntu-latest
+    name: Generate SBOM (CycloneDX)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv + Python 3.12
+        env:
+          UV_CACHE_DIR: /root/.cache/uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv python install 3.12
+
+      - name: Create virtualenv + install deps
+        env:
+          UV_CACHE_DIR: /root/.cache/uv
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv /root/.venv
+          source /root/.venv/bin/activate
+          uv pip install -e . cyclonedx-py
+
+      - name: Generate SBOM
+        run: |
+          source /root/.venv/bin/activate
+          cyclonedx-py environment -o sbom.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
+
+  trivy:
+    runs-on: ubuntu-latest
+    name: Vulnerability Scan (Trivy)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan filesystem for HIGH/CRITICAL vulns
+        run: |
+          trivy fs --severity HIGH,CRITICAL --exit-code 1 .
+
+      - name: Scan filesystem (all severities, non-blocking)
+        continue-on-error: true
+        run: |
+          trivy fs --severity LOW,MEDIUM,HIGH,CRITICAL .
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    name: Secret Detection (Gitleaks)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          curl -L https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks-linux-x64 -o /tmp/gitleaks
+          chmod +x /tmp/gitleaks
+          /tmp/gitleaks version
+
+      - name: Run Gitleaks secret detection
+        run: |
+          /tmp/gitleaks detect --verbose --exit-code 1
