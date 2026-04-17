@@ -131,6 +131,11 @@ def create_app(
     async def lifespan(app_instance: FastAPI):
         """Startup: ensure tables, bootstrap single-tenant, configure modules."""
         import asyncio
+        from spec2sphere.telemetry import init_telemetry, instrument_fastapi  # noqa: PLC0415
+
+        # Telemetry must init first so downstream instrumentation is active
+        init_telemetry()
+        instrument_fastapi(app_instance)
 
         asyncio.create_task(_register_with_oracle())
 
@@ -349,6 +354,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount copilot routes: %s", exc)
 
+    # Mount declarative agent endpoints (manifest, openapi, actions)
+    try:
+        from spec2sphere.copilot.declarative_agent import create_declarative_agent_router
+
+        app.include_router(create_declarative_agent_router())
+    except ImportError as exc:
+        logger.warning("Could not mount declarative agent routes: %s", exc)
+
     # Mount LLM routing API
     try:
         from spec2sphere.web.llm_routing import router as llm_routing_router
@@ -365,6 +378,16 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount field routes: %s", exc)
 
+    # Mount file-drop ingest routes (only when FILE_DROP_ENABLED=true)
+    if os.environ.get("FILE_DROP_ENABLED", "false").lower() == "true":
+        try:
+            from spec2sphere.web.ingest_routes import router as ingest_router
+
+            app.include_router(ingest_router)
+            logger.info("File drop ingest endpoint enabled at POST /api/ingest/upload")
+        except ImportError as exc:
+            logger.warning("Could not mount ingest routes: %s", exc)
+
     # Auth middleware (password from env, defaults to "admin" for dev)
     # In multi-tenant mode, user email+password login is also supported
     pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))
@@ -378,6 +401,40 @@ def create_app(
         app.add_middleware(AuditMiddleware)
     except Exception as exc:
         logger.warning("Could not add audit middleware: %s", exc)
+
+    # Branded error pages for HTML clients; JSON clients still get FastAPI defaults
+    from fastapi.responses import JSONResponse
+    from fastapi.templating import Jinja2Templates
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    _error_templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+    def _wants_html(request: Request) -> bool:
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            return True
+        return request.url.path.startswith("/ui") and "application/json" not in accept
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404 and _wants_html(request):
+            return _error_templates.TemplateResponse(
+                request, "errors/404.html", {"path": request.url.path}, status_code=404
+            )
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+    @app.exception_handler(Exception)
+    async def _unhandled_exception_handler(request: Request, exc: Exception):
+        trace_id = request.headers.get("x-request-id") or request.headers.get("traceparent", "").split("-")[1:2]
+        trace_id = (
+            trace_id[0] if isinstance(trace_id, list) and trace_id else (trace_id if isinstance(trace_id, str) else "")
+        )
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        if _wants_html(request):
+            return _error_templates.TemplateResponse(
+                request, "errors/500.html", {"trace_id": trace_id}, status_code=500
+            )
+        return JSONResponse({"detail": "Internal server error", "trace_id": trace_id}, status_code=500)
 
     # Browser pool health endpoint
     @app.get("/api/browser/health", tags=["browser"])

@@ -90,11 +90,21 @@ class OpenAICompatibleAdapter(LLMProvider):
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
     ) -> Optional[str]:
+        from spec2sphere.telemetry import get_tracer  # noqa: PLC0415
+
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         model = self._resolve_model(tier)
+        tracer = get_tracer()
+        if tracer:
+            with tracer.start_as_current_span("llm.generate") as span:
+                span.set_attribute("llm.model", model)
+                span.set_attribute("llm.tier", tier)
+                span.set_attribute("llm.quality", "text")
+                span.set_attribute("llm.data_in_context", data_in_context)
+                return await self._chat(messages, model=model)
         return await self._chat(messages, model=model)
 
     async def generate_json(
@@ -106,9 +116,21 @@ class OpenAICompatibleAdapter(LLMProvider):
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
     ) -> Optional[dict]:
+        from spec2sphere.telemetry import get_tracer  # noqa: PLC0415
+
         system_msg = system or "You are a structured data extraction assistant."
         system_msg += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        raw = await self.generate(prompt, system=system_msg, tier=tier, data_in_context=data_in_context)
+        tracer = get_tracer()
+        if tracer:
+            model = self._resolve_model(tier)
+            with tracer.start_as_current_span("llm.generate_json") as span:
+                span.set_attribute("llm.model", model)
+                span.set_attribute("llm.tier", tier)
+                span.set_attribute("llm.quality", "json")
+                span.set_attribute("llm.data_in_context", data_in_context)
+                raw = await self.generate(prompt, system=system_msg, tier=tier, data_in_context=data_in_context)
+        else:
+            raw = await self.generate(prompt, system=system_msg, tier=tier, data_in_context=data_in_context)
         if raw is None:
             return None
         try:

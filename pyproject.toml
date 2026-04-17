@@ -22,6 +22,7 @@ dependencies = [
     "alembic>=1.13",
     "psycopg2-binary>=2.9",
     "redis>=5.0",
+    "watchdog>=4.0",
 ]
 
 [project.scripts]
@@ -37,6 +38,14 @@ dev = [
     "ruff>=0.4",
 ]
 anthropic = ["anthropic>=0.25"]
+otel = [
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-instrumentation-httpx>=0.45b0",
+    "opentelemetry-instrumentation-asyncpg>=0.45b0",
+    "opentelemetry-instrumentation-celery>=0.45b0",
+]
 all = ["anthropic>=0.25", "celery[redis]>=5.3", "redis>=5.0", "alembic>=1.13", "psycopg2-binary>=2.9"]
 
 [build-system]

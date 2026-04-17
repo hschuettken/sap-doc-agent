@@ -132,6 +132,10 @@ def run_scan(
     logger.info("run_scan: type=%s run_id=%s system=%s", scanner_type, run_id, system_name or "<all>")
     output_dir = _resolve_output_dir(config_path)
 
+    from spec2sphere.telemetry import get_tracer as _get_tracer  # noqa: PLC0415
+
+    _active_tracer = _get_tracer()
+
     async def _run_all() -> list[dict]:
         if system_name:
             systems = [system_name]
@@ -152,20 +156,42 @@ def run_scan(
             results.append(r)
         return results
 
-    try:
-        outcomes = asyncio.run(_run_all())
-    except FileNotFoundError as exc:
-        # Permanent failure — don't retry for a missing config file
-        logger.warning("run_scan: config file not found (%s) — returning skipped", exc)
-        return {
-            "run_id": run_id,
-            "status": "skipped",
-            "scanner_type": scanner_type,
-            "reason": f"config not found: {exc}",
-        }
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("run_scan failed: %s", exc)
-        raise self.retry(exc=exc)
+    def _execute() -> list[dict]:
+        return asyncio.run(_run_all())
+
+    if _active_tracer:
+        with _active_tracer.start_as_current_span("scanner.run") as _span:
+            _span.set_attribute("scanner.type", scanner_type)
+            _span.set_attribute("scanner.run_id", run_id)
+            _span.set_attribute("scanner.system", system_name or "<all>")
+            try:
+                outcomes = _execute()
+            except FileNotFoundError as exc:
+                logger.warning("run_scan: config file not found (%s) — returning skipped", exc)
+                return {
+                    "run_id": run_id,
+                    "status": "skipped",
+                    "scanner_type": scanner_type,
+                    "reason": f"config not found: {exc}",
+                }
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("run_scan failed: %s", exc)
+                raise self.retry(exc=exc)
+    else:
+        try:
+            outcomes = _execute()
+        except FileNotFoundError as exc:
+            # Permanent failure — don't retry for a missing config file
+            logger.warning("run_scan: config file not found (%s) — returning skipped", exc)
+            return {
+                "run_id": run_id,
+                "status": "skipped",
+                "scanner_type": scanner_type,
+                "reason": f"config not found: {exc}",
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("run_scan failed: %s", exc)
+            raise self.retry(exc=exc)
 
     return {
         "run_id": run_id,
