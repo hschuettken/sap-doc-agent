@@ -61,3 +61,10 @@ BEAT_SCHEDULE["dsp-ai-batch-morning"] = {
     "schedule": _crontab_from_env("BATCH_CRON", "0 6 * * 1-5"),
     "options": {"priority": 5, "queue": "ai-batch"},
 }
+
+# Nightly topic synthesis — derives :Topic nodes + :INTERESTED_IN edges per user.
+BEAT_SCHEDULE["synthesize-topics"] = {
+    "task": "dsp_ai.synthesize_topics",
+    "schedule": _crontab_from_env("BRAIN_FEEDER_CRON", "0 3 * * *"),
+    "options": {"priority": 3},
+}
