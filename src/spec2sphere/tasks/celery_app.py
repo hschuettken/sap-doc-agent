@@ -22,6 +22,7 @@ celery_app.conf.update(
         "spec2sphere.tasks.factory_tasks.run_dsp_deployment": {"queue": "chrome"},
         "spec2sphere.tasks.factory_tasks.run_sac_deployment": {"queue": "sac"},
         "spec2sphere.tasks.factory_tasks.run_reconciliation": {"queue": "llm"},
+        "spec2sphere.tasks.file_drop_tasks.*": {"queue": "scan"},
     },
     worker_prefetch_multiplier=1,
 )
