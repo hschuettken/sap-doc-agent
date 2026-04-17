@@ -22,14 +22,18 @@ from spec2sphere.web.server import create_app
 
 
 @pytest.fixture(autouse=True)
-def reset_manager_singleton():
-    """Reset the AgentSessionManager singleton before every test.
+def reset_manager_singleton(tmp_path, monkeypatch):
+    """Reset the AgentSessionManager singleton AND its persisted state file
+    before every test.
 
-    The manager is a module-level singleton.  Without a reset, a session
-    created in one test leaks into the next.
+    The manager is a module-level singleton and also writes a JSON file at
+    ``_SESSIONS_FILE``. Without clearing both, a session created in one test
+    (or an earlier test run on a shared CI runner) leaks into the next.
     """
     from spec2sphere.agent_terminal import manager as mgr_mod
 
+    sessions_file = tmp_path / "agent_sessions.json"
+    monkeypatch.setattr(mgr_mod, "_SESSIONS_FILE", sessions_file)
     mgr_mod.AgentSessionManager._instance = None
     yield
     mgr_mod.AgentSessionManager._instance = None
