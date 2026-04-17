@@ -117,32 +117,40 @@ def create_llm_provider(cfg: LLMConfig, output_dir: Optional[Path] = None) -> LL
     If ANTHROPIC_API_KEY is set, the provider is automatically wrapped in a
     TieredProvider that routes large/reasoning calls to Anthropic and
     small/medium calls to the local provider.
+
+    Every returned provider is wrapped in ObservedLLMProvider (outermost) so
+    all generate() / generate_json() calls are logged to dsp_ai.generations.
     """
+    from spec2sphere.llm.observed import ObservedLLMProvider
+
+    def _wrap(p: LLMProvider) -> LLMProvider:
+        return ObservedLLMProvider(p) if not isinstance(p, ObservedLLMProvider) else p
+
     # 1. Environment variable takes highest priority
     env_provider = os.environ.get("LLM_PROVIDER")
     if env_provider:
-        # "anthropic" as sole provider — don't wrap, use directly
+        # "anthropic" as sole provider — don't wrap with tiered, use directly
         if env_provider == "anthropic":
-            return _create_from_provider_name(env_provider, cfg, output_dir)
+            return _wrap(_create_from_provider_name(env_provider, cfg, output_dir))
         provider = _create_from_provider_name(env_provider, cfg, output_dir)
-        return _wrap_with_tiered(provider)
+        return _wrap(_wrap_with_tiered(provider))
 
     # 2. Config provider field
     if cfg.provider:
         if cfg.provider == "anthropic":
-            return _create_from_provider_name(cfg.provider, cfg, output_dir)
+            return _wrap(_create_from_provider_name(cfg.provider, cfg, output_dir))
         provider = _create_from_provider_name(cfg.provider, cfg, output_dir)
-        return _wrap_with_tiered(provider)
+        return _wrap(_wrap_with_tiered(provider))
 
     # 3. Backward compat: cfg.mode
     if cfg.mode == "none":
-        return NoopLLMProvider()
+        return _wrap(NoopLLMProvider())
     if cfg.mode == "copilot_passthrough":
-        return CopilotPassthroughProvider(output_dir=output_dir or Path("reports/prompts"))
+        return _wrap(CopilotPassthroughProvider(output_dir=output_dir or Path("reports/prompts")))
     if cfg.mode == "direct":
         base_url = _resolve_env(cfg.base_url_env or "LLM_BASE_URL")
         api_key = _resolve_env(cfg.api_key_env or "LLM_API_KEY")
         provider = DirectLLMProvider(base_url=base_url, api_key=api_key, model=cfg.model or "gpt-4")
-        return _wrap_with_tiered(provider)
+        return _wrap(_wrap_with_tiered(provider))
 
     raise ValueError(f"Unknown LLM mode: {cfg.mode}")
