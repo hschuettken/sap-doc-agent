@@ -293,7 +293,8 @@ class QualityRouter:
 
     def _get_effective_profile(self, data_in_context: bool) -> dict[str, dict[str, str]]:
         """Return the profile to use, accounting for privacy settings."""
-        privacy = self._config.get("privacy", {})
+        defaults = _default_config()["privacy"]
+        privacy = self._config.get("privacy", defaults)
         if data_in_context and privacy.get("local_only_with_data", True):
             safe_name = privacy.get("data_safe_profile", "all-local")
             if safe_name in BUILTIN_PROFILES:
@@ -306,7 +307,8 @@ class QualityRouter:
 
     def is_model_local(self, model: str) -> bool:
         """Check whether a model is considered local (no cloud API)."""
-        local = self._config.get("privacy", {}).get("local_models", [])
+        defaults = _default_config()["privacy"]
+        local = self._config.get("privacy", defaults).get("local_models", defaults["local_models"])
         return model in local
 
     def resolve_quality(self, action_or_tier: str) -> str:
