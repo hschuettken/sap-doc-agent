@@ -122,6 +122,97 @@ _TOOLS = [
             },
         },
     },
+    {
+        "name": "studio_list_enhancements",
+        "description": "List all AI Studio enhancements, optionally filtered by status (draft | staging | published | archived).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "enum": ["draft", "staging", "published", "archived"]},
+            },
+        },
+    },
+    {
+        "name": "studio_get_enhancement",
+        "description": "Get full config + status for a specific AI Studio enhancement by UUID.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"enhancement_id": {"type": "string"}},
+            "required": ["enhancement_id"],
+        },
+    },
+    {
+        "name": "studio_create_enhancement",
+        "description": "Create a new draft enhancement with the given config object. Returns the new UUID.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "kind": {"type": "string", "enum": ["narrative", "ranking", "item_enrich", "action", "briefing"]},
+                "config": {"type": "object"},
+                "author": {"type": "string"},
+            },
+            "required": ["name", "kind"],
+        },
+    },
+    {
+        "name": "studio_update_enhancement",
+        "description": "Merge-update an enhancement's config JSON. Only top-level keys in patch are replaced.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "enhancement_id": {"type": "string"},
+                "patch": {"type": "object"},
+            },
+            "required": ["enhancement_id", "patch"],
+        },
+    },
+    {
+        "name": "studio_preview",
+        "description": "Run a preview generation for an enhancement via the dsp-ai live adapter. Skips cache.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "enhancement_id": {"type": "string"},
+                "user": {"type": "string"},
+                "context_hints": {"type": "object"},
+            },
+            "required": ["enhancement_id"],
+        },
+    },
+    {
+        "name": "studio_publish",
+        "description": "Mark an enhancement as published — triggers batch backfill + cache eviction.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"enhancement_id": {"type": "string"}},
+            "required": ["enhancement_id"],
+        },
+    },
+    {
+        "name": "studio_query_brain",
+        "description": "Run a read-only Cypher query against the Corporate Brain (Neo4j). MATCH/RETURN only.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "cypher": {"type": "string"},
+                "parameters": {"type": "object"},
+            },
+            "required": ["cypher"],
+        },
+    },
+    {
+        "name": "studio_generation_log",
+        "description": "Query the dsp_ai.generations provenance ledger. Filter by enhancement_id/user_id.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "enhancement_id": {"type": "string"},
+                "user_id": {"type": "string"},
+                "limit": {"type": "integer", "default": 50},
+            },
+        },
+    },
 ]
 
 # --------------------------------------------------------- resource registry -
@@ -236,6 +327,38 @@ class MCPHandler:
             return await self._tool_migration_guide(args)
         elif name == "get_architecture_overview":
             return await self._tool_architecture(args)
+        elif name == "studio_list_enhancements":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.list_enhancements(args)
+        elif name == "studio_get_enhancement":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.get_enhancement(args)
+        elif name == "studio_create_enhancement":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.create_enhancement(args)
+        elif name == "studio_update_enhancement":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.update_enhancement(args)
+        elif name == "studio_preview":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.preview(args)
+        elif name == "studio_publish":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.publish(args)
+        elif name == "studio_query_brain":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.query_brain(args)
+        elif name == "studio_generation_log":
+            from spec2sphere.copilot import studio_tools
+
+            return await studio_tools.generation_log(args)
         else:
             return self._tool_error(f"Unknown tool: {name}")
 
