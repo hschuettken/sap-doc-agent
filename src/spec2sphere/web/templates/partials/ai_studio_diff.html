@@ -1,0 +1,46 @@
+<div class="ai-diff-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+  <div class="nb9-card" style="max-width: 640px; width: 90%; max-height: 80vh; overflow: auto; padding: 20px;">
+    <h3 style="margin-top: 0;">Publish Preview</h3>
+
+    {% if diff.breaking %}
+      <div style="background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: 500;">
+        &#x26A0; Breaking change detected. Downstream widgets may need re-binding.
+      </div>
+    {% endif %}
+
+    <p>
+      {% if diff.has_prior_publish %}
+        {{ diff.user_count }} user(s) have received outputs from this enhancement.
+      {% else %}
+        First publish — no prior version to diff against.
+      {% endif %}
+    </p>
+
+    {% if diff.summary %}
+      <ul style="margin: 8px 0 12px 20px;">
+        {% for line in diff.summary %}
+          <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p style="color: #666;">No changes detected — publishing will refresh metadata only.</p>
+    {% endif %}
+
+    <details style="margin-top: 8px;">
+      <summary style="cursor: pointer; color: #666; font-size: 0.9em;">Technical diff</summary>
+      <pre style="background: #f3f4f6; padding: 8px; border-radius: 4px; font-size: 0.8em; max-height: 280px; overflow: auto;">{{ diff.changes | tojson(indent=2) }}</pre>
+    </details>
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+      <button type="button" class="nb9-btn nb9-btn-secondary" onclick="this.closest('.ai-diff-modal').remove()">
+        Cancel
+      </button>
+      <form method="post" action="/ai-studio/{{ enh_id }}/publish" style="display: inline;">
+        <button type="submit" class="nb9-btn {% if diff.breaking %}nb9-btn-danger{% else %}nb9-btn-primary{% endif %}"
+                {% if diff.breaking %}style="background: #ef4444; color: #fff;"{% endif %}>
+          {% if diff.breaking %}Publish anyway (breaking){% else %}Confirm publish{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

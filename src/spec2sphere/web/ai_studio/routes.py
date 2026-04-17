@@ -176,6 +176,32 @@ def create_ai_studio_router() -> APIRouter:
             payload = {"error": "invalid response from dsp-ai", "status": resp.status_code}
         return JSONResponse(payload, status_code=resp.status_code)
 
+    @router.post("/{enh_id}/publish-preview")
+    async def publish_preview(request: Request, enh_id: str) -> JSONResponse:
+        from spec2sphere.dsp_ai.publish_diff import diff as _publish_diff  # noqa: PLC0415
+
+        email = _current_email(request)
+        if not _is_author(email):
+            raise HTTPException(403, detail="not an AI Studio author")
+        try:
+            result = await _publish_diff(enh_id)
+        except LookupError:
+            raise HTTPException(404, detail="enhancement not found")
+        return JSONResponse(result)
+
+    @router.post("/{enh_id}/publish-preview-html")
+    async def publish_preview_html(request: Request, enh_id: str):
+        from spec2sphere.dsp_ai.publish_diff import diff as _publish_diff  # noqa: PLC0415
+
+        email = _current_email(request)
+        if not _is_author(email):
+            raise HTTPException(403, detail="not an AI Studio author")
+        try:
+            d = await _publish_diff(enh_id)
+        except LookupError:
+            raise HTTPException(404, detail="enhancement not found")
+        return _render(request, "partials/ai_studio_diff.html", {"diff": d, "enh_id": enh_id})
+
     @router.post("/{enh_id}/publish")
     async def publish(request: Request, enh_id: str):
         from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
@@ -184,9 +210,10 @@ def create_ai_studio_router() -> APIRouter:
         if not _is_author(email):
             raise HTTPException(403, detail="not an AI Studio author")
         async with get_conn() as conn:
-            row = await conn.fetchrow("SELECT status FROM dsp_ai.enhancements WHERE id = $1::uuid", enh_id)
+            row = await conn.fetchrow("SELECT status, config FROM dsp_ai.enhancements WHERE id = $1::uuid", enh_id)
             if row is None:
                 raise HTTPException(404, detail="enhancement not found")
+            cfg = row["config"] if isinstance(row["config"], dict) else json.loads(row["config"])
             await conn.execute(
                 "UPDATE dsp_ai.enhancements SET status = 'published', updated_at = NOW() WHERE id = $1::uuid",
                 enh_id,
@@ -198,7 +225,7 @@ def create_ai_studio_router() -> APIRouter:
                 enh_id,
                 email,
                 json.dumps({"status": row["status"]}),
-                json.dumps({"status": "published"}),
+                json.dumps({"status": "published", "config": cfg}),
                 current_customer(),
             )
         await emit("enhancement_published", {"id": enh_id})

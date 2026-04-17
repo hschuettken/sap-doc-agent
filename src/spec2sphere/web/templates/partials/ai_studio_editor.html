@@ -21,9 +21,12 @@
     <div class="mt-3 flex gap-2 items-center">
       <button id="btn-save" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm">Save draft</button>
       <button id="btn-preview" data-preview-btn class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">Run preview</button>
-      <form method="post" action="/ai-studio/{{ enh.id }}/publish" class="ml-auto">
-        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm">Publish</button>
-      </form>
+      <button type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm ml-auto"
+              hx-post="/ai-studio/{{ enh.id }}/publish-preview-html"
+              hx-target="body" hx-swap="beforeend"
+              hx-headers='{"X-User-Email": "{{ user.email }}"}'>
+        Publish&hellip;
+      </button>
     </div>
     <div id="save-status" class="mt-2 text-xs text-gray-500"></div>
   </div>
