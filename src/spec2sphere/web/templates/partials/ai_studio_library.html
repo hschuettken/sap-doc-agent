@@ -1,0 +1,28 @@
+<div class="bg-white rounded-lg shadow p-4 mt-4">
+  <h3 class="text-sm font-semibold text-gray-900 mb-1">Library</h3>
+  <p class="text-xs text-gray-500 mb-3">
+    Export your authored enhancements to a portable JSON file, or import a library from another tenant.
+  </p>
+  <div class="flex gap-3 flex-wrap items-center">
+    <a href="/ai-studio/library/export"
+       download
+       class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-sm text-gray-700 font-medium">
+      &#8595; Export library
+    </a>
+    <form method="post" enctype="multipart/form-data" action="/ai-studio/library/import"
+          class="flex gap-2 items-center flex-wrap">
+      <input type="file" name="file" accept="application/json" required
+             class="text-xs text-gray-600"/>
+      <select name="mode"
+              class="border border-gray-300 rounded px-2 py-1.5 text-xs text-gray-700 bg-white">
+        <option value="merge">merge (upsert by name)</option>
+        <option value="replace">replace (clear first)</option>
+        <option value="draftify">import as drafts</option>
+      </select>
+      <button type="submit"
+              class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded text-sm font-medium">
+        Import
+      </button>
+    </form>
+  </div>
+</div>

@@ -48,14 +48,16 @@ def _render(request: Request, template: str, ctx: dict[str, Any]) -> HTMLRespons
 def create_ai_studio_router() -> APIRouter:
     from .brain_explorer import create_brain_router  # noqa: PLC0415
     from .generation_log import create_log_router  # noqa: PLC0415
+    from .library_routes import create_library_router  # noqa: PLC0415
     from .templates_library import create_templates_router  # noqa: PLC0415
 
     router = APIRouter(prefix="/ai-studio", tags=["ai-studio"])
-    # Sub-routers registered first so fixed prefixes (/templates, /log, /brain)
+    # Sub-routers registered first so fixed prefixes (/templates, /log, /brain, /library)
     # are matched before the generic /{enh_id} path-param routes below.
     router.include_router(create_templates_router())
     router.include_router(create_log_router())
     router.include_router(create_brain_router())
+    router.include_router(create_library_router())
 
     @router.get("/", response_class=HTMLResponse)
     @router.get("", response_class=HTMLResponse)
