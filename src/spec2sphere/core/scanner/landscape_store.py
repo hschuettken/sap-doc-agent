@@ -3,6 +3,10 @@
 Tenant-scoped by (customer_id, project_id). Upserts on
 (customer_id, project_id, platform, technical_name) with fallback to
 object_name when technical_name is absent.
+
+Integrates:
+- field_extractor: structured field metadata extracted after each upsert
+- version_tracker: scan_run lifecycle + object_history snapshots before updates
 """
 
 from __future__ import annotations
@@ -63,10 +67,31 @@ async def store_scan_results(
 
     Uses SHA-256 content hashing to skip rows whose content has not changed.
 
-    Returns {"stored": int, "updated": int, "unchanged": int}.
+    Creates a scan_run record at the start and completes it at the end.
+    Snapshots objects before they are updated (version history).
+    Extracts structured fields after each upsert.
+
+    Returns {"stored": int, "updated": int, "unchanged": int, "scan_run_id": str}.
     """
+    # Lazy imports to avoid circular dependency at module load time.
+    from spec2sphere.core.scanner.field_extractor import extract_fields  # noqa: PLC0415
+    from spec2sphere.core.scanner.version_tracker import (  # noqa: PLC0415
+        complete_scan_run,
+        create_scan_run,
+        fail_scan_run,
+        snapshot_object,
+    )
+
     if not scan_result.objects:
-        return {"stored": 0, "updated": 0, "unchanged": 0}
+        return {"stored": 0, "updated": 0, "unchanged": 0, "scan_run_id": None}
+
+    # Create the scan run record
+    run_id = await create_scan_run(
+        customer_id=ctx.customer_id,
+        project_id=ctx.project_id,
+        scanner_type=platform,
+        scan_config={"platform": platform, "object_count": len(scan_result.objects)},
+    )
 
     # Build per-object dependency list: {object_id -> [dep dicts]}
     dep_map: dict[str, list[dict]] = {}
@@ -83,6 +108,7 @@ async def store_scan_results(
     stored = 0
     updated = 0
     unchanged = 0
+    fields_extracted = 0
     now = datetime.now(timezone.utc)
 
     try:
@@ -115,6 +141,21 @@ async def store_scan_results(
                         unchanged += 1
                         continue
 
+                    # Snapshot current state before overwriting
+                    try:
+                        await snapshot_object(
+                            conn,
+                            existing["id"],
+                            run_id,
+                            change_type="updated",
+                        )
+                    except Exception as snap_exc:  # noqa: BLE001
+                        logger.warning(
+                            "landscape_store: snapshot failed for %s: %s",
+                            existing["id"],
+                            snap_exc,
+                        )
+
                     await conn.execute(
                         """
                         UPDATE landscape_objects SET
@@ -140,9 +181,10 @@ async def store_scan_results(
                         content_hash,
                         existing["id"],
                     )
+                    landscape_object_id = existing["id"]
                     updated += 1
                 else:
-                    await conn.execute(
+                    row = await conn.fetchrow(
                         """
                         INSERT INTO landscape_objects
                             (customer_id, project_id, platform, object_type,
@@ -152,6 +194,7 @@ async def store_scan_results(
                         VALUES
                             ($1, $2, $3, $4, $5, $6, $7, $8::jsonb,
                              $9, $10::jsonb, $11, $12)
+                        RETURNING id
                         """,
                         ctx.customer_id,
                         ctx.project_id,
@@ -166,21 +209,66 @@ async def store_scan_results(
                         now,
                         content_hash,
                     )
+                    landscape_object_id = row["id"]
                     stored += 1
 
+                # Extract and store structured fields for this object
+                try:
+                    obj_dict = {
+                        "platform": platform,
+                        "object_type": obj.object_type.value,
+                        "metadata": obj.metadata,
+                        "documentation": obj.description or obj.source_code or "",
+                    }
+                    fields, rules = extract_fields(obj_dict)
+                    if fields:
+                        await store_object_fields(landscape_object_id, fields, run_id, conn)
+                        fields_extracted += len(fields)
+                    if rules:
+                        await store_transformation_rules(landscape_object_id, rules, run_id, conn)
+                except Exception as fe_exc:  # noqa: BLE001
+                    logger.warning(
+                        "landscape_store: field extraction failed for %s: %s",
+                        landscape_object_id,
+                        fe_exc,
+                    )
+
+    except Exception as exc:
+        await fail_scan_run(run_id, str(exc))
+        raise
     finally:
         await conn.close()
 
+    stats = {
+        "stored": stored,
+        "updated": updated,
+        "unchanged": unchanged,
+        "fields_extracted": fields_extracted,
+    }
+    await complete_scan_run(
+        run_id,
+        stats=stats,
+        change_summary={"stored": stored, "updated": updated, "unchanged": unchanged},
+    )
+
     logger.info(
-        "landscape_store: stored=%d updated=%d unchanged=%d platform=%s customer=%s project=%s",
+        "landscape_store: stored=%d updated=%d unchanged=%d fields=%d platform=%s customer=%s project=%s run=%s",
         stored,
         updated,
         unchanged,
+        fields_extracted,
         platform,
         ctx.customer_id,
         ctx.project_id,
+        run_id,
     )
-    return {"stored": stored, "updated": updated, "unchanged": unchanged}
+    return {
+        "stored": stored,
+        "updated": updated,
+        "unchanged": unchanged,
+        "fields_extracted": fields_extracted,
+        "scan_run_id": str(run_id),
+    }
 
 
 async def get_landscape_objects(
@@ -345,5 +433,214 @@ async def delete_landscape_objects(
             platform,
         )
         return count
+    finally:
+        await conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Field storage
+# ---------------------------------------------------------------------------
+
+
+async def store_object_fields(
+    landscape_object_id: UUID,
+    fields: list[dict],
+    scan_run_id: Optional[UUID],
+    conn: asyncpg.Connection,
+) -> None:
+    """Upsert fields for a landscape object into the object_fields table.
+
+    object_fields schema expected:
+        id                   UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        landscape_object_id  UUID NOT NULL REFERENCES landscape_objects(id)
+        scan_run_id          UUID REFERENCES scan_runs(id)
+        field_name           TEXT NOT NULL
+        field_ordinal        INT
+        data_type            TEXT
+        expression           TEXT
+        source_object        TEXT
+        source_field         TEXT
+        is_key               BOOLEAN NOT NULL DEFAULT false
+        is_calculated        BOOLEAN NOT NULL DEFAULT false
+        is_aggregated        BOOLEAN NOT NULL DEFAULT false
+        aggregation_type     TEXT
+        field_role           TEXT
+        updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+
+    Upserts on (landscape_object_id, field_name).
+    Uses the provided connection so this can participate in an outer transaction.
+    """
+    for field in fields:
+        await conn.execute(
+            """
+            INSERT INTO object_fields
+                (landscape_object_id, scan_run_id, field_name, field_ordinal,
+                 data_type, expression, source_object, source_field,
+                 is_key, is_calculated, is_aggregated, aggregation_type,
+                 field_role, updated_at)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+            ON CONFLICT (landscape_object_id, field_name)
+            DO UPDATE SET
+                scan_run_id      = EXCLUDED.scan_run_id,
+                field_ordinal    = EXCLUDED.field_ordinal,
+                data_type        = EXCLUDED.data_type,
+                expression       = EXCLUDED.expression,
+                source_object    = EXCLUDED.source_object,
+                source_field     = EXCLUDED.source_field,
+                is_key           = EXCLUDED.is_key,
+                is_calculated    = EXCLUDED.is_calculated,
+                is_aggregated    = EXCLUDED.is_aggregated,
+                aggregation_type = EXCLUDED.aggregation_type,
+                field_role       = EXCLUDED.field_role,
+                updated_at       = now()
+            """,
+            landscape_object_id,
+            scan_run_id,
+            field.get("field_name"),
+            field.get("field_ordinal"),
+            field.get("data_type"),
+            field.get("expression"),
+            field.get("source_object"),
+            field.get("source_field"),
+            bool(field.get("is_key", False)),
+            bool(field.get("is_calculated", False)),
+            bool(field.get("is_aggregated", False)),
+            field.get("aggregation_type"),
+            field.get("field_role"),
+        )
+
+
+async def store_transformation_rules(
+    landscape_object_id: UUID,
+    rules: list[dict],
+    scan_run_id: Optional[UUID],
+    conn: asyncpg.Connection,
+) -> None:
+    """Upsert transformation rules for a landscape object.
+
+    transformation_rules schema expected:
+        id                   UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        landscape_object_id  UUID NOT NULL REFERENCES landscape_objects(id)
+        scan_run_id          UUID REFERENCES scan_runs(id)
+        rule_sequence        INT
+        source_field         TEXT
+        target_field         TEXT
+        rule_type            TEXT
+        formula              TEXT
+        description          TEXT
+        updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+
+    Upserts on (landscape_object_id, rule_sequence).
+    """
+    for rule in rules:
+        await conn.execute(
+            """
+            INSERT INTO transformation_rules
+                (landscape_object_id, scan_run_id, rule_sequence,
+                 source_field, target_field, rule_type, formula,
+                 description, updated_at)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, now())
+            ON CONFLICT (landscape_object_id, rule_sequence)
+            DO UPDATE SET
+                scan_run_id  = EXCLUDED.scan_run_id,
+                source_field = EXCLUDED.source_field,
+                target_field = EXCLUDED.target_field,
+                rule_type    = EXCLUDED.rule_type,
+                formula      = EXCLUDED.formula,
+                description  = EXCLUDED.description,
+                updated_at   = now()
+            """,
+            landscape_object_id,
+            scan_run_id,
+            rule.get("rule_sequence"),
+            rule.get("source_field"),
+            rule.get("target_field"),
+            rule.get("rule_type") or "direct",
+            rule.get("formula"),
+            rule.get("description"),
+        )
+
+
+async def get_object_fields(landscape_object_id: str) -> list[dict]:
+    """Get all fields for a landscape object, ordered by field_ordinal."""
+    conn = await _get_conn()
+    try:
+        rows = await conn.fetch(
+            """
+            SELECT id, landscape_object_id, scan_run_id, field_name,
+                   field_ordinal, data_type, expression, source_object,
+                   source_field, is_key, is_calculated, is_aggregated,
+                   aggregation_type, field_role, updated_at
+            FROM object_fields
+            WHERE landscape_object_id = $1
+            ORDER BY field_ordinal NULLS LAST, field_name
+            """,
+            UUID(landscape_object_id),
+        )
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        await conn.close()
+
+
+async def search_fields(
+    ctx: ContextEnvelope,
+    field_name: Optional[str] = None,
+    data_type: Optional[str] = None,
+    source_object: Optional[str] = None,
+    limit: int = 100,
+) -> list[dict]:
+    """Search fields across all objects in a customer/project scope.
+
+    Joins object_fields -> landscape_objects for tenant scoping.
+    All filter parameters are case-insensitive partial matches.
+    """
+    conn = await _get_conn()
+    try:
+        conditions: list[str] = ["lo.customer_id = $1"]
+        params: list[Any] = [ctx.customer_id]
+        idx = 2
+
+        if ctx.project_id is not None:
+            conditions.append(f"lo.project_id = ${idx}")
+            params.append(ctx.project_id)
+            idx += 1
+
+        if field_name is not None:
+            conditions.append(f"of.field_name ILIKE '%' || ${idx} || '%'")
+            params.append(field_name)
+            idx += 1
+
+        if data_type is not None:
+            conditions.append(f"of.data_type ILIKE '%' || ${idx} || '%'")
+            params.append(data_type)
+            idx += 1
+
+        if source_object is not None:
+            conditions.append(f"of.source_object ILIKE '%' || ${idx} || '%'")
+            params.append(source_object)
+            idx += 1
+
+        where = " AND ".join(conditions)
+        params.append(limit)
+
+        rows = await conn.fetch(
+            f"""
+            SELECT of.id, of.landscape_object_id, of.field_name,
+                   of.field_ordinal, of.data_type, of.expression,
+                   of.source_object, of.source_field, of.is_key,
+                   of.is_calculated, of.is_aggregated, of.aggregation_type,
+                   of.field_role, of.updated_at,
+                   lo.object_name, lo.technical_name, lo.platform, lo.object_type
+            FROM object_fields of
+            JOIN landscape_objects lo ON lo.id = of.landscape_object_id
+            WHERE {where}
+            ORDER BY lo.platform, lo.object_name, of.field_ordinal NULLS LAST
+            LIMIT ${idx}
+            """,
+            *params,
+        )
+        return [_row_to_dict(r) for r in rows]
     finally:
         await conn.close()

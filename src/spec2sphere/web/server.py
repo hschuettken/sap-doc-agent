@@ -351,6 +351,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount LLM routing API: %s", exc)
 
+    # Mount field routes (object fields, transformation rules, version history, scan runs)
+    try:
+        from spec2sphere.web.field_routes import router as field_routes_router
+
+        app.include_router(field_routes_router)
+    except ImportError as exc:
+        logger.warning("Could not mount field routes: %s", exc)
+
     # Auth middleware (password from env, defaults to "admin" for dev)
     # In multi-tenant mode, user email+password login is also supported
     pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))

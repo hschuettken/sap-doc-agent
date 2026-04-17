@@ -1195,7 +1195,15 @@ async def test_store_scan_results_unchanged_when_hash_matches():
     # fetchrow returns a row with the same content_hash → unchanged path
     conn.fetchrow = AsyncMock(return_value={"id": uuid.uuid4(), "content_hash": existing_hash})
 
-    with patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn):
+    run_id = uuid.uuid4()
+    vt_conn = make_mock_conn()
+    vt_conn.fetchrow = AsyncMock(return_value={"id": run_id})
+    vt_conn.execute = AsyncMock(return_value="UPDATE 1")
+
+    with (
+        patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn),
+        patch("spec2sphere.core.scanner.version_tracker._get_conn", return_value=vt_conn),
+    ):
         result = await store_scan_results(scan_result, ctx, platform="dsp")
 
     assert result["unchanged"] > 0
@@ -1218,12 +1226,28 @@ async def test_store_scan_results_stores_new_objects():
     )
     scan_result = ScanResult(source_system="dsp_test", objects=[obj])
 
-    conn = make_mock_conn()
-    # fetchrow returns None → new INSERT path
-    conn.fetchrow = AsyncMock(return_value=None)
-    conn.execute = AsyncMock(return_value="INSERT 0 1")
+    run_id = uuid.uuid4()
+    inserted_id = uuid.uuid4()
 
-    with patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn):
+    # Main connection: first fetchrow = existence check (None), second = INSERT RETURNING id
+    conn = make_mock_conn()
+    conn.fetchrow = AsyncMock(side_effect=[None, {"id": inserted_id}])
+    conn.execute = AsyncMock(return_value="INSERT 0 1")
+    conn.fetch = AsyncMock(return_value=[])
+
+    # version_tracker connections (create_scan_run + complete_scan_run each open their own)
+    vt_conn_create = make_mock_conn()
+    vt_conn_create.fetchrow = AsyncMock(return_value={"id": run_id})
+    vt_conn_complete = make_mock_conn()
+    vt_conn_complete.execute = AsyncMock(return_value="UPDATE 1")
+
+    with (
+        patch("spec2sphere.core.scanner.landscape_store._get_conn", return_value=conn),
+        patch(
+            "spec2sphere.core.scanner.version_tracker._get_conn",
+            side_effect=[vt_conn_create, vt_conn_complete],
+        ),
+    ):
         result = await store_scan_results(scan_result, ctx, platform="dsp")
 
     assert result["stored"] > 0
