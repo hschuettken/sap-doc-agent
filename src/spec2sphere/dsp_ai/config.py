@@ -76,6 +76,7 @@ class EnhancementConfig(BaseModel):
     render_hint: RenderHint
     schedule: str | None = None
     ttl_seconds: int = 600
+    cost_cap_usd: float | None = None
 
 
 class Enhancement(BaseModel):

@@ -39,11 +39,46 @@ async def run_engine(
     mode_override: EnhancementMode | None = None,
     preview: bool = False,
 ) -> dict:
+    from .cost_guard import CostExceeded, check_before_call, estimate_cost  # noqa: PLC0415
+
     enh: Enhancement = await resolve(enhancement_id)
     mode = mode_override or enh.config.mode
     ctx = await gather(enh, user_id, context_hints or {})
     ctx = apply_rules(enh, ctx, user_id, dt.datetime.now(dt.timezone.utc))
     prompt = compose(enh, ctx, user_id)
+
+    # Cost guardrail: project the call cost and abort early if the monthly cap
+    # would be breached. Returns a shaped error dict instead of raising 500.
+    model_name = getattr(enh.config, "llm_profile", None) or "unknown"
+    projected = estimate_cost(
+        model=model_name,
+        tokens_in=len(prompt) // 4,  # ~4 chars/token heuristic
+        tokens_out=512,
+    )
+    try:
+        await check_before_call(enh, projected)
+    except CostExceeded as exc:
+        logger.warning("cost_guard blocked %s: %s", enh.id, exc)
+        ctx.quality_warnings.append("cost_cap")
+        return {
+            "error_kind": "cost_cap",
+            "content": None,
+            "provenance": {
+                "generation_id": None,
+                "model": "cost-guard-blocked",
+                "quality_level": "Q3",
+                "latency_ms": 0,
+                "cached": False,
+                "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            },
+            "quality_warnings": list(ctx.quality_warnings),
+            "cost_guard": {
+                "scope": exc.scope,
+                "month_total": exc.month_total,
+                "projected": exc.projected,
+                "cap": exc.cap,
+            },
+        }
 
     # Per spec §5: "no single dependency can 500 the engine". LLM outages
     # must degrade to a shaped output with error_kind + quality_warnings,

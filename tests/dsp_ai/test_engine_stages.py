@@ -594,6 +594,10 @@ class TestEngineOrchestration:
         monkeypatch.setattr(engine_mod, "run_llm", fake_run_llm)
         monkeypatch.setattr(engine_mod, "shape", fake_shape)
         monkeypatch.setattr(engine_mod, "dispatch", fake_dispatch)
+        # cost_guard is deferred-imported inside run_engine; patch at module level
+        import spec2sphere.dsp_ai.cost_guard as cg_mod  # noqa: PLC0415
+
+        monkeypatch.setattr(cg_mod, "check_before_call", AsyncMock(return_value=None))
 
         result = await engine_mod.run_engine(enh.id, user_id="alice", context_key="morning")
 
@@ -642,6 +646,10 @@ class TestEngineOrchestration:
         monkeypatch.setattr(engine_mod, "compose", fake_compose)
         monkeypatch.setattr(engine_mod, "run_llm", boom_run_llm)
         monkeypatch.setattr(engine_mod, "dispatch", capture_dispatch)
+        # cost_guard is deferred-imported inside run_engine; patch at module level
+        import spec2sphere.dsp_ai.cost_guard as cg_mod  # noqa: PLC0415
+
+        monkeypatch.setattr(cg_mod, "check_before_call", AsyncMock(return_value=None))
 
         # NO exception bubbles. The engine returns a dict.
         result = await engine_mod.run_engine(enh.id, user_id="alice", preview=True)

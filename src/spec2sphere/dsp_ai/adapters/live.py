@@ -5,6 +5,7 @@ Session A exposes the minimum surface to unblock the Studio preview flow:
 ``/readyz``. SSE + telemetry land in Session B.
 
 Session B adds: actions run, SSE stream, why provenance, telemetry ingest.
+Session C adds: cost_cap 429 responses from run_engine.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import JSONResponse  # noqa: F401 — used for cost_cap 429 responses
 from pydantic import BaseModel
 
 from .. import cache
@@ -33,12 +35,19 @@ class EnhanceRequest(BaseModel):
     preview: bool = False
 
 
+def _cost_cap_response(result: dict) -> JSONResponse | None:
+    """Return a 429 JSONResponse if the engine returned error_kind=cost_cap, else None."""
+    if result.get("error_kind") == "cost_cap":
+        return JSONResponse(status_code=429, content=result)
+    return None
+
+
 @router.post("/v1/enhance/{enhancement_id}")
 async def enhance(
     enhancement_id: str,
     body: EnhanceRequest = Body(default=None),
     p: Principal = Depends(require_or_anon),
-) -> dict:
+) -> Any:
     """Run an enhancement. Preview bypasses cache + skips DSP write-back."""
     body = body or EnhanceRequest()
     key = cache.key_for(enhancement_id, body.user, body.context_hints)
@@ -61,6 +70,10 @@ async def enhance(
     except LookupError:
         raise HTTPException(status_code=404, detail="enhancement not found")
 
+    cap_resp = _cost_cap_response(result)
+    if cap_resp is not None:
+        return cap_resp
+
     if not body.preview:
         await cache.set_(key, result, ttl=600)
     return result
@@ -71,11 +84,11 @@ async def run_action(
     enhancement_id: str,
     body: EnhanceRequest = Body(default=None),
     p: Principal = Depends(require_or_anon),
-) -> dict:
+) -> Any:
     """Synchronous click-to-run action. No cache. Full shaped output."""
     body = body or EnhanceRequest()
     try:
-        return await run_engine(
+        result = await run_engine(
             enhancement_id,
             user_id=body.user,
             context_hints=body.context_hints,
@@ -85,13 +98,18 @@ async def run_action(
     except LookupError:
         raise HTTPException(status_code=404, detail="enhancement not found")
 
+    cap_resp = _cost_cap_response(result)
+    if cap_resp is not None:
+        return cap_resp
+    return result
+
 
 @router.post("/v1/actions/{enhancement_id}/regen")
 async def force_regen(
     enhancement_id: str,
     body: EnhanceRequest = Body(default=None),
     p: Principal = Depends(require_author),
-) -> dict:
+) -> Any:
     """Force regeneration, bypassing any cached result. Author only."""
     body = body or EnhanceRequest()
 
@@ -112,6 +130,10 @@ async def force_regen(
         )
     except LookupError:
         raise HTTPException(status_code=404, detail="enhancement not found")
+
+    cap_resp = _cost_cap_response(result)
+    if cap_resp is not None:
+        return cap_resp
     return result
 
 
