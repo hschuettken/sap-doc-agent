@@ -224,6 +224,50 @@ def test_full_state_with_override(router):
             break
 
 
+# --- Privacy by design ---
+
+
+def test_data_in_context_forces_local(router):
+    """When data_in_context=True, resolve uses the data-safe profile (all-local)."""
+    # Normal resolution: Q3 → claude-haiku
+    normal = router.resolve("semantic_parser", data_in_context=False)
+    assert normal == "claude-haiku-4-5-20251001"
+
+    # With data: Q3 → qwen2.5:14b (from all-local profile)
+    safe = router.resolve("semantic_parser", data_in_context=True)
+    assert safe == "qwen2.5:14b"
+
+
+def test_data_in_context_disabled(router):
+    """When local_only_with_data is disabled, data_in_context has no effect."""
+    router.set_privacy(local_only_with_data=False)
+    safe = router.resolve("semantic_parser", data_in_context=True)
+    assert safe == "claude-haiku-4-5-20251001"  # same as normal
+
+
+def test_privacy_config_persists(tmp_path):
+    path = tmp_path / "routing.json"
+    r1 = QualityRouter(config_path=path)
+    r1.set_privacy(local_only_with_data=True, local_models=["my-model"])
+
+    r2 = QualityRouter(config_path=path)
+    privacy = r2.get_privacy()
+    assert privacy["local_only_with_data"] is True
+    assert "my-model" in privacy["local_models"]
+
+
+def test_is_model_local(router):
+    assert router.is_model_local("qwen2.5:7b") is True
+    assert router.is_model_local("qwen2.5:14b") is True
+    assert router.is_model_local("claude-sonnet-4-6") is False
+
+
+def test_full_state_includes_privacy(router):
+    state = router.get_full_state()
+    assert "privacy" in state
+    assert "local_only_with_data" in state["privacy"]
+
+
 # --- Registry completeness ---
 
 

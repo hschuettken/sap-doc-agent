@@ -46,6 +46,7 @@ class QualityOverrideRequest(BaseModel):
 
 class ResolveRequest(BaseModel):
     action: str
+    data_in_context: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +161,12 @@ async def resolve_action(body: ResolveRequest) -> Dict[str, Any]:
     """
     qr = _qr()
     quality = qr.resolve_quality(body.action)
-    model = qr.resolve(body.action)
-    return {"action": body.action, "quality": quality, "model": model}
+    model = qr.resolve(body.action, data_in_context=body.data_in_context)
+    result: Dict[str, Any] = {"action": body.action, "quality": quality, "model": model}
+    if body.data_in_context:
+        result["data_in_context"] = True
+        result["model_is_local"] = qr.is_model_local(model)
+    return result
 
 
 @router.post("/reload")
