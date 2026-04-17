@@ -6,7 +6,7 @@ function make(hint: string, content: Record<string, unknown>): EnhanceResponse {
   return {
     enhancement_id: 'test-1',
     render_hint: hint as EnhanceResponse['render_hint'],
-    content,
+    content: content as Record<string, unknown>,
   };
 }
 

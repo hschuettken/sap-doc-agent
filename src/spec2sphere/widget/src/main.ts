@@ -40,12 +40,6 @@ class Spec2SphereAiWidget extends HTMLElement {
     return this.getAttribute('bearer-token');
   }
 
-  private _authHeaders(): Record<string, string> {
-    const token = this._bearerToken();
-    if (!token) return {};
-    return { Authorization: `Bearer ${token}` };
-  }
-
   private async _init(): Promise<void> {
     const id = this.getAttribute('enhancementid') ?? '';
     const apiBase = this.getAttribute('apibase') ?? '';
@@ -85,17 +79,29 @@ class Spec2SphereAiWidget extends HTMLElement {
     const token = this._bearerToken();
     this.shadowRoot.innerHTML = renderByHint(data);
 
-    // Admin chip — only for author-role tokens
+    // Admin chip — author tokens only
     if (isAuthor(token)) {
-      const chip = document.createElement('span');
-      chip.setAttribute(
-        'style',
-        'display:inline-block;background:#1d4ed8;color:#fff;font:11px system-ui,sans-serif;' +
-        'padding:2px 8px;border-radius:4px;margin:4px 0;',
-      );
-      chip.textContent = 'Author';
-      chip.className = 'admin-chip';
-      this.shadowRoot.appendChild(chip);
+      const chip = document.createElement('a');
+      const gen = (data.generation_id ?? '').slice(0, 8) || 'none';
+      const latency = data.provenance?.latency_ms;
+      const model = data.provenance?.model ?? 'unknown';
+      const label = data.error_kind === 'cost_cap'
+        ? 'cost-capped'
+        : `gen=${gen} · ${latency != null ? `${latency}ms` : '—'} · ${model}`;
+      chip.textContent = label;
+      chip.className = 's2s-admin-chip';
+      if (data.generation_id) {
+        const apiBase = this.getAttribute('apibase') ?? '';
+        chip.href = `${apiBase}/ai-studio/log/${data.generation_id}`;
+        chip.target = '_blank';
+        chip.rel = 'noopener noreferrer';
+      } else {
+        chip.href = 'javascript:void(0)';
+        chip.style.cursor = 'default';
+      }
+      // Append into the .s2s-widget container (position:absolute relative to it)
+      const host = this.shadowRoot.querySelector('.s2s-widget');
+      if (host) host.appendChild(chip);
     }
 
     // Wire button action handler
@@ -104,7 +110,6 @@ class Spec2SphereAiWidget extends HTMLElement {
       const apiBase = this.getAttribute('apibase') ?? '';
       const id = this.getAttribute('enhancementid') ?? '';
       const ctx = this._ctx;
-      const authHeaders = this._authHeaders();
       btn.addEventListener('click', () => {
         void runAction(apiBase, id, ctx, token).then((result) => {
           this._render(result);
@@ -113,8 +118,6 @@ class Spec2SphereAiWidget extends HTMLElement {
           );
         });
       });
-      // Keep authHeaders in scope (satisfies TS unused-var check)
-      void authHeaders;
     }
   }
 }

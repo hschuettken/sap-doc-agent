@@ -1,14 +1,14 @@
 import type { EnhanceResponse } from '../types';
-import { widgetStyle } from './index';
 
 export function render(data: EnhanceResponse): string {
-  const rawValues: unknown = data.content['values'] ?? data.content['series'];
+  const content = data.content as Record<string, unknown>;
+  const rawValues: unknown = content['values'] ?? content['series'];
   const values: number[] = Array.isArray(rawValues)
     ? (rawValues as unknown[]).map(v => Number(v)).filter(n => !isNaN(n))
     : [];
 
   if (values.length === 0) {
-    return `<div class="s2s-widget">${widgetStyle()}<div class="s2s-chart-empty">No chart data</div></div>`;
+    return `<div class="s2s-chart-empty">No chart data</div>`;
   }
 
   const W = 200;
@@ -31,5 +31,5 @@ export function render(data: EnhanceResponse): string {
     `<polyline points="${points}" fill="none" stroke="#0070f3" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
     `</svg>`;
 
-  return `<div class="s2s-widget">${widgetStyle()}<div class="s2s-chart">${svg}</div></div>`;
+  return `<div class="s2s-chart">${svg}</div>`;
 }

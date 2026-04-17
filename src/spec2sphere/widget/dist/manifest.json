@@ -6,7 +6,7 @@
     "kind": "main",
     "tag": "spec2sphere-ai-widget",
     "url": "{{API_BASE}}/widget/main.js",
-    "integrity": "sha384-Ak4HSVNGgcvtHEce2SaPRB+ChrL2Jp5WMIJhlM/3l4jdcxS250zTjQVoikJJeWln",
+    "integrity": "sha384-qfVrfX8nsZBHh/5r6wwOrwzaxPMOsEzb/ApWOcBZjCoIhnCr80hn4V5AIT5XZ+M8",
     "ignoreIntegrity": false
   }],
   "properties": {

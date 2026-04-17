@@ -1,13 +1,14 @@
 import type { EnhanceResponse } from '../types';
-import { escapeHtml, applyMarkdown, widgetStyle } from './index';
+import { escapeHtml, applyMarkdown } from './index';
 
 export function render(data: EnhanceResponse): string {
-  const narrativeText = String(data.content['narrative_text'] ?? '');
-  const keyPoints: unknown[] = Array.isArray(data.content['key_points'])
-    ? (data.content['key_points'] as unknown[])
+  const content = data.content as Record<string, unknown>;
+  const narrativeText = String(content['narrative_text'] ?? '');
+  const keyPoints: unknown[] = Array.isArray(content['key_points'])
+    ? (content['key_points'] as unknown[])
     : [];
-  const calloutHeadline = data.content['callout_headline'];
-  const calloutBody = data.content['callout_body'];
+  const calloutHeadline = content['callout_headline'];
+  const calloutBody = content['callout_body'];
 
   const narrative = narrativeText
     ? `<div class="s2s-brief-narrative">${applyMarkdown(escapeHtml(narrativeText))}</div>`
@@ -24,5 +25,5 @@ export function render(data: EnhanceResponse): string {
       `</div>`
     : '';
 
-  return `<div class="s2s-widget">${widgetStyle()}${narrative}${points}${callout}</div>`;
+  return `${narrative}${points}${callout}`;
 }

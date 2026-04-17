@@ -11,11 +11,18 @@ export interface Provenance {
   model?: string;
   cached?: boolean;
   generated_at?: string;
+  latency_ms?: number;
+  quality_level?: string;
 }
 
 export interface EnhanceResponse {
   enhancement_id: string;
   render_hint: RenderHint;
-  content: Record<string, unknown>;
+  content: Record<string, unknown> | null;
   provenance?: Provenance;
+  generation_id?: string | null;
+  error_kind?: string | null;
+  quality_warnings?: string[];
+  data_stale?: boolean;
+  stale?: boolean;
 }

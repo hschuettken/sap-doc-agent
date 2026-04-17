@@ -1,5 +1,5 @@
 import type { EnhanceResponse } from '../types';
-import { escapeHtml, widgetStyle } from './index';
+import { escapeHtml } from './index';
 
 interface RankedItem {
   rank?: number;
@@ -10,8 +10,9 @@ interface RankedItem {
 }
 
 export function render(data: EnhanceResponse): string {
-  const items: RankedItem[] = Array.isArray(data.content['items'])
-    ? (data.content['items'] as RankedItem[])
+  const content = data.content as Record<string, unknown>;
+  const items: RankedItem[] = Array.isArray(content['items'])
+    ? (content['items'] as RankedItem[])
     : [];
 
   const listItems = items
@@ -26,5 +27,5 @@ export function render(data: EnhanceResponse): string {
     })
     .join('');
 
-  return `<div class="s2s-widget">${widgetStyle()}<ol class="s2s-ranked-list">${listItems}</ol></div>`;
+  return `<ol class="s2s-ranked-list">${listItems}</ol>`;
 }

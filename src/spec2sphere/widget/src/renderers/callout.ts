@@ -1,5 +1,5 @@
 import type { EnhanceResponse } from '../types';
-import { escapeHtml, widgetStyle } from './index';
+import { escapeHtml } from './index';
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: '#0070f3',
@@ -8,14 +8,16 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export function render(data: EnhanceResponse): string {
-  const severity = String(data.content['severity'] ?? 'info');
+  const content = data.content as Record<string, unknown>;
+  const severity = String(content['severity'] ?? 'info');
   const color = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS['info'];
-  const headline = escapeHtml(String(data.content['headline'] ?? ''));
-  const body = escapeHtml(String(data.content['body'] ?? ''));
+  const headline = escapeHtml(String(content['headline'] ?? ''));
+  const body = escapeHtml(String(content['body'] ?? ''));
 
-  return `<div class="s2s-widget">${widgetStyle()}` +
+  return (
     `<div class="s2s-callout" style="border-left:4px solid ${color};padding:10px 14px;background:#f9fafb;border-radius:4px;">` +
     `<div class="s2s-callout-headline" style="font-weight:600;color:${color};">${headline}</div>` +
     `<div class="s2s-callout-body">${body}</div>` +
-    `</div></div>`;
+    `</div>`
+  );
 }
