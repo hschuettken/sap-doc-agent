@@ -76,6 +76,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "smoke: post-deploy smoke tests — run with `pytest -m smoke` against a live compose",
+    "portability: end-to-end portability (spins up a second docker compose stack)",
 ]
 
 [tool.ruff]

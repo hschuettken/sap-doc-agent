@@ -293,3 +293,96 @@ async def test_generations_caller_column_present() -> None:
         await conn.close()
     names = {r["column_name"] for r in cols}
     assert "caller" in names, "migration 011 has not been applied — caller column missing"
+
+
+# ========================= Session C ship criteria ==========================
+
+
+# ----- Criterion: Library export endpoint returns valid schema -----
+
+
+@pytest.mark.asyncio
+async def test_library_export_returns_valid_schema() -> None:
+    """Session C: /ai-studio/library/export must return JSON with version + exported_at + enhancements."""
+    base = os.environ.get("SPEC2SPHERE_URL", "http://localhost:8260")
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.get(f"{base}/ai-studio/library/export")
+    if r.status_code == 404:
+        pytest.skip("SPEC2SPHERE_URL not reachable or export endpoint not deployed")
+    assert r.status_code == 200, r.text
+    blob = r.json()
+    assert blob.get("version") == "1.0", "expected version='1.0'"
+    assert isinstance(blob.get("enhancements"), list), "expected enhancements array"
+    assert "exported_at" in blob, "missing exported_at"
+    assert "customer" in blob, "missing customer"
+
+
+# ----- Criterion: RBAC enforcement on regen action -----
+
+
+@pytest.mark.asyncio
+async def test_rbac_viewer_cannot_force_regen() -> None:
+    """Viewer JWT must 403 on /v1/actions/{id}/regen."""
+    base = os.environ.get("DSPAI_URL", "http://localhost:8261")
+    _require_dspai_reachable()
+
+    from spec2sphere.dsp_ai.auth import issue_token  # noqa: PLC0415
+
+    os.environ.setdefault("DSPAI_JWT_SECRET", os.environ.get("DSPAI_JWT_SECRET", "change-me"))
+    viewer_tok = issue_token("viewer@test", "default", "viewer")
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.post(
+            f"{base}/v1/actions/00000000-0000-0000-0000-000000000000/regen",
+            headers={"Authorization": f"Bearer {viewer_tok}"},
+            json={"user": "viewer@test", "context_hints": {}},
+        )
+    assert r.status_code == 403, f"expected 403 forbidden, got {r.status_code}: {r.text}"
+
+
+@pytest.mark.asyncio
+async def test_rbac_missing_token_blocked_when_enforced() -> None:
+    """If DSPAI_AUTH_ENFORCED=true on the live service, missing token → 401.
+    The regen endpoint is always author-gated via require_author().
+    """
+    base = os.environ.get("DSPAI_URL", "http://localhost:8261")
+    _require_dspai_reachable()
+
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.post(
+            f"{base}/v1/actions/00000000-0000-0000-0000-000000000000/regen",
+            json={},
+        )
+    # regen is always author-gated; missing token → 401 (via require_author)
+    assert r.status_code == 401, f"expected 401 missing-token, got {r.status_code}: {r.text}"
+
+
+# ----- Criterion: Customer column schema (migration 012) -----
+
+
+@pytest.mark.asyncio
+async def test_customer_column_present_in_generations() -> None:
+    """Migration 012 adds customer TEXT column to dsp_ai.generations table."""
+    _require_db()
+    conn = await asyncpg.connect(postgres_dsn())
+    try:
+        row = await conn.fetchrow(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='dsp_ai' AND table_name='generations' AND column_name='customer'"
+        )
+    finally:
+        await conn.close()
+    assert row is not None, "migration 012 has not been applied — customer column missing from generations"
+
+
+@pytest.mark.asyncio
+async def test_customer_column_rls_policy_exists() -> None:
+    """RLS policy must exist on dsp_ai.enhancements after migration 012."""
+    _require_db()
+    conn = await asyncpg.connect(postgres_dsn())
+    try:
+        row = await conn.fetchrow(
+            "SELECT policyname FROM pg_policies WHERE schemaname='dsp_ai' AND tablename='enhancements'"
+        )
+    finally:
+        await conn.close()
+    assert row is not None, "RLS policy missing on dsp_ai.enhancements table"
