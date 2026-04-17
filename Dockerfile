@@ -1,3 +1,12 @@
+FROM node:20-bookworm-slim AS widget-builder
+
+WORKDIR /widget
+COPY src/spec2sphere/widget/package.json src/spec2sphere/widget/package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+COPY src/spec2sphere/widget/ ./
+RUN npm run build
+
+
 FROM python:3.12-slim AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY . /app
 RUN pip install --prefer-binary --no-cache-dir -e ".[all]"
+
+# Copy prebuilt widget bundle from the Node stage
+COPY --from=widget-builder /widget/dist /app/src/spec2sphere/widget/dist
 
 EXPOSE 8080
 

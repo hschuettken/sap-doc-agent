@@ -51,6 +51,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(live_router)
+    from ..web.widget_routes import router as widget_router
+
+    app.include_router(widget_router)
     return app
 
 

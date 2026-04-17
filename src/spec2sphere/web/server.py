@@ -386,6 +386,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount LLM routing API: %s", exc)
 
+    # Mount widget hosting routes (SAC Custom Widget bundle + manifest)
+    try:
+        from spec2sphere.web.widget_routes import router as widget_router
+
+        app.include_router(widget_router)
+    except ImportError as exc:
+        logger.warning("Could not mount widget routes: %s", exc)
+
     # Mount field routes (object fields, transformation rules, version history, scan runs)
     try:
         from spec2sphere.web.field_routes import router as field_routes_router
