@@ -23,7 +23,9 @@ celery_app.conf.update(
         "spec2sphere.tasks.factory_tasks.run_sac_deployment": {"queue": "sac"},
         "spec2sphere.tasks.factory_tasks.run_reconciliation": {"queue": "llm"},
         "spec2sphere.tasks.file_drop_tasks.*": {"queue": "scan"},
+        "spec2sphere.dsp_ai.run_batch_enhancements": {"queue": "ai-batch"},
     },
+    imports=("spec2sphere.dsp_ai.adapters.batch",),
     worker_prefetch_multiplier=1,
 )
 
