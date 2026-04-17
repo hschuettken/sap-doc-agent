@@ -25,8 +25,8 @@ async def _insert_generation(
         INSERT INTO dsp_ai.generations
             (id, enhancement_id, user_id, context_key, prompt_hash, input_ids,
              model, quality_level, latency_ms, tokens_in, tokens_out, cost_usd,
-             cached, quality_warnings, preview)
-        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15)
+             cached, quality_warnings, error_kind, preview)
+        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16)
         """,
         shaped["generation_id"],
         enh.id,
@@ -42,6 +42,7 @@ async def _insert_generation(
         prov.get("cost_usd"),
         False,
         json.dumps(shaped.get("quality_warnings", [])),
+        shaped.get("error_kind"),
         preview,
     )
 
@@ -90,7 +91,10 @@ async def dispatch(
     conn = await asyncpg.connect(postgres_dsn())
     try:
         await _insert_generation(conn, enh, user_id, context_key, shaped, preview)
-        if mode in (EnhancementMode.BATCH, EnhancementMode.BOTH) and not preview:
+        # Skip write-back when content is missing — preserves the last good
+        # briefing for SAC consumers instead of overwriting with empty text.
+        has_content = shaped.get("content") is not None and shaped.get("error_kind") is None
+        if has_content and mode in (EnhancementMode.BATCH, EnhancementMode.BOTH) and not preview:
             if enh.config.render_hint in (RenderHint.NARRATIVE_TEXT, RenderHint.BRIEF, RenderHint.CALLOUT):
                 await _write_briefing(conn, enh, user_id or "_global", context_key or "default", shaped)
             # ranked_list + item_enrich writes added in Session B

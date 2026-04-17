@@ -600,3 +600,53 @@ class TestEngineOrchestration:
         assert "generation_id" in result
         assert "content" in result
         assert result["content"]["narrative_text"] == "Morning brief content"
+
+    @pytest.mark.asyncio
+    async def test_run_engine_degrades_gracefully_on_llm_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Spec §5 invariant: no single dependency can 500 the engine.
+
+        LLM timeouts must produce a shaped dict with error_kind + warnings,
+        not bubble as an HTTP 500.
+        """
+        import spec2sphere.dsp_ai.engine as engine_mod
+
+        enh = _make_enhancement()
+        ctx = _make_context(dsp_data=[{"x": 1}])
+
+        async def fake_resolve(_eid: str) -> Enhancement:
+            return enh
+
+        async def fake_gather(_enh: Any, _uid: Any, _hints: Any) -> GatheredContext:
+            return ctx
+
+        def fake_apply_rules(_enh: Any, _ctx: Any, _uid: Any, _now: Any) -> GatheredContext:
+            return ctx
+
+        def fake_compose(_enh: Any, _ctx: Any, _uid: Any) -> str:
+            return "prompt"
+
+        async def boom_run_llm(_enh: Any, _prompt: str, **_kw: Any) -> tuple[Any, dict]:
+            import httpx
+
+            raise httpx.ReadTimeout("LLM endpoint slept")
+
+        captured_shaped: dict[str, Any] = {}
+
+        async def capture_dispatch(_enh: Any, shaped: Any, **_kw: Any) -> dict:
+            captured_shaped.update(shaped)
+            return shaped
+
+        monkeypatch.setattr(engine_mod, "resolve", fake_resolve)
+        monkeypatch.setattr(engine_mod, "gather", fake_gather)
+        monkeypatch.setattr(engine_mod, "apply_rules", fake_apply_rules)
+        monkeypatch.setattr(engine_mod, "compose", fake_compose)
+        monkeypatch.setattr(engine_mod, "run_llm", boom_run_llm)
+        monkeypatch.setattr(engine_mod, "dispatch", capture_dispatch)
+
+        # NO exception bubbles. The engine returns a dict.
+        result = await engine_mod.run_engine(enh.id, user_id="alice", preview=True)
+
+        assert result["error_kind"] == "llm_timeout"
+        assert result["content"] is None
+        assert "llm_timeout" in result["quality_warnings"]
+        assert captured_shaped["error_kind"] == "llm_timeout"
