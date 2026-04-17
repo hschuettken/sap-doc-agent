@@ -14,7 +14,7 @@
 | Web UI | https://sap-docu.schuettken.net/ui/dashboard | Password: admin (change it!) |
 | BookStack | 192.168.0.50:8253 (admin@admin.com / password) | Running |
 | Outline | 192.168.0.50:8250 (SMTP magic link auth) | Running |
-| Tests | 1061 passing | Green |
+| Tests | 1095 passing | Green |
 
 ## Architecture
 
@@ -83,10 +83,10 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Doc Sync bidirectional | One-way push only | No pull-back from platform, no conflict resolution |
-| abapGit transport | ABAP stub | TODO comment in z_doc_agent_scan.abap |
-| GitLab git backend | Not implemented | Config accepts it, code raises ValueError |
-| Azure DevOps git backend | Not implemented | Same |
+| Doc Sync bidirectional | **DONE** | pull_from_platform, detect_conflicts, sync_bidirectional (2026-04-17) |
+| abapGit transport | **DONE** | Full staging+push implementation in z_doc_agent_scan.abap (2026-04-17) |
+| GitLab git backend | **DONE** | gitlab_backend.py via httpx REST v4 (2026-04-17) |
+| Azure DevOps git backend | **DONE** | azure_devops_backend.py via httpx REST v7.0 (2026-04-17) |
 | File Drop transport (Python) | Not implemented | ABAP side works, no Python pickup |
 | M365 Copilot Graph Connector | Not implemented | Sitemap exists; no Enterprise connector |
 | M365 Copilot Declarative Agent | Not implemented | No manifest, no knowledge URL config |
@@ -95,13 +95,13 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 | Signed images / SBOM / Trivy | Not implemented | No supply chain CI |
 | Setup wizard | Not implemented | SPEC mentions wizard.py; doesn't exist |
 | LLM copilot_passthrough mode | Not implemented | Config schema defines it, no agent support |
-| Knowledge auto-learning loop | Partial | Knowledge service works; scanners don't auto-write learned patterns |
+| Knowledge auto-learning loop | **DONE** | KnowledgeLearner wired into landscape_store (2026-04-17) |
 | DSP OAuth credentials | Not configured | Template ready, needs BTP service key |
 
 ## TODO
 
 - [x] All 6 sessions complete
-- [x] 1061 tests passing
+- [x] 1095 tests passing
 - [x] 6 Horváth standards loaded
 - [x] Quality Router (Q1-Q5) with UI
 - [x] Privacy by design (local-only with data)
@@ -112,10 +112,11 @@ These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet im
 - [ ] Change BookStack admin password
 - [ ] Configure DSP OAuth credentials (BTP service key)
 - [ ] Run initial DSP landscape scan
-- [ ] Implement bidirectional doc sync (pull-back from platform)
+- [x] Bidirectional doc sync with conflict resolution
+- [x] GitLab + Azure DevOps git backends
+- [x] abapGit transport backend (ABAP side)
+- [x] Knowledge auto-learning loop
 - [ ] M365 Copilot: Declarative Agent manifest + knowledge URLs
 - [ ] OIDC/SAML SSO (Authlib)
-- [ ] GitLab + Azure DevOps git backends
-- [ ] abapGit transport backend (ABAP side)
 - [ ] OpenTelemetry tracing
 - [ ] CI: signed images, SBOM, vuln scan
