@@ -37,7 +37,11 @@ def output_dir(tmp_path):
 
 
 @pytest.fixture
-def client(output_dir):
+def client(output_dir, monkeypatch):
+    # Create a setup marker so the wizard middleware is disabled for these tests.
+    marker = output_dir / "setup.complete"
+    marker.touch()
+    monkeypatch.setenv("SETUP_MARKER", str(marker))
     app = create_app(output_dir=str(output_dir))
     return TestClient(app)
 

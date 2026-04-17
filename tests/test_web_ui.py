@@ -32,6 +32,10 @@ def client(output_dir):
     # Use a hash that won't match any password so UI routes require auth
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = "$2b$12$LJ3m5ZQmQz8I2Q7Q7Q7Q7O7Q7Q7Q7Q7Q7Q7Q7Q7Q7Q7Q7Q7Q7Q"
     os.environ["SAP_DOC_AGENT_SECRET_KEY"] = "test-secret"
+    # Create setup marker so the wizard is disabled in existing tests.
+    _marker = output_dir / "setup.complete"
+    _marker.touch()
+    os.environ["SETUP_MARKER"] = str(_marker)
     app = create_app(output_dir=str(output_dir))
     return TestClient(app, follow_redirects=False)
 
@@ -44,6 +48,10 @@ def authed_client(output_dir):
     pw_hash = hash_password("testpass")
     os.environ["SAP_DOC_AGENT_UI_PASSWORD_HASH"] = pw_hash
     os.environ["SAP_DOC_AGENT_SECRET_KEY"] = "test-secret"
+    # Create setup marker so the wizard is disabled in existing tests.
+    _marker = output_dir / "setup.complete"
+    _marker.touch()
+    os.environ["SETUP_MARKER"] = str(_marker)
     app = create_app(output_dir=str(output_dir))
     c = TestClient(app, follow_redirects=True)
     # Login to get session cookie

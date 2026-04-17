@@ -1,8 +1,8 @@
 # Spec2Sphere — Project Status
 
 **Last updated:** 2026-04-17
-**Version:** 2.0.0
-**Sessions completed:** 6/6 + quality router + privacy session
+**Version:** 2.0.1
+**Sessions completed:** 6/6 + quality router + privacy session + setup wizard
 
 ## Quick Reference
 
@@ -52,12 +52,31 @@
 
 See `.trivyignore` for known false positives.
 
+## First-run Setup Wizard
+
+When `setup.complete` marker is absent (new deployments), the web UI redirects all
+traffic to a 7-step onboarding wizard at `/ui/setup/welcome`.
+
+| Step | Path | Purpose |
+|------|------|---------|
+| 1 | `/ui/setup/welcome` | Overview of what gets configured |
+| 2 | `/ui/setup/admin` | Set admin password (bcrypt-hashed) |
+| 3 | `/ui/setup/db` | Verify PostgreSQL connectivity |
+| 4 | `/ui/setup/llm` | Pick LLM profile (default / all-local / all-claude) |
+| 5 | `/ui/setup/privacy` | Toggle `LOCAL_ONLY_WITH_DATA` |
+| 6 | `/ui/setup/sap` | Optional: add first DSP/BW connection |
+| 7 | `/ui/setup/done` | Write `setup.complete` marker, redirect to dashboard |
+
+**Existing deployments**: If `setup.complete` exists (or `SETUP_MARKER` env points to a
+present file), the middleware is a no-op — wizard routes return 404.
+Override marker path via `SETUP_MARKER` environment variable.
+
 ## Codebase Scale
 
-- **151 Python modules** across 20 subsystems
-- **96 test files**, 1061 tests
+- **152 Python modules** across 20 subsystems
+- **97 test files**, 1100+ tests
 - **9 Alembic migrations** (23+ tables)
-- **45 Jinja2 templates** (12+ UI pages)
+- **52 Jinja2 templates** (13+ UI pages)
 - **14 LLM provider adapters**
 - **6 Horváth standards** (3,667 lines of rules)
 - **1,244-line ABAP scanner** + 265-line setup program

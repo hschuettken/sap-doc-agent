@@ -1,0 +1,82 @@
+{% extends "setup/base_wizard.html" %}
+{% block title %}LLM Routing — Spec2Sphere Setup{% endblock %}
+{% block content %}
+<h2 class="font-heading text-xl text-petrol mb-1">LLM Routing</h2>
+<p class="text-sm text-gray-500 mb-6">Choose how Spec2Sphere calls large language models for AI-assisted analysis.</p>
+
+{% if error %}
+<div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+    {{ error | replace('+', ' ') }}
+</div>
+{% endif %}
+
+<form method="post" action="/ui/setup/llm" class="space-y-4" id="llm-form">
+    <div class="space-y-3">
+        <!-- default -->
+        <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:border-petrol transition-colors
+                      {% if current_profile == 'default' %}border-petrol bg-petrol/5{% else %}border-gray-200{% endif %}">
+            <input type="radio" name="profile" value="default" class="mt-0.5"
+                   {% if current_profile == 'default' %}checked{% endif %}
+                   onchange="toggleApiKey(this.value)">
+            <div>
+                <div class="text-sm font-medium text-charcoal">Default (auto-route)</div>
+                <div class="text-xs text-gray-400 mt-0.5">Uses the OpenClaw LLM router — intelligently routes between local and cloud models based on task complexity.</div>
+            </div>
+        </label>
+
+        <!-- all-local -->
+        <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:border-petrol transition-colors
+                      {% if current_profile == 'all-local' %}border-petrol bg-petrol/5{% else %}border-gray-200{% endif %}">
+            <input type="radio" name="profile" value="all-local" class="mt-0.5"
+                   {% if current_profile == 'all-local' %}checked{% endif %}
+                   onchange="toggleApiKey(this.value)">
+            <div>
+                <div class="text-sm font-medium text-charcoal">All Local (Ollama only)</div>
+                <div class="text-xs text-gray-400 mt-0.5">All inference runs on local Ollama models. No data leaves your network. Requires Ollama installed.</div>
+            </div>
+        </label>
+
+        <!-- all-claude -->
+        <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:border-petrol transition-colors
+                      {% if current_profile == 'all-claude' %}border-petrol bg-petrol/5{% else %}border-gray-200{% endif %}">
+            <input type="radio" name="profile" value="all-claude" class="mt-0.5"
+                   {% if current_profile == 'all-claude' %}checked{% endif %}
+                   onchange="toggleApiKey(this.value)">
+            <div>
+                <div class="text-sm font-medium text-charcoal">All Claude (Anthropic API)</div>
+                <div class="text-xs text-gray-400 mt-0.5">Routes all calls to Anthropic's Claude API. Requires a valid Anthropic API key.</div>
+            </div>
+        </label>
+    </div>
+
+    <!-- API key — shown only for all-claude -->
+    <div id="api-key-section" class="{% if current_profile != 'all-claude' %}hidden{% endif %}">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" for="anthropic_api_key">
+            Anthropic API Key
+        </label>
+        <input type="password" id="anthropic_api_key" name="anthropic_api_key"
+               placeholder="sk-ant-..."
+               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-petrol focus:ring-2 focus:ring-petrol/20">
+        <p class="text-xs text-gray-400 mt-1">Stored in .env — never logged or transmitted elsewhere.</p>
+    </div>
+
+    <div class="flex items-center justify-between pt-2">
+        <a href="/ui/setup/db" class="text-sm text-gray-400 hover:text-petrol transition-colors">&larr; Back</a>
+        <button type="submit"
+                class="py-2 px-6 bg-petrol hover:bg-petrol-dark text-white rounded-lg font-medium text-sm transition-colors">
+            Continue &rarr;
+        </button>
+    </div>
+</form>
+
+<script>
+function toggleApiKey(profile) {
+    const section = document.getElementById('api-key-section');
+    if (profile === 'all-claude') {
+        section.classList.remove('hidden');
+    } else {
+        section.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}

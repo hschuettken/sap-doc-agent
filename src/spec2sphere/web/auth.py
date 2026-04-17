@@ -96,6 +96,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/ui"):
             return await call_next(request)
 
+        # Bypass: setup wizard routes (no auth required during first-run setup)
+        if path.startswith("/ui/setup"):
+            return await call_next(request)
+
         multi_tenant = _is_multi_tenant()
 
         # Allow login page and POST

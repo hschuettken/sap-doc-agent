@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Setup — Spec2Sphere{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    petrol: { DEFAULT: '#05415A', light: '#0a6b8f', dark: '#032d3e' },
+                    accent: '#C8963E',
+                    charcoal: '#353434',
+                },
+                fontFamily: {
+                    heading: ['Georgia', 'Times New Roman', 'serif'],
+                    body: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+                }
+            }
+        }
+    }
+    </script>
+</head>
+<body class="font-body text-charcoal bg-[#F5F5F5] min-h-screen flex flex-col items-center justify-center py-12 px-4">
+
+    <!-- Card -->
+    <div class="w-full max-w-xl">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="font-heading text-3xl text-petrol">Spec2Sphere</h1>
+            <p class="text-sm text-gray-500 mt-1">powered by Horv&aacute;th</p>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mb-6">
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Step {{ step_number }} of {{ total_steps }}</span>
+                <span>{{ step_labels[step] }}</span>
+            </div>
+            <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-full bg-accent rounded-full transition-all duration-300"
+                     style="width: {{ ((step_number / total_steps) * 100)|int }}%"></div>
+            </div>
+            <!-- Step dots -->
+            <div class="flex justify-between mt-2">
+                {% for s in steps %}
+                <div class="w-2 h-2 rounded-full {% if loop.index0 < step_number %}bg-accent{% elif loop.index0 == step_index %}bg-petrol{% else %}bg-gray-300{% endif %}"></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Main content card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Footer links -->
+        <div class="mt-4 text-center text-xs text-gray-400">
+            Spec2Sphere &mdash; Horv&aacute;th Analytics Delivery Factory
+        </div>
+    </div>
+
+</body>
+</html>
