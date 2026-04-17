@@ -247,6 +247,16 @@ def create_app(
         except Exception as e:
             logger.warning("Failed to configure modules: %s", e)
 
+        # File drop watcher (inotify). Replaces the legacy 5-min Beat poll.
+        if os.environ.get("FILE_DROP_ENABLED", "false").lower() == "true":
+            try:
+                from spec2sphere.scanner.file_drop import get_watcher
+
+                get_watcher().start()
+                logger.info("FileDropWatcher started via lifespan (inotify)")
+            except Exception as e:
+                logger.warning("Failed to start FileDropWatcher: %s", e)
+
         # 5. Mount workspace routes when multi_tenant enabled
         try:
             from spec2sphere.modules import is_enabled
@@ -385,6 +395,22 @@ def create_app(
         app.include_router(llm_routing_router)
     except ImportError as exc:
         logger.warning("Could not mount LLM routing API: %s", exc)
+
+    # Mount widget hosting routes (SAC Custom Widget bundle + manifest)
+    try:
+        from spec2sphere.web.widget_routes import router as widget_router
+
+        app.include_router(widget_router)
+    except ImportError as exc:
+        logger.warning("Could not mount widget routes: %s", exc)
+
+    # Mount SSE event streams (replace legacy setInterval polling)
+    try:
+        from spec2sphere.web.events_routes import router as events_router
+
+        app.include_router(events_router)
+    except ImportError as exc:
+        logger.warning("Could not mount events routes: %s", exc)
 
     # Mount field routes (object fields, transformation rules, version history, scan runs)
     try:

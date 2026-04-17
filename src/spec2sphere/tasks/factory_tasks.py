@@ -131,6 +131,17 @@ def run_dsp_deployment(
         finally:
             await conn.close()
 
+        # SSE: notify frontends the active-factory pane should refresh.
+        try:
+            from spec2sphere.dsp_ai.events import emit
+
+            await emit(
+                "factory_status_changed",
+                {"run_id": str(run_id), "status": overall_status},
+            )
+        except Exception:
+            pass  # best-effort
+
         return {"run_id": run_id, "status": overall_status, "results": results}
 
     return _run_async(_deploy())
@@ -227,6 +238,16 @@ def run_sac_deployment(
             )
         finally:
             await conn.close()
+
+        try:
+            from spec2sphere.dsp_ai.events import emit
+
+            await emit(
+                "factory_status_changed",
+                {"run_id": str(run_id), "status": overall_status},
+            )
+        except Exception:
+            pass
 
         return {
             "run_id": run_id,

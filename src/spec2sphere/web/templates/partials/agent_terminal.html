@@ -325,7 +325,10 @@ function selectSession(id, name, status) {
   connectToSession(id, name, status);
 }
 
-// ── Session list auto-refresh ──────────────────────────────────────────────
+// ── Session list refresh ───────────────────────────────────────────────────
+// Session B: SSE replaces the 5s setTimeout poll. Server emits NOTIFY
+// 'agent_session_changed' on every state mutation; we fetch on each event.
+// Falls back to a 15s poll if SSE cannot be established.
 async function fetchSessionList() {
   try {
     const resp = await fetch('/api/agent-terminal/sessions');
@@ -336,8 +339,23 @@ async function fetchSessionList() {
   } catch (e) {
     // best-effort
   }
-  setTimeout(fetchSessionList, 5000);
 }
+
+(function () {
+  fetchSessionList();
+  try {
+    const es = new EventSource('/events/agent-sessions');
+    es.addEventListener('update', function () { fetchSessionList(); });
+    es.addEventListener('error', function () {
+      if (!window._sessionListFallbackPoll) {
+        window._sessionListFallbackPoll = setInterval(fetchSessionList, 15000);
+      }
+    });
+    window.addEventListener('beforeunload', function () { es.close(); });
+  } catch (e) {
+    setInterval(fetchSessionList, 15000);
+  }
+})();
 
 function renderSessionList(sessions) {
   const list = document.getElementById('session-list');

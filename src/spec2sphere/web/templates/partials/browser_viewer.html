@@ -58,18 +58,36 @@ function toggleFullscreen() {
   }
 }
 
-setInterval(function() {
-  fetch('/api/factory/active')
-    .then(r => r.json())
-    .then(data => {
-      if (data.task_name) {
-        document.getElementById('viewer-task').textContent = 'Watching: ' + data.task_name;
+// Session B: replaced setInterval poll with SSE over Postgres LISTEN/NOTIFY.
+// Publishers emit 'factory_status_changed'; we re-fetch /api/factory/active
+// on each event. On SSE failure, fall back to a 30s poll.
+(function () {
+  function refreshStatus() {
+    fetch('/api/factory/active')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.task_name) {
+          document.getElementById('viewer-task').textContent = 'Watching: ' + data.task_name;
+        }
+      })
+      .catch(function (err) { console.debug('Factory status refresh error:', err); });
+  }
+  refreshStatus();
+  try {
+    var es = new EventSource('/events/browser');
+    es.addEventListener('update', function () { refreshStatus(); });
+    es.addEventListener('error', function () {
+      // If the SSE endpoint itself is broken, fall back to a low-frequency poll.
+      if (!window._factoryFallbackPoll) {
+        window._factoryFallbackPoll = setInterval(refreshStatus, 30000);
       }
-    })
-    .catch(err => {
-      console.debug('Factory status poll error:', err);
     });
-}, 10000);
+    window.addEventListener('beforeunload', function () { es.close(); });
+  } catch (e) {
+    console.debug('SSE unavailable, falling back to poll:', e);
+    setInterval(refreshStatus, 30000);
+  }
+})();
 </script>
 
 </body>

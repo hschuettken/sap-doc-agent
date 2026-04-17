@@ -328,6 +328,23 @@ class _DropHandler:
         if isinstance(event, (FileCreatedEvent, FileModifiedEvent)):
             path = Path(event.src_path)
             if path.is_file():
+                # Publish a NOTIFY for downstream subscribers (e.g. a future
+                # Celery file-drop consumer) in addition to processing inline.
+                try:
+                    import asyncio
+
+                    from spec2sphere.dsp_ai.events import emit
+
+                    async def _pub() -> None:
+                        await emit("file_dropped", {"path": str(path)})
+
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(_pub())
+                    except RuntimeError:
+                        asyncio.run(_pub())
+                except Exception:
+                    pass  # best-effort; processing still happens below
                 self._watcher.process_file(path)
 
     # Satisfy watchdog's EventHandler interface (unused but required)

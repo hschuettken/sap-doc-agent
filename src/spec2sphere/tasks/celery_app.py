@@ -37,3 +37,18 @@ WORKER_CONCURRENCY_CHROME = int(os.environ.get("WORKER_CONCURRENCY_CHROME", "1")
 from spec2sphere.tasks.schedules import BEAT_SCHEDULE  # noqa: E402
 
 celery_app.conf.beat_schedule = BEAT_SCHEDULE
+
+
+# ---------------------------------------------------------------------------
+# DSP-AI: nightly topic synthesis
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(name="dsp_ai.synthesize_topics")  # type: ignore[misc]
+def synthesize_topics() -> dict:
+    """Celery wrapper for the async synthesize_topics_async function."""
+    import asyncio
+
+    from spec2sphere.dsp_ai.brain.feeders.behavior import synthesize_topics_async
+
+    return asyncio.run(synthesize_topics_async())

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Generation {{ gen_id[:8] }} — AI Studio{% endblock %}
+{% block page_title %}AI Studio — Generation Detail{% endblock %}
+{% block content %}
+<nav class="flex gap-1 text-sm border-b pb-2 mb-4">
+  {% set tabs = [
+    ('enhancements', '/ai-studio/', 'Enhancements'),
+    ('templates',    '/ai-studio/templates/', 'Templates'),
+    ('log',          '/ai-studio/log/', 'Generation Log'),
+    ('brain',        '/ai-studio/brain/', 'Brain Explorer'),
+  ] %}
+  {% for slug, url, label in tabs %}
+  <a href="{{ url }}"
+     class="px-3 py-1.5 rounded-md {{ 'bg-purple-600 text-white' if (sub_nav|default('enhancements')) == slug else 'text-gray-600 hover:bg-gray-100' }}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</nav>
+
+{% if why.error %}
+<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+  {{ why.error }}
+</div>
+{% else %}
+
+<div class="space-y-4">
+
+  {# Header #}
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex items-center gap-3">
+      <h2 class="font-semibold text-gray-900">{{ why.enhancement_name or 'Enhancement' }}</h2>
+      {% if why.version %}
+      <span class="text-xs text-gray-500">v{{ why.version }}</span>
+      {% endif %}
+      <span class="ml-auto text-xs text-gray-400 font-mono">{{ gen_id }}</span>
+    </div>
+  </div>
+
+  {# Narrative #}
+  {% if why.narrative %}
+  <div class="bg-white rounded-lg shadow p-4">
+    <h3 class="text-sm font-medium text-gray-700 mb-2">Narrative</h3>
+    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{{ why.narrative }}</p>
+  </div>
+  {% endif %}
+
+  {# Provenance grid #}
+  {% set p = why.provenance or {} %}
+  <div class="bg-white rounded-lg shadow p-4">
+    <h3 class="text-sm font-medium text-gray-700 mb-3">Provenance</h3>
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+      {% for label, val in [
+        ('Model', p.get('model') or why.model),
+        ('Quality level', p.get('quality_level') or why.quality_level),
+        ('Latency (ms)', p.get('latency_ms') or why.latency_ms),
+        ('Tokens in', p.get('tokens_in')),
+        ('Tokens out', p.get('tokens_out')),
+        ('Cost (USD)', '$%.5f'|format(p.get('cost_usd') or 0) if (p.get('cost_usd') or why.cost_usd) else None),
+        ('Created', why.created_at),
+      ] %}
+      {% if val is not none %}
+      <div>
+        <dt class="text-xs text-gray-500">{{ label }}</dt>
+        <dd class="font-medium text-gray-900">{{ val }}</dd>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </dl>
+  </div>
+
+  {# Quality warnings #}
+  {% if why.quality_warnings %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+    <h3 class="text-sm font-medium text-amber-800 mb-2">Quality warnings</h3>
+    <ul class="list-disc list-inside space-y-1 text-sm text-amber-700">
+      {% for w in why.quality_warnings %}
+      <li>{{ w }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# Brain 1-hop #}
+  {% if why.brain_hops %}
+  <div class="bg-white rounded-lg shadow p-4">
+    <h3 class="text-sm font-medium text-gray-700 mb-2">Brain 1-hop context</h3>
+    <details>
+      <summary class="cursor-pointer text-xs text-gray-500 hover:text-gray-700">Show {{ why.brain_hops | length }} nodes</summary>
+      <pre class="mt-2 text-xs bg-gray-50 p-3 rounded overflow-auto">{{ why.brain_hops | tojson(indent=2) }}</pre>
+    </details>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+{% endblock %}

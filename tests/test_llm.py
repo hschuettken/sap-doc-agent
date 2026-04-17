@@ -122,21 +122,25 @@ async def test_passthrough_includes_system(passthrough_provider, tmp_path: Path)
 
 
 def _unwrap_provider(provider):
-    """Unwrap TieredProvider to get the underlying local provider."""
+    """Peel ObservedLLMProvider + TieredProvider to reach the concrete provider."""
+    from spec2sphere.llm.observed import ObservedLLMProvider
     from spec2sphere.llm.tiered import TieredProvider
 
+    if isinstance(provider, ObservedLLMProvider):
+        provider = provider._inner
     if isinstance(provider, TieredProvider):
         return provider._local
     return provider
 
 
 def test_factory_noop():
-    assert isinstance(create_llm_provider(LLMConfig(mode="none")), NoopLLMProvider)
+    assert isinstance(_unwrap_provider(create_llm_provider(LLMConfig(mode="none"))), NoopLLMProvider)
 
 
 def test_factory_passthrough(tmp_path: Path):
     assert isinstance(
-        create_llm_provider(LLMConfig(mode="copilot_passthrough"), output_dir=tmp_path), CopilotPassthroughProvider
+        _unwrap_provider(create_llm_provider(LLMConfig(mode="copilot_passthrough"), output_dir=tmp_path)),
+        CopilotPassthroughProvider,
     )
 
 

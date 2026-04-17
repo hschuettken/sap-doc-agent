@@ -126,13 +126,38 @@ class AgentSessionManager:
             logger.warning("Could not load persisted agent sessions: %s", exc)
 
     def _persist(self) -> None:
-        """Persist sessions to JSON file (best-effort)."""
+        """Persist sessions to JSON file (best-effort) and emit NOTIFY for SSE."""
         try:
             _SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
             data = [s.to_dict() for s in self._sessions.values()]
             _SESSIONS_FILE.write_text(json.dumps(data, indent=2))
         except Exception as exc:
             logger.debug("Could not persist agent sessions: %s", exc)
+        self._notify_changed()
+
+    def _notify_changed(self) -> None:
+        """Emit ``agent_session_changed`` NOTIFY — powers frontend SSE.
+
+        Best-effort: Postgres down or no running loop must not break the
+        caller. Handles sync (CLI) and async (FastAPI) contexts.
+        """
+        try:
+            import asyncio
+
+            from spec2sphere.dsp_ai.events import emit
+
+            async def _run() -> None:
+                await emit("agent_session_changed", {"count": len(self._sessions)})
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # No loop — we're in a sync context (CLI, test). Skip to avoid
+                # spawning event loops unnecessarily.
+                return
+            loop.create_task(_run())
+        except Exception:
+            logger.debug("agent_session_changed NOTIFY failed", exc_info=True)
 
     # ── public API ─────────────────────────────────────────────────────────
 

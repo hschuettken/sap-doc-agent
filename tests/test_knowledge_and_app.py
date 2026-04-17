@@ -75,7 +75,11 @@ def test_create_agent(tmp_path: Path, monkeypatch):
     cfg.write_text(MINIMAL_YAML)
     with patch("spec2sphere.git_backend.github_backend.Github"):
         agent = SAPDocAgent.from_config(cfg)
-    assert isinstance(agent.llm, NoopLLMProvider)
+    # Session B wraps every provider in ObservedLLMProvider for observability.
+    from spec2sphere.llm.observed import ObservedLLMProvider
+
+    llm = agent.llm._inner if isinstance(agent.llm, ObservedLLMProvider) else agent.llm
+    assert isinstance(llm, NoopLLMProvider)
     assert agent.config.sap_systems[0].name == "Test BW"
     assert agent.doc_platform is not None
     assert agent.git is not None

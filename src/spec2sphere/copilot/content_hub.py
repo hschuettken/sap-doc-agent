@@ -159,7 +159,73 @@ class ContentHub:
 
     All methods are synchronous (no DB calls) — content comes from the
     filesystem (knowledge/ and standards/ directories).
+
+    Session B adds async helpers that read from the Corporate Brain
+    (Neo4j) — see ``list_topics``, ``objects_for_topic``, ``lookup_object``.
+    These degrade to filesystem or empty results when Brain is unavailable.
     """
+
+    # --------------------------------------------------------------- brain --
+
+    async def list_topics(self) -> list[dict]:
+        """Return Corporate Brain :Topic nodes — best-effort."""
+        try:
+            from spec2sphere.dsp_ai.brain.client import run as brain_run
+
+            rows = await brain_run("MATCH (t:Topic) RETURN t.name AS name, t.vector AS vector")
+            return [dict(r) for r in rows]
+        except Exception:
+            logger.debug("list_topics: brain unreachable, returning empty", exc_info=True)
+            return []
+
+    async def objects_for_topic(self, topic: str) -> list[dict]:
+        """Return DspObjects correlated with a Topic — best-effort."""
+        try:
+            from spec2sphere.dsp_ai.brain.client import run as brain_run
+
+            rows = await brain_run(
+                "MATCH (o:DspObject)-[:CORRELATED_WITH|INTERESTED_IN]-(t:Topic {name:$t}) "
+                "RETURN DISTINCT o.id AS id, o.name AS name, o.kind AS kind",
+                t=topic,
+            )
+            return [dict(r) for r in rows]
+        except Exception:
+            logger.debug("objects_for_topic: brain unreachable", exc_info=True)
+            return []
+
+    async def lookup_object(self, object_id: str) -> Optional[dict]:
+        """Resolve a DSP object by ID — prefers Brain, falls back to graph.json file.
+
+        Returns ``{id, name, kind, columns}`` or None. Consumer (e.g. the
+        Copilot MCP ``get_object`` tool) can then read the matching
+        consultant-facing ``.md`` via its own filesystem walk.
+        """
+        try:
+            from spec2sphere.dsp_ai.brain.client import run as brain_run
+
+            rows = await brain_run(
+                "MATCH (o:DspObject {id:$id}) "
+                "OPTIONAL MATCH (o)-[:HAS_COLUMN]->(c:Column) "
+                "RETURN o.id AS id, o.name AS name, o.kind AS kind, "
+                "collect(DISTINCT c.id) AS column_ids LIMIT 1",
+                id=object_id,
+            )
+            if rows:
+                return dict(rows[0])
+        except Exception:
+            logger.debug("lookup_object: brain unreachable", exc_info=True)
+
+        # Fallback: scan legacy graph.json through the dual-read helper
+        try:
+            from spec2sphere.scanner.graph_repo import list_objects
+
+            all_objs = await list_objects()
+            for o in all_objs:
+                if o.get("id") == object_id:
+                    return o
+        except Exception:
+            logger.debug("lookup_object: graph_repo fallback failed", exc_info=True)
+        return None
 
     # ---------------------------------------------------------------- index --
 

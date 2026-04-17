@@ -1,0 +1,28 @@
+{
+  "name": "com.spec2sphere.ai-widget",
+  "version": "1.0.0",
+  "description": "Spec2Sphere AI enhancement renderer",
+  "webcomponents": [{
+    "kind": "main",
+    "tag": "spec2sphere-ai-widget",
+    "url": "{{API_BASE}}/widget/main.js",
+    "integrity": "{{INTEGRITY}}",
+    "ignoreIntegrity": false
+  }],
+  "properties": {
+    "enhancementId": {"type": "string"},
+    "contextHints":  {"type": "string"},
+    "fallbackUser":  {"type": "string"},
+    "apiBase":       {"type": "string"},
+    "authMode":      {"type": "string", "enum": ["bearer", "oauth"]}
+  },
+  "methods": {
+    "refresh": {"description": "Force re-fetch"},
+    "setUser": {"parameters": [{"name": "userId", "type": "string"}]}
+  },
+  "events": {
+    "onGenerated": {},
+    "onError": {},
+    "onInteraction": {}
+  }
+}
