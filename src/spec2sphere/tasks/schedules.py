@@ -38,3 +38,26 @@ BEAT_SCHEDULE["m365-graph-sync"] = {
     "kwargs": {"incremental": False},
     "options": {"priority": 3},
 }
+
+
+# dsp-ai morning briefing batch — configurable cron via BATCH_CRON.
+# Default: 06:00 on weekdays. Parsed from a 5-field cron string.
+def _crontab_from_env(var: str, default: str) -> crontab:
+    fields = (os.environ.get(var) or default).strip().split()
+    if len(fields) != 5:
+        fields = default.split()
+    minute, hour, day_of_month, month_of_year, day_of_week = fields
+    return crontab(
+        minute=minute,
+        hour=hour,
+        day_of_month=day_of_month,
+        month_of_year=month_of_year,
+        day_of_week=day_of_week,
+    )
+
+
+BEAT_SCHEDULE["dsp-ai-batch-morning"] = {
+    "task": "spec2sphere.dsp_ai.run_batch_enhancements",
+    "schedule": _crontab_from_env("BATCH_CRON", "0 6 * * 1-5"),
+    "options": {"priority": 5, "queue": "ai-batch"},
+}

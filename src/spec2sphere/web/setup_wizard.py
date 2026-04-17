@@ -305,8 +305,32 @@ def create_setup_wizard_router() -> APIRouter:
     @router.post("/done", response_class=HTMLResponse)
     async def wizard_done_post(request: Request):
         _check_disabled()
+        # Seed the Morning Brief so the AI Studio has something authorable
+        # on first open. Idempotent — skipped if already present.
+        try:
+            from spec2sphere.dsp_ai.seeds import ensure_morning_brief_seeded
+
+            await ensure_morning_brief_seeded()
+        except Exception:
+            logger.exception("Morning Brief seed failed during wizard finalisation")
         _write_marker()
         return RedirectResponse("/ui/dashboard", status_code=303)
+
+    # ---- AI seed (re-runnable post-install helper) ----
+
+    @router.post("/ai-seed")
+    async def wizard_ai_seed(request: Request):
+        """Idempotent re-seed for the Morning Brief — safe to hit anytime."""
+        from fastapi.responses import JSONResponse
+
+        from spec2sphere.dsp_ai.seeds import ensure_morning_brief_seeded
+
+        try:
+            new_id = await ensure_morning_brief_seeded()
+        except Exception as exc:
+            logger.exception("Morning Brief seed failed")
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
+        return JSONResponse({"ok": True, "created_id": new_id, "already_present": new_id is None})
 
     return router
 

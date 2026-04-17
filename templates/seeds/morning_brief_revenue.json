@@ -1,0 +1,38 @@
+{
+  "name": "Morning Brief — Revenue",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT date_trunc('day', order_date) AS d, region, SUM(amount) AS rev FROM public.sales WHERE order_date >= NOW() - INTERVAL '7 days' GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject)-[:DOMAIN_OF]->(d:Domain {name: 'Sales'}) RETURN o.id AS id, d.name AS domain LIMIT 20",
+      "parameters": {}
+    },
+    "external": {
+      "searxng_query": "{{ user_state.get('topics_of_interest', ['revenue'])[0] if user_state else 'revenue' }} news",
+      "categories": ["news"],
+      "max_results": 3
+    }
+  },
+  "adaptive_rules": {
+    "per_user": true,
+    "per_time": true,
+    "per_delta": true,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "You are a business analyst writing a morning briefing for {{ user_id }}.\nTime of day: {{ user_state.get('time_bucket', 'morning') }}.\nSince last visit ({{ user_state.get('last_visited_at', 'never') }}), here are the changes:\n\nRecent sales:\n{% for row in dsp_data %}- {{ row.d }}: {{ row.region }} {{ row.rev }}\n{% endfor %}\n\nRelated news:\n{% for n in external_info %}- {{ n.title }} — {{ n.url }}\n{% endfor %}\n\nReturn a JSON object with keys: narrative_text (markdown, max 120 words), key_points (array of 2-4 bullets), suggested_actions (array of 0-3 imperative short sentences).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "key_points", "suggested_actions"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "key_points": {"type": "array", "items": {"type": "string"}},
+      "suggested_actions": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "brief",
+  "ttl_seconds": 3600
+}

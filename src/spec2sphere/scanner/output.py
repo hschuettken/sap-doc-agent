@@ -368,6 +368,32 @@ def write_scan_output(result: ScanResult, output_dir: Path) -> None:
     readme_content = _render_readme(result)
     (output_dir / "README.md").write_text(readme_content)
 
+    # Best-effort NOTIFY so dsp-ai's schema_semantic feeder picks up the new graph.
+    # Import lazily so the scanner has no hard dependency on dsp_ai at import time.
+    try:
+        _emit_scan_completed(str(result.source_system), str(graph_file))
+    except Exception:  # pragma: no cover — NOTIFY is fire-and-forget
+        pass
+
+
+def _emit_scan_completed(customer: str, graph_path: str) -> None:
+    """Fire ``NOTIFY scan_completed`` with the graph.json path.
+
+    Handles both sync (standalone CLI) and async (FastAPI/Celery) contexts
+    without blocking the scanner.
+    """
+    import asyncio
+
+    from spec2sphere.dsp_ai.events import emit  # noqa: E402 — deferred
+
+    payload = {"customer": customer, "graph_path": graph_path}
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(emit("scan_completed", payload))
+    else:
+        loop.create_task(emit("scan_completed", payload))
+
 
 def _render_readme(result: ScanResult) -> str:
     """Render a README.md summary for the scan output directory."""
