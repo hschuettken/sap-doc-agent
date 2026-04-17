@@ -45,6 +45,23 @@ class OutlineAdapter(DocPlatformAdapter):
     async def delete_page(self, page_id: str) -> None:
         await self._request("documents.delete", {"id": page_id})
 
+    async def get_hierarchy(self, space_id: str) -> list[Page]:
+        """List all documents in a collection (space)."""
+        resp = await self._request("documents.list", {"collectionId": space_id, "limit": 100})
+        return [
+            Page(
+                id=doc["id"],
+                title=doc["title"],
+                parent_id=doc.get("parentDocumentId"),
+            )
+            for doc in resp.get("data", [])
+        ]
+
+    async def get_page_updated_at(self, page_id: str) -> Optional[str]:
+        """Return the updatedAt timestamp for a document (ISO 8601)."""
+        resp = await self._request("documents.info", {"id": page_id})
+        return resp.get("data", {}).get("updatedAt")
+
     async def _request(self, endpoint: str, body: dict) -> dict:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(f"{self._base_url}/api/{endpoint}", headers=self._headers, json=body)

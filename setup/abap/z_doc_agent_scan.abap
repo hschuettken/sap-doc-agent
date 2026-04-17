@@ -1205,15 +1205,137 @@ ENDFORM.
 
 *----------------------------------------------------------------------*
 * FORM push_abapgit
-* Stub — abapGit transport not yet implemented.
-* abapGit serializes objects in a specific XML format; the approach
-* would be to trigger abapGit programmatically via its API class
-* (ZCL_ABAPGIT_API / IF_ABAPGIT_API) if installed on the system.
+* Push scan results to a registered abapGit repository.
+* Requires: abapGit installed on the system (class names may vary
+*           by version — see TODO markers below).
+* Strategy: For each scanned object, serialize its metadata + source
+*           as a text file in a dedicated /doc-agent/ folder,
+*           stage via abapGit staging API, and push to remote.
 *----------------------------------------------------------------------*
 FORM push_abapgit.
-  WRITE: / '  [TODO] abapGit transport not yet implemented.'.
-  WRITE: / '         Install abapGit and call ZCL_ABAPGIT_API=>push().'.
-  WRITE: / '         Scan data is stored in ZDOC_AGENT_SCAN for manual export.'.
+  DATA: lo_repo      TYPE REF TO zcl_abapgit_repo,
+        lo_stage     TYPE REF TO zcl_abapgit_stage,
+        lo_git_util  TYPE REF TO zcl_abapgit_porcelain,
+        lv_git_url   TYPE string,
+        lv_file_path TYPE string,
+        lv_content   TYPE string,
+        ls_scan      TYPE ty_scan_row,
+        lv_count     TYPE i VALUE 0.
+
+  " TODO: Class names may vary by abapGit version:
+  "       - zcl_abapgit_repo_online (newer versions)
+  "       - zcl_abapgit_repo_srv (version 1.x)
+  "       - zcl_abapgit_api (if available)
+  "       Verify actual API on target system.
+
+  lv_git_url = CONV #( gs_config-git_url ).
+
+  IF lv_git_url IS INITIAL.
+    WRITE: / '  [ERROR] No Git URL configured for abapGit.'.
+    RETURN.
+  ENDIF.
+
+  WRITE: / |  Using abapGit repository: { lv_git_url }|.
+  WRITE: / |  Objects to push: { lines( gt_scan ) }|.
+
+  TRY.
+      " Attempt to retrieve the registered abapGit repo instance
+      " TODO: Verify that GET_INSTANCE( ) returns the correct repo,
+      "       or use alternative lookup pattern for your abapGit version.
+      lo_repo ?= zcl_abapgit_repo_srv=>get_instance(
+        )->get( lv_git_url ).
+
+      IF lo_repo IS INITIAL.
+        WRITE: / '  [ERROR] abapGit repository not found or not registered.'.
+        RETURN.
+      ENDIF.
+
+      " Create a staging object to collect files for this push
+      " TODO: Verify staging API signature; some versions use
+      "       zcl_abapgit_stage_factory or a different constructor.
+      CREATE OBJECT lo_stage TYPE zcl_abapgit_stage.
+
+      LOOP AT gt_scan INTO ls_scan.
+        " Build a standardized file path under /doc-agent/
+        " Path format: doc-agent/<OBJECT_TYPE>/<OBJECT_KEY>.txt
+        DATA(lv_obj_type_lower) = to_lower(
+          CONV string( ls_scan-object_type ) ).
+        DATA(lv_obj_key_safe) = ls_scan-object_key.
+        TRANSLATE lv_obj_key_safe USING '/ '.
+        CONDENSE lv_obj_key_safe NO-GAPS.
+        REPLACE ALL OCCURRENCES OF ` ` IN lv_obj_key_safe WITH `_`.
+
+        lv_file_path = |doc-agent/{ lv_obj_type_lower }/|
+                    && |{ lv_obj_key_safe }.txt|.
+
+        " Build content: metadata + source code in plain text
+        lv_content = |Object: { ls_scan-object_key }\n|
+                  && |Type: { ls_scan-object_type }\n|
+                  && |Description: { ls_scan-description }\n|
+                  && |Package: { ls_scan-package }\n|
+                  && |Owner: { ls_scan-owner }\n|
+                  && |Hash: { ls_scan-content_hash }\n|
+                  && |--- Metadata ---\n|
+                  && ls_scan-metadata
+                  && |\n--- Source Code ---\n|
+                  && ls_scan-source_code.
+
+        " Stage the file via abapGit staging API
+        " TODO: Verify method signatures; some versions use add( ),
+        "       others may use stage_file( ) or different parameters.
+        TRY.
+            " Convert content to xstring (abapGit expects binary)
+            DATA(lv_content_xstr) TYPE xstring.
+            lv_content_xstr = cl_abap_codepage=>convert_to(
+              source = lv_content
+              codepage = '4103' ).    " UTF-8
+
+            lo_stage->add(
+              iv_path     = lv_file_path
+              iv_filename = CONV #(
+                cl_abap_string_utilities=>to_upper( lv_file_path ) )
+              iv_data     = lv_content_xstr ).
+
+            lv_count = lv_count + 1.
+            WRITE: / |    [STAGED] { lv_file_path }|.
+
+          CATCH zcx_abapgit_exception INTO DATA(lx_stage_err).
+            WRITE: / |    [STAGE FAILED] { lv_file_path } — |
+                   && lx_stage_err->get_text( ).
+            CONTINUE.
+        ENDTRY.
+      ENDLOOP.
+
+      IF lv_count = 0.
+        WRITE: / '  [WARNING] No objects staged — nothing to commit.'.
+        RETURN.
+      ENDIF.
+
+      " Commit and push the staged files
+      " TODO: Verify commit API; commit message, author, and push
+      "       API signatures may differ by version.
+      DATA(lv_commit_msg) = |Doc agent scan: { lv_count } objects|
+                         && | (timestamp: { gv_scan_ts })|.
+
+      zcl_abapgit_git_porcelain=>commit(
+        io_repo   = lo_repo
+        is_commit = VALUE #(
+          committer_name  = sy-uname
+          committer_email = |{ sy-uname }@sap.local|
+          message         = lv_commit_msg )
+        io_stage  = lo_stage ).
+
+      zcl_abapgit_git_porcelain=>push(
+        io_repo = lo_repo ).
+
+      WRITE: / |  [SUCCESS] Committed and pushed { lv_count } objects.|.
+
+    CATCH zcx_abapgit_exception INTO DATA(lx_err).
+      WRITE: / |  [ERROR] abapGit operation failed: { lx_err->get_text( ) }|.
+    CATCH cx_root INTO DATA(lx_root).
+      WRITE: / |  [ERROR] Unexpected error: { lx_root->get_text( ) }|.
+  ENDTRY.
+
 ENDFORM.
 
 *----------------------------------------------------------------------*

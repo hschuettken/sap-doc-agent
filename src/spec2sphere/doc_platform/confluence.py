@@ -61,3 +61,35 @@ class ConfluenceAdapter(DocPlatformAdapter):
 
     async def delete_page(self, page_id: str) -> None:
         await self._run_sync(self._client.remove_page, page_id)
+
+    async def get_hierarchy(self, space_id: str) -> list[Page]:
+        """List all pages in a Confluence space."""
+        pages: list[Page] = []
+        start = 0
+        limit = 50
+        while True:
+            resp = await self._run_sync(
+                self._client.get_all_pages_from_space,
+                space_id,
+                start=start,
+                limit=limit,
+                expand="ancestors",
+            )
+            batch = resp if isinstance(resp, list) else resp.get("results", [])
+            for item in batch:
+                ancestors = item.get("ancestors", [])
+                parent_id = str(ancestors[-1]["id"]) if ancestors else None
+                pages.append(Page(id=str(item["id"]), title=item["title"], parent_id=parent_id))
+            if len(batch) < limit:
+                break
+            start += limit
+        return pages
+
+    async def get_page_updated_at(self, page_id: str) -> Optional[str]:
+        """Return the last-updated timestamp from Confluence history (ISO 8601)."""
+        resp = await self._run_sync(
+            self._client.get_page_by_id,
+            page_id,
+            expand="history.lastUpdated",
+        )
+        return resp.get("history", {}).get("lastUpdated", {}).get("when")

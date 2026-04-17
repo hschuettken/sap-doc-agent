@@ -1,8 +1,8 @@
 # Spec2Sphere — Project Status
 
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-17
 **Version:** 2.0.0
-**Sessions completed:** 6/6
+**Sessions completed:** 6/6 + quality router + privacy session
 
 ## Quick Reference
 
@@ -14,7 +14,7 @@
 | Web UI | https://sap-docu.schuettken.net/ui/dashboard | Password: admin (change it!) |
 | BookStack | 192.168.0.50:8253 (admin@admin.com / password) | Running |
 | Outline | 192.168.0.50:8250 (SMTP magic link auth) | Running |
-| Tests | 926 passing | Green |
+| Tests | 1061 passing | Green |
 
 ## Architecture
 
@@ -40,6 +40,16 @@
 | Artifact Lab | Active | Sandbox experimentation, template learning |
 | Multi-Tenant | Active | Workspace switching, tenant/customer/project CRUD |
 
+## Codebase Scale
+
+- **151 Python modules** across 20 subsystems
+- **96 test files**, 1061 tests
+- **9 Alembic migrations** (23+ tables)
+- **45 Jinja2 templates** (12+ UI pages)
+- **14 LLM provider adapters**
+- **6 Horváth standards** (3,667 lines of rules)
+- **1,244-line ABAP scanner** + 265-line setup program
+
 ## Standards (6 Horváth Standards)
 
 | Standard | File | Focus |
@@ -53,9 +63,10 @@
 
 ## LLM Integration
 
-Provider: Homelab LLM Router (192.168.0.50:8070)
-Model: qwen2.5:32b (primary), qwen2.5:14b (fallback)
-Mode: direct (agents call LLM autonomously)
+**Quality Router (Q1-Q5):** 16 actions in 5 clusters, 3 built-in profiles (default, all-local, all-claude).
+**Privacy by Design:** `data_in_context=True` forces local-only models (13 of 16 callers flagged).
+**Profiles:** Q1→qwen2.5:7b, Q2→qwen2.5:14b, Q3→claude-haiku, Q4→claude-sonnet, Q5→claude-sonnet.
+**UI:** /ui/llm-routing — profile switching, per-action/cluster overrides, privacy controls.
 
 ## Credentials
 
@@ -66,16 +77,45 @@ All stored in envctl (192.168.0.50:8201). Key ones:
 - `DSP_CLIENT_ID/SECRET/TOKEN_URL` — Horvath DSP OAuth
 - `GIT_TOKEN` — Gitea token
 
+## Implementation Gaps (vs SPEC.md)
+
+These features are described in SPEC.md or ARCHITECTURE_TARGET.md but NOT yet implemented:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Doc Sync bidirectional | One-way push only | No pull-back from platform, no conflict resolution |
+| abapGit transport | ABAP stub | TODO comment in z_doc_agent_scan.abap |
+| GitLab git backend | Not implemented | Config accepts it, code raises ValueError |
+| Azure DevOps git backend | Not implemented | Same |
+| File Drop transport (Python) | Not implemented | ABAP side works, no Python pickup |
+| M365 Copilot Graph Connector | Not implemented | Sitemap exists; no Enterprise connector |
+| M365 Copilot Declarative Agent | Not implemented | No manifest, no knowledge URL config |
+| OIDC/SAML SSO | Not implemented | bcrypt password auth only |
+| OpenTelemetry traces | Not implemented | Prometheus metrics exist, OTel not wired |
+| Signed images / SBOM / Trivy | Not implemented | No supply chain CI |
+| Setup wizard | Not implemented | SPEC mentions wizard.py; doesn't exist |
+| LLM copilot_passthrough mode | Not implemented | Config schema defines it, no agent support |
+| Knowledge auto-learning loop | Partial | Knowledge service works; scanners don't auto-write learned patterns |
+| DSP OAuth credentials | Not configured | Template ready, needs BTP service key |
+
 ## TODO
 
 - [x] All 6 sessions complete
-- [x] 926 tests passing
+- [x] 1061 tests passing
 - [x] 6 Horváth standards loaded
-- [x] LLM Router integration
+- [x] Quality Router (Q1-Q5) with UI
+- [x] Privacy by design (local-only with data)
+- [x] Structured field storage + versioning
 - [x] Multi-tenant enabled
 - [x] All modules enabled
 - [ ] Change UI default password
 - [ ] Change BookStack admin password
 - [ ] Configure DSP OAuth credentials (BTP service key)
 - [ ] Run initial DSP landscape scan
-- [ ] M365 Copilot: add knowledge URL + OpenAPI
+- [ ] Implement bidirectional doc sync (pull-back from platform)
+- [ ] M365 Copilot: Declarative Agent manifest + knowledge URLs
+- [ ] OIDC/SAML SSO (Authlib)
+- [ ] GitLab + Azure DevOps git backends
+- [ ] abapGit transport backend (ABAP side)
+- [ ] OpenTelemetry tracing
+- [ ] CI: signed images, SBOM, vuln scan

@@ -49,3 +49,11 @@ class DocPlatformAdapter(ABC):
     @abstractmethod
     async def delete_page(self, page_id: str) -> None:
         """Delete a page."""
+
+    @abstractmethod
+    async def get_hierarchy(self, space_id: str) -> list[Page]:
+        """List all pages in a space with their hierarchy."""
+
+    @abstractmethod
+    async def get_page_updated_at(self, page_id: str) -> Optional[str]:
+        """Get last-updated timestamp of a page (ISO 8601)."""

@@ -28,4 +28,17 @@ def create_git_backend(cfg: GitConfig) -> GitBackend:
         base = os.environ.get("GITEA_BASE_URL", "http://localhost:3000/api/v1")
         return GitHubBackend(token=token, repo_name=repo_url, base_url=base)
 
-    raise ValueError(f"Git backend type '{cfg.type}' not yet implemented. Supported: github, gitea")
+    if cfg.type == "gitlab":
+        from spec2sphere.git_backend.gitlab_backend import GitLabBackend
+
+        base = os.environ.get("GITLAB_BASE_URL", "https://gitlab.com")
+        return GitLabBackend(token=token, repo_name=repo_url, base_url=base)
+
+    if cfg.type == "azure_devops":
+        from spec2sphere.git_backend.azure_devops_backend import AzureDevOpsBackend
+
+        return AzureDevOpsBackend(token=token, repo_url=repo_url)
+
+    raise ValueError(
+        f"Git backend type '{cfg.type}' not yet implemented. Supported: github, gitea, gitlab, azure_devops"
+    )

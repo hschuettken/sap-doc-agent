@@ -344,12 +344,35 @@ async def store_scan_results(
         ctx.project_id,
         run_id,
     )
+
+    # --- Knowledge auto-learning ---
+    # Run after the scan transaction commits so that even if learning fails the
+    # scan data is safely persisted.  Non-fatal: a learning failure must never
+    # roll back or mask the scan result.
+    patterns_learned = 0
+    try:
+        from spec2sphere.core.scanner.knowledge_learner import KnowledgeLearner  # noqa: PLC0415
+
+        learner = KnowledgeLearner()
+        learn_result = await learner.learn_from_scan(ctx, scan_result)
+        patterns_learned = learn_result.get("patterns_new", 0)
+        stats["patterns_learned"] = patterns_learned
+        logger.info(
+            "landscape_store: knowledge_learner found=%d new=%d updated=%d",
+            learn_result.get("patterns_found", 0),
+            learn_result.get("patterns_new", 0),
+            learn_result.get("patterns_updated", 0),
+        )
+    except Exception as learn_exc:  # noqa: BLE001
+        logger.warning("landscape_store: knowledge_learner failed (non-fatal): %s", learn_exc)
+
     return {
         "stored": stored,
         "updated": updated,
         "unchanged": unchanged,
         "fields_extracted": fields_extracted,
         "scan_run_id": str(run_id),
+        "patterns_learned": patterns_learned,
     }
 
 

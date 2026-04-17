@@ -53,6 +53,30 @@ class BookStackAdapter(DocPlatformAdapter):
     async def delete_page(self, page_id: str) -> None:
         await self._request("DELETE", f"/api/pages/{page_id}")
 
+    async def get_hierarchy(self, space_id: str) -> list[Page]:
+        """List all pages in a book (space) with parent references."""
+        resp = await self._request("GET", f"/api/books/{space_id}")
+        pages: list[Page] = []
+        for chapter in resp.get("contents", []):
+            if chapter.get("type") == "chapter":
+                chapter_id = str(chapter["id"])
+                for page in chapter.get("pages", []):
+                    pages.append(
+                        Page(
+                            id=str(page["id"]),
+                            title=page["name"],
+                            parent_id=chapter_id,
+                        )
+                    )
+            elif chapter.get("type") == "page":
+                pages.append(Page(id=str(chapter["id"]), title=chapter["name"]))
+        return pages
+
+    async def get_page_updated_at(self, page_id: str) -> Optional[str]:
+        """Return the updated_at timestamp for a page (ISO 8601)."""
+        resp = await self._request("GET", f"/api/pages/{page_id}")
+        return resp.get("updated_at")
+
     async def _request(self, method: str, path: str, **kwargs) -> dict:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.request(method, f"{self._base_url}{path}", headers=self._headers, **kwargs)
