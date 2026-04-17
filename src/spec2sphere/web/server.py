@@ -247,6 +247,16 @@ def create_app(
         except Exception as e:
             logger.warning("Failed to configure modules: %s", e)
 
+        # File drop watcher (inotify). Replaces the legacy 5-min Beat poll.
+        if os.environ.get("FILE_DROP_ENABLED", "false").lower() == "true":
+            try:
+                from spec2sphere.scanner.file_drop import get_watcher
+
+                get_watcher().start()
+                logger.info("FileDropWatcher started via lifespan (inotify)")
+            except Exception as e:
+                logger.warning("Failed to start FileDropWatcher: %s", e)
+
         # 5. Mount workspace routes when multi_tenant enabled
         try:
             from spec2sphere.modules import is_enabled

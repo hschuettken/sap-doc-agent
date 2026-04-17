@@ -22,11 +22,15 @@ BEAT_SCHEDULE = {
 # Set SCAN_CRON_SCHEDULE to enable (e.g. "0 3 * * *" for 3am daily)
 # TODO: implement full cron string parsing when needed
 
-# File Drop polling — every 5 minutes, only when FILE_DROP_ENABLED=true
-if os.environ.get("FILE_DROP_ENABLED", "false").lower() == "true":
+# File Drop polling — REMOVED in Session B: FileDropWatcher (watchdog/inotify)
+# runs at web-app startup (see spec2sphere.web.server create_app lifespan) and
+# fires on every create/modify. The poll task is kept for manual recovery but
+# is no longer scheduled. Re-enable by setting FILE_DROP_POLL_ENABLED=true
+# if inotify events are unreliable on a particular mount.
+if os.environ.get("FILE_DROP_POLL_ENABLED", "false").lower() == "true":
     BEAT_SCHEDULE["file-drop-poll"] = {
         "task": "spec2sphere.tasks.file_drop_tasks.poll_drop_directory",
-        "schedule": 300,  # seconds
+        "schedule": 1800,  # 30 min safety net
         "options": {"priority": 3},
     }
 
