@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}AI Studio — Spec2Sphere{% endblock %}
+{% block page_title %}AI Studio{% endblock %}
+{% block content %}
+<div class="space-y-4">
+  {% if is_author %}
+  <form method="post" action="/ai-studio/" class="bg-white rounded-lg shadow p-4 flex gap-2 items-center">
+    <input name="name" required placeholder="New enhancement name"
+           class="border rounded px-3 py-2 flex-1 text-sm"/>
+    <select name="kind" class="border rounded px-3 py-2 text-sm">
+      <option value="narrative">narrative</option>
+      <option value="ranking">ranking</option>
+      <option value="item_enrich">item_enrich</option>
+      <option value="action">action</option>
+      <option value="briefing">briefing</option>
+    </select>
+    <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">+ New</button>
+  </form>
+  {% else %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+    You are signed in as a viewer — creating enhancements is disabled.
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50">
+        <tr class="text-xs text-gray-500 uppercase tracking-wider">
+          <th class="px-4 py-3 text-left">Name</th>
+          <th class="px-4 py-3 text-center">Kind</th>
+          <th class="px-4 py-3 text-center">Version</th>
+          <th class="px-4 py-3 text-center">Status</th>
+          <th class="px-4 py-3 text-center">Updated</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for e in enhancements %}
+        <tr>
+          <td class="px-4 py-3 font-medium text-gray-900">{{ e.name }}</td>
+          <td class="px-4 py-3 text-center text-gray-600">{{ e.kind }}</td>
+          <td class="px-4 py-3 text-center text-gray-600">v{{ e.version }}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-0.5 rounded-full text-xs
+              {% if e.status == 'published' %}bg-emerald-100 text-emerald-700
+              {% elif e.status == 'staging' %}bg-amber-100 text-amber-700
+              {% elif e.status == 'archived' %}bg-gray-100 text-gray-500
+              {% else %}bg-gray-100 text-gray-600{% endif %}">{{ e.status }}</span>
+          </td>
+          <td class="px-4 py-3 text-center text-xs text-gray-400">{{ e.updated_at.strftime('%Y-%m-%d %H:%M') if e.updated_at else '—' }}</td>
+          <td class="px-4 py-3 text-right">
+            <a href="/ai-studio/{{ e.id }}/edit" class="text-purple-600 hover:underline text-sm">Edit</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">
+          No enhancements yet — create one above to get started.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

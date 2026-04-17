@@ -362,6 +362,14 @@ def create_app(
     except ImportError as exc:
         logger.warning("Could not mount copilot routes: %s", exc)
 
+    # Mount AI Studio routes (dsp-ai enhancement authoring)
+    try:
+        from spec2sphere.web.ai_studio.routes import create_ai_studio_router
+
+        app.include_router(create_ai_studio_router())
+    except ImportError as exc:
+        logger.warning("Could not mount AI Studio routes: %s", exc)
+
     # Mount declarative agent endpoints (manifest, openapi, actions)
     try:
         from spec2sphere.copilot.declarative_agent import create_declarative_agent_router
