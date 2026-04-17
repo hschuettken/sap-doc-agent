@@ -607,15 +607,14 @@ function setDefaultSystemEnvironment(env) {
   showToast('Environment set to ' + (env || 'dev').toUpperCase(), env === 'prod' ? 'info' : 'success');
 }
 
-// Restore system environment badge on load
-document.addEventListener('DOMContentLoaded', () => {
+(function restoreSystemEnv() {
   const sel = document.getElementById('system-env-select');
   if (sel) {
     const saved = localStorage.getItem('spec2sphere_system_env') || 'dev';
     sel.value = saved;
     setDefaultSystemEnvironment(saved);
   }
-});
+})();
 </script>
 
 {% endblock %}

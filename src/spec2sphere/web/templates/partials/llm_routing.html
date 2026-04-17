@@ -731,21 +731,17 @@ async function savePrivacySettings() {
 
 // Tag model-strip cells with data-level-model for JS updates after Jinja renders
 // (renderProfileStrip() needs these to update model names on profile switch)
-document.addEventListener('DOMContentLoaded', () => {
+(function bootLlmRouting() {
   const strip = document.getElementById('profile-model-strip');
   if (strip) {
     const levels = Object.keys(routingState.quality_levels);
-    // Each strip cell has one .font-mono div (the model name) — tag it by cell order
     strip.querySelectorAll(':scope > div').forEach((cell, i) => {
       const modelEl = cell.querySelector('.font-mono');
       if (modelEl && levels[i]) modelEl.dataset.levelModel = levels[i];
     });
   }
-  // data-override-badge is already set in Jinja HTML — no re-tagging needed
-
-  // Load privacy settings from API on page load
   loadPrivacySettings();
-});
+})();
 </script>
 
 {% endblock %}
