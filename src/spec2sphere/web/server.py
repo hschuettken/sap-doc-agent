@@ -287,6 +287,14 @@ def create_app(
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+    # Mount setup wizard router (unauthenticated — must be before UI routes)
+    from spec2sphere.web.setup_wizard import (  # noqa: PLC0415
+        SetupWizardMiddleware,
+        create_setup_wizard_router,
+    )
+
+    app.include_router(create_setup_wizard_router())
+
     # Mount UI router
     from spec2sphere.web.auth import AuthMiddleware, hash_password
     from spec2sphere.web.ui import create_ui_router
@@ -393,6 +401,20 @@ def create_app(
     pw_hash = os.environ.get("SAP_DOC_AGENT_UI_PASSWORD_HASH", hash_password("admin"))
     secret = os.environ.get("SAP_DOC_AGENT_SECRET_KEY", "dev-secret-change-me")
     app.add_middleware(AuthMiddleware, password_hash=pw_hash, secret_key=secret)
+
+    # Setup wizard middleware — outermost layer (runs before AuthMiddleware).
+    # When setup.complete marker is absent, redirects non-setup UI requests to the wizard.
+    # Once the marker exists this middleware is a pure no-op — existing deployments unaffected.
+    app.add_middleware(SetupWizardMiddleware)
+
+    # CSRF middleware — double-submit cookie pattern for mutating requests.
+    # Skips bearer-auth /api/* (agent tokens), /mcp/*, /copilot/*, and login POST.
+    try:
+        from spec2sphere.web.csrf import CSRFMiddleware
+
+        app.add_middleware(CSRFMiddleware)
+    except ImportError as exc:
+        logger.warning("Could not add CSRF middleware: %s", exc)
 
     # Audit log middleware — fire-and-forget, never blocks responses
     try:

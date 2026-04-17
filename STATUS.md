@@ -62,6 +62,94 @@ See `.trivyignore` for known false positives.
 - **6 Horváth standards** (3,667 lines of rules)
 - **1,244-line ABAP scanner** + 265-line setup program
 
+## M365 Copilot Integration
+
+Pushes Spec2Sphere knowledge into the Microsoft 365 search index and exposes a
+Declarative Agent so Copilot for M365 users can query the platform directly.
+
+### Components
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| Graph Connector client | `src/spec2sphere/copilot/graph_connector.py` | Azure AD client-credentials auth, upsert items via Graph API |
+| Declarative Agent router | `src/spec2sphere/copilot/declarative_agent.py` | Manifest, OpenAPI spec, and three action endpoints |
+| Celery sync task | `src/spec2sphere/tasks/m365_sync.py` | Every 4 h; skips silently when env vars unset |
+
+### Environment Variables
+
+| Env Var | Required | Description |
+|---------|----------|-------------|
+| `M365_TENANT_ID` | Yes | Azure AD tenant ID |
+| `M365_CLIENT_ID` | Yes | App registration client ID |
+| `M365_CLIENT_SECRET` | Yes | App registration client secret |
+| `M365_CONNECTION_ID` | Yes | External connection ID (alphanumeric, max 32 chars) |
+| `SPEC2SPHERE_BASE_URL` | No | Public base URL for manifest links (default: `http://localhost:8260`) |
+
+### Azure AD App Registration Setup
+
+1. Register an app in Azure AD with the `ExternalItem.ReadWrite.OwnedBy` Graph API permission.
+2. Grant admin consent.
+3. Set the four env vars above (via envctl or `.env`).
+
+### Endpoints (Declarative Agent)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/copilot/agent/manifest.yaml` | Copilot agent manifest |
+| `GET` | `/api/copilot/agent/openapi.yaml` | OpenAPI spec for agent actions |
+| `POST` | `/api/copilot/agent/actions/search_specs` | Full-text search across all sections |
+| `GET` | `/api/copilot/agent/actions/list_governance_rules` | Governance + quality pages |
+| `GET` | `/api/copilot/agent/actions/get_route/{section_id}__{page_id}` | Full page content |
+
+### Behavior when unconfigured
+
+When `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`, or `M365_CONNECTION_ID`
+are absent, the Celery beat task logs a skip message and exits cleanly — no exception
+is raised and no alert is emitted. All other functionality is unaffected.
+
+## File Drop Ingestion
+
+Offline / air-gapped ingestion pipeline for customers who cannot expose a live SAP system.
+
+### Configuration
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `FILE_DROP_ENABLED` | `false` | Set to `true` to activate the watcher, Celery beat task, and upload endpoint |
+| `FILE_DROP_PATH` | `/var/spec2sphere/drop` | Root directory watched for incoming files |
+| `OUTPUT_DIR` | `output` | Where parsed scan output is written (subdirectory `file_drop/` is used) |
+
+### Supported File Types
+
+| Extension | Type | Parser |
+|-----------|------|--------|
+| `.abap` | ABAP source | Keyword-based class / function module / report detection |
+| `.ddls` | CDS view definition | Regex extracts view name from `DEFINE [ROOT] VIEW <name>` |
+| `.sql` | DDL SQL | Extracts table or view name; distinguishes `CREATE TABLE` vs `CREATE VIEW` |
+| `.zip` | Export bundle | Extracted and each supported member is parsed individually |
+
+Plain-text files (`.txt`) without a recognised extension are content-sniffed (first 256 bytes).
+
+### Directory Layout
+
+```
+/var/spec2sphere/drop/
+  *.abap / *.ddls / *.sql / *.zip   ← drop files here
+  processed/<timestamp>/             ← moved here on success
+  errors/                            ← moved here on failure
+```
+
+### API Endpoint
+
+`POST /api/ingest/upload` (multipart, field `file`) — only available when `FILE_DROP_ENABLED=true`.
+
+Returns `202 Accepted` with `{"status": "queued", "path": "...", "task_id": "..."}`.
+
+### Celery Tasks
+
+- `spec2sphere.tasks.file_drop_tasks.process_dropped_file(path)` — routed to `scan` queue
+- `spec2sphere.tasks.file_drop_tasks.poll_drop_directory()` — beat task every 5 minutes (fallback if inotify events are missed)
+
 ## Standards (6 Horváth Standards)
 
 | Standard | File | Focus |

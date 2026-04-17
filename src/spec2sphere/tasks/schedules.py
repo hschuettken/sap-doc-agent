@@ -1,3 +1,5 @@
+import os
+
 from celery.schedules import crontab
 
 # Beat schedules — loaded into celery_app.conf.beat_schedule
@@ -19,3 +21,20 @@ BEAT_SCHEDULE = {
 # Optional periodic re-scan controlled by env var
 # Set SCAN_CRON_SCHEDULE to enable (e.g. "0 3 * * *" for 3am daily)
 # TODO: implement full cron string parsing when needed
+
+# File Drop polling — every 5 minutes, only when FILE_DROP_ENABLED=true
+if os.environ.get("FILE_DROP_ENABLED", "false").lower() == "true":
+    BEAT_SCHEDULE["file-drop-poll"] = {
+        "task": "spec2sphere.tasks.file_drop_tasks.poll_drop_directory",
+        "schedule": 300,  # seconds
+        "options": {"priority": 3},
+    }
+
+# M365 Copilot Graph Connector sync — every 4 hours.
+# Task silently skips when M365_* env vars are not configured.
+BEAT_SCHEDULE["m365-graph-sync"] = {
+    "task": "spec2sphere.tasks.m365_sync.sync_m365_graph_index",
+    "schedule": crontab(minute=0, hour="*/4"),
+    "kwargs": {"incremental": False},
+    "options": {"priority": 3},
+}
