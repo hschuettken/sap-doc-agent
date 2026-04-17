@@ -32,8 +32,21 @@ DEFAULT_TIER = "large"
 
 class LLMProvider(ABC):
     @abstractmethod
-    async def generate(self, prompt: str, system: str = "", *, tier: str = DEFAULT_TIER) -> Optional[str]:
-        """Generate a text completion. Returns None if LLM is unavailable."""
+    async def generate(
+        self,
+        prompt: str,
+        system: str = "",
+        *,
+        tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
+    ) -> Optional[str]:
+        """Generate a text completion. Returns None if LLM is unavailable.
+
+        Args:
+            data_in_context: Set True when the prompt contains customer SQL,
+                ABAP source, field definitions, or any data from connected
+                systems. Privacy-aware providers will route to local models.
+        """
 
     @abstractmethod
     async def generate_json(
@@ -43,6 +56,7 @@ class LLMProvider(ABC):
         system: str = "",
         *,
         tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
     ) -> Optional[dict]:
         """Generate a structured JSON response. Returns None if LLM is unavailable."""
 
@@ -68,7 +82,14 @@ class OpenAICompatibleAdapter(LLMProvider):
         self._model = model
         self._timeout = timeout
 
-    async def generate(self, prompt: str, system: str = "", *, tier: str = DEFAULT_TIER) -> Optional[str]:
+    async def generate(
+        self,
+        prompt: str,
+        system: str = "",
+        *,
+        tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
+    ) -> Optional[str]:
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -83,6 +104,7 @@ class OpenAICompatibleAdapter(LLMProvider):
         system: str = "",
         *,
         tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
     ) -> Optional[dict]:
         system_msg = system or "You are a structured data extraction assistant."
         system_msg += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"

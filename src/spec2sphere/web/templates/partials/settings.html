@@ -286,6 +286,75 @@
         </button>
       </div>
     </div>
+
+    <!-- System Environment Classification -->
+    <div class="card mt-4">
+      <h3 class="font-heading text-base text-[#1a2332] mb-1">System Environment</h3>
+      <p class="text-sm text-gray-500 mb-4">
+        Classify which SAP environment is connected. This is informational — displayed to remind users what system they are working against.
+        Set the environment on the project or connection you are currently using.
+      </p>
+
+      <div class="space-y-3">
+        {% set systems = connections if connections is defined else [] %}
+        {% if systems %}
+          {% for conn in systems %}
+          <div class="flex items-center justify-between p-3 bg-[#F5F5F5] rounded">
+            <div class="flex items-center gap-3">
+              <div>
+                <p class="text-sm font-medium text-[#1a2332]">{{ conn.get('name', conn.get('connection_name', 'Connection')) }}</p>
+                <p class="text-xs text-gray-500">{{ conn.get('host', '') }}{% if conn.get('client') %} · client {{ conn.get('client') }}{% endif %}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-500">Environment</label>
+              <select class="bg-white border border-[#E5E5E5] rounded px-2 py-1 text-xs text-[#1a2332] focus:outline-none focus:border-petrol"
+                      onchange="setSystemEnvironment('{{ conn.get('id', loop.index) }}', this.value)"
+                      title="System environment — informational only">
+                <option value="dev" {% if conn.get('environment') == 'dev' %}selected{% endif %}>Dev</option>
+                <option value="qa" {% if conn.get('environment') == 'qa' %}selected{% endif %}>QA</option>
+                <option value="prod" {% if conn.get('environment') == 'prod' %}selected{% endif %}>Prod</option>
+              </select>
+              {% if conn.get('environment') == 'prod' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">PROD</span>
+              {% elif conn.get('environment') == 'qa' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">QA</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">Dev</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <!-- Fallback: no connection list passed from server — show generic classifier -->
+          <div class="p-3 bg-[#F5F5F5] rounded">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-[#1a2332]">Connected SAP System</p>
+                <p class="text-xs text-gray-500" id="conn-host-label">{{ env_vars.get('SAP_HOST', 'Not configured') }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-500">Environment</label>
+                <select id="system-env-select"
+                        class="bg-white border border-[#E5E5E5] rounded px-2 py-1 text-xs text-[#1a2332] focus:outline-none focus:border-petrol"
+                        onchange="setDefaultSystemEnvironment(this.value)"
+                        title="System environment — informational only">
+                  <option value="dev">Dev</option>
+                  <option value="qa">QA</option>
+                  <option value="prod">Prod</option>
+                </select>
+                <span id="system-env-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">Dev</span>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3">
+        Tip: When connected to a Prod system, the UI will show a Prod indicator as a reminder.
+        No data restrictions are applied automatically — this is a visual classification only.
+      </p>
+    </div>
   </div>
 
   <!-- ===== Auth Tab ===== -->
@@ -506,5 +575,49 @@ async function validateConfig() {
     }
   } catch (err) { showToast('Validation failed: ' + err.message, 'error'); }
 }
+
+// ─── System Environment Classification ───────────────────────────────────────
+
+const ENV_BADGE = {
+  dev:  {cls: 'bg-blue-50 text-blue-700 border-blue-200',   label: 'Dev'},
+  qa:   {cls: 'bg-amber-50 text-amber-700 border-amber-200', label: 'QA'},
+  prod: {cls: 'bg-red-50 text-red-700 border-red-200',       label: 'PROD'},
+};
+
+async function setSystemEnvironment(connectionId, env) {
+  try {
+    await fetch(`/api/settings/connections/${connectionId}/environment`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({environment: env})
+    });
+    showToast('Environment set to ' + env.toUpperCase(), env === 'prod' ? 'info' : 'success');
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+  }
+}
+
+function setDefaultSystemEnvironment(env) {
+  // Fallback handler for the generic single-connection case (no connections list)
+  const badge = document.getElementById('system-env-badge');
+  if (badge && ENV_BADGE[env]) {
+    const {cls, label} = ENV_BADGE[env];
+    badge.className = `inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`;
+    badge.textContent = label;
+  }
+  // Persist into localStorage so it survives page refreshes
+  try { localStorage.setItem('spec2sphere_system_env', env); } catch (_) {}
+  showToast('Environment set to ' + (env || 'dev').toUpperCase(), env === 'prod' ? 'info' : 'success');
+}
+
+// Restore system environment badge on load
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('system-env-select');
+  if (sel) {
+    const saved = localStorage.getItem('spec2sphere_system_env') || 'dev';
+    sel.value = saved;
+    setDefaultSystemEnvironment(saved);
+  }
+});
 </script>
 {% endblock %}

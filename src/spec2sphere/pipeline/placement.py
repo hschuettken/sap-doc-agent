@@ -225,6 +225,7 @@ async def _llm_placement(
         ),
         max_retries=2,
         tier="placement",
+        data_in_context=True,
     )
 
     if result is None:

@@ -266,6 +266,7 @@ async def _generate_dsp_object_detail(
         system=system_prompt,
         max_retries=3,
         tier="tech_spec_generator",
+        data_in_context=True,
     )
 
     if result is None:

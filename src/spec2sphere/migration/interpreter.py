@@ -112,12 +112,12 @@ async def interpret_chain(
     prompt = _build_prompt(chain, all_patterns)
 
     data = await generate_json_with_retry(
-        llm, prompt, schema=_INTENT_SCHEMA, system=_INTERPRET_SYSTEM, tier="migration_interpreter"
+        llm, prompt, schema=_INTENT_SCHEMA, system=_INTERPRET_SYSTEM, tier="migration_interpreter", data_in_context=True
     )
 
     if data is None:
         # Fallback: try plain generate and build minimal card
-        raw = await llm.generate(prompt, system=_INTERPRET_SYSTEM, tier="migration_interpreter")
+        raw = await llm.generate(prompt, system=_INTERPRET_SYSTEM, tier="migration_interpreter", data_in_context=True)
         return IntentCard(
             chain_id=chain.chain_id,
             business_purpose=raw.strip() if raw else "",

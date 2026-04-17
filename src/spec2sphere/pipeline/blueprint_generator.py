@@ -431,6 +431,7 @@ async def generate_blueprint(
             system=system_prompt,
             max_retries=3,
             tier="blueprint_generator",
+            data_in_context=True,
         )
 
         if blueprint_data is None:

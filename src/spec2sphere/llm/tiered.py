@@ -46,9 +46,21 @@ class TieredProvider(LLMProvider):
             "yes" if cloud_provider else "no",
         )
 
-    def _resolve(self, tier: str) -> tuple[LLMProvider, str]:
-        """Resolve tier/action/quality to (provider, model_name)."""
-        model = self._router.resolve(tier)
+    def _resolve(self, tier: str, data_in_context: bool = False) -> tuple[LLMProvider, str]:
+        """Resolve tier/action/quality to (provider, model_name).
+
+        When data_in_context is True, the quality router enforces the
+        data-safe profile (local models only) per privacy config.
+        """
+        model = self._router.resolve(tier, data_in_context=data_in_context)
+
+        if data_in_context and not self._router.is_model_local(model):
+            # Safety net: even if profile config is wrong, never send data to cloud
+            logger.warning(
+                "data_in_context=True but resolved model %r is not local — forcing qwen2.5:14b",
+                model,
+            )
+            model = "qwen2.5:14b"
 
         # "anthropic" sentinel → route to cloud provider (legacy path)
         if model == "anthropic" and self._cloud is not None:
@@ -59,8 +71,15 @@ class TieredProvider(LLMProvider):
 
         return self._local, model
 
-    async def generate(self, prompt: str, system: str = "", *, tier: str = DEFAULT_TIER) -> Optional[str]:
-        provider, model = self._resolve(tier)
+    async def generate(
+        self,
+        prompt: str,
+        system: str = "",
+        *,
+        tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
+    ) -> Optional[str]:
+        provider, model = self._resolve(tier, data_in_context=data_in_context)
 
         if provider is self._local and hasattr(provider, "_chat"):
             messages = []
@@ -78,11 +97,11 @@ class TieredProvider(LLMProvider):
         system: str = "",
         *,
         tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
     ) -> Optional[dict]:
-        provider, model = self._resolve(tier)
+        provider, model = self._resolve(tier, data_in_context=data_in_context)
 
         if provider is self._local and hasattr(provider, "_chat"):
-            # Build JSON prompt manually so we can pass the explicit model
             import json as _json
 
             system_msg = system or "You are a structured data extraction assistant."

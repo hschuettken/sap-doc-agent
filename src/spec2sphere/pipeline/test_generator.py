@@ -483,6 +483,7 @@ async def _generate_dsp_tests_for_object(
         system=system_prompt,
         max_retries=2,
         tier="test_generator",
+        data_in_context=True,
     )
 
     if result is None:
@@ -615,6 +616,7 @@ async def _generate_sac_tests_for_blueprint(
         system=system_prompt,
         max_retries=2,
         tier="test_generator",
+        data_in_context=True,
     )
 
     if result is None:

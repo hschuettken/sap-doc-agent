@@ -280,6 +280,7 @@ async def parse_requirement(
         system=system_prompt,
         max_retries=3,
         tier="semantic_parser",
+        data_in_context=True,
     )
 
     if extracted is None:
@@ -430,6 +431,7 @@ async def detect_ambiguities(requirement_id: str, llm: LLMProvider, project_id=N
         system="You are a critical SAP data architect reviewing a BRS for completeness.",
         max_retries=2,
         tier="semantic_parser",
+        data_in_context=True,
     )
 
     ambiguities: list[dict] = (result or {}).get("ambiguities", [])

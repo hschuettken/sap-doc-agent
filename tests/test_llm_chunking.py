@@ -19,7 +19,9 @@ class _MockProvider:
         self._responses = list(responses)
         self._index = 0
 
-    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+    async def generate(
+        self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+    ) -> Optional[str]:
         if self._index < len(self._responses):
             resp = self._responses[self._index]
             self._index += 1
@@ -174,7 +176,9 @@ async def test_chunk_and_aggregate_uses_template():
     received_prompts: list[str] = []
 
     class _CapturingProvider:
-        async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+        async def generate(
+            self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+        ) -> Optional[str]:
             received_prompts.append(prompt)
             return '{"ok": true}'
 

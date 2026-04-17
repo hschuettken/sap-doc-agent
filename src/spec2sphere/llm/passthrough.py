@@ -15,7 +15,9 @@ class CopilotPassthroughProvider(LLMProvider):
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+    async def generate(
+        self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+    ) -> Optional[str]:
         self._write_prompt(prompt, system=system)
         return None
 
@@ -26,6 +28,7 @@ class CopilotPassthroughProvider(LLMProvider):
         system: str = "",
         *,
         tier: str = "large",
+        data_in_context: bool = False,
     ) -> Optional[dict]:
         full_prompt = (
             f"{prompt}\n\nRespond with JSON matching this schema:\n```json\n{json.dumps(schema, indent=2)}\n```"

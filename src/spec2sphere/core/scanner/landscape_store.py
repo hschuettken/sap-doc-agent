@@ -8,6 +8,21 @@ Integrates:
 - field_extractor: structured field metadata extracted after each upsert
 - version_tracker: scan_run lifecycle + object_history snapshots before updates
 """
+# ============================================================================
+# DATA PRIVACY POLICY
+# ============================================================================
+# This store persists METADATA ONLY from connected SAP systems:
+#   STORED: Object names, technical names, SQL view definitions, column
+#           names and types, dependency graphs, layer assignments,
+#           transformation logic, ABAP source code structure.
+#   NEVER STORED: Actual transactional data, row values, aggregated
+#                 business figures (revenue, quantities, etc.), personally
+#                 identifiable information (PII), or any SELECT results.
+#
+# The scanner extracts STRUCTURE, not DATA. If a view definition contains
+# hardcoded values in WHERE clauses or CASE expressions, those are part
+# of the structural logic and are stored.
+# ============================================================================
 
 from __future__ import annotations
 
@@ -24,6 +39,58 @@ from spec2sphere.scanner.models import ScanResult
 from spec2sphere.tenant.context import ContextEnvelope
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Data privacy guard
+# ---------------------------------------------------------------------------
+
+import re as _re  # noqa: E402 — kept here to avoid polluting top-level imports
+
+
+def _validate_no_transactional_data(content: str, object_name: str) -> None:
+    """Log a warning if content looks like it contains actual data values.
+
+    This is a heuristic guard only — not a guarantee. The scanner should
+    never receive SELECT query results, but this catches obvious accidents
+    (e.g. a developer accidentally passing row data instead of DDL).
+
+    Patterns checked:
+    - Multiple standalone integers on the same line (tabular row pattern)
+    - Pipe-delimited or tab-delimited columnar data blocks
+    - CSV-like lines with 5+ comma-separated numeric tokens
+    """
+    if not content:
+        return
+
+    # Pattern 1: line with 4+ standalone numbers (e.g. exported table rows)
+    number_row = _re.compile(r"^\s*(?:\d[\d.,]*\s+){4,}\d[\d.,]*\s*$", _re.MULTILINE)
+    if number_row.search(content):
+        logger.warning(
+            "landscape_store: possible transactional data detected in %s "
+            "(multiple numeric columns on a single line); only structural "
+            "metadata should be stored here",
+            object_name,
+        )
+        return
+
+    # Pattern 2: pipe-delimited rows that look like table dumps
+    pipe_row = _re.compile(r"^\s*\|(?:[^|]+\|){4,}\s*$", _re.MULTILINE)
+    if pipe_row.search(content):
+        logger.warning(
+            "landscape_store: possible tabular data detected in %s "
+            "(pipe-delimited columns); verify this is structural content, not row data",
+            object_name,
+        )
+        return
+
+    # Pattern 3: CSV lines with 5+ numeric tokens
+    csv_num_line = _re.compile(r"^(?:\"?[\d.,]+\"?\s*,\s*){5,}\"?[\d.,]+\"?\s*$", _re.MULTILINE)
+    if csv_num_line.search(content):
+        logger.warning(
+            "landscape_store: possible CSV row data detected in %s "
+            "(5+ comma-separated numeric values); only DDL / ABAP structure should be stored",
+            object_name,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +185,9 @@ async def store_scan_results(
                 obj_name = obj.name or tech_name
                 deps_json = json.dumps(dep_map.get(obj.object_id, []))
                 content_hash = obj.compute_hash()
+
+                # Heuristic guard: warn if content looks like transactional data
+                _validate_no_transactional_data(obj.description or obj.source_code or "", tech_name)
 
                 # Check if row already exists for this scope + identity
                 existing = await conn.fetchrow(

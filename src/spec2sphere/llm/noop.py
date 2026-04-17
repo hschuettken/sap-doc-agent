@@ -8,7 +8,9 @@ from spec2sphere.llm.base import LLMProvider
 
 
 class NoopLLMProvider(LLMProvider):
-    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+    async def generate(
+        self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+    ) -> Optional[str]:
         return None
 
     async def generate_json(
@@ -18,6 +20,7 @@ class NoopLLMProvider(LLMProvider):
         system: str = "",
         *,
         tier: str = "large",
+        data_in_context: bool = False,
     ) -> Optional[dict]:
         return None
 

@@ -292,6 +292,7 @@ async def generate_hla(
         system=system_prompt,
         max_retries=3,
         tier="hla_generator",
+        data_in_context=True,
     )
 
     if hla_content is None:

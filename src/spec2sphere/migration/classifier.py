@@ -199,7 +199,7 @@ async def classify_with_llm(
     )
 
     data = await generate_json_with_retry(
-        llm, prompt, schema=_CLASSIFY_SCHEMA, system=_CLASSIFY_SYSTEM, tier="migration_classifier"
+        llm, prompt, schema=_CLASSIFY_SCHEMA, system=_CLASSIFY_SYSTEM, tier="migration_classifier", data_in_context=True
     )
 
     if data is None:

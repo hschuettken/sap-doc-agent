@@ -606,6 +606,7 @@ class DocReviewAgent:
             schema=schema,
             system=system_prompt,
             tier="doc_review",
+            data_in_context=True,
         )
 
         if result and "document_types" in result:

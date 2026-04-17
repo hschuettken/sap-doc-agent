@@ -47,7 +47,9 @@ class AnthropicProvider(LLMProvider):
     def _resolve_model(self, tier: str) -> str:
         return self._TIER_MODELS.get(tier, self._model)
 
-    async def generate(self, prompt: str, system: str = "", *, tier: str = "large") -> Optional[str]:
+    async def generate(
+        self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+    ) -> Optional[str]:
         model = self._resolve_model(tier)
         payload: dict[str, Any] = {
             "model": model,
@@ -81,6 +83,7 @@ class AnthropicProvider(LLMProvider):
         system: str = "",
         *,
         tier: str = "large",
+        data_in_context: bool = False,
     ) -> Optional[dict]:
         import json
 

@@ -90,7 +90,7 @@ async def reconcile_brs(
     prompt = _build_prompt(intent_card, brs_document, brs_content)
 
     data = await generate_json_with_retry(
-        llm, prompt, schema=_RECONCILE_SCHEMA, system=_RECONCILE_SYSTEM, tier="brs_reconciler"
+        llm, prompt, schema=_RECONCILE_SCHEMA, system=_RECONCILE_SYSTEM, tier="brs_reconciler", data_in_context=True
     )
 
     if data is None:

@@ -172,3 +172,37 @@ async def reload_config() -> Dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Reload failed: {exc}") from exc
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Privacy endpoints
+# ---------------------------------------------------------------------------
+
+
+class PrivacyUpdateRequest(BaseModel):
+    local_only_with_data: Optional[bool] = None
+    local_models: Optional[list] = None
+    data_safe_profile: Optional[str] = None
+
+
+@router.get("/privacy")
+async def get_privacy_settings() -> Dict[str, Any]:
+    """Return current privacy-by-design settings."""
+    return _qr().get_privacy()
+
+
+@router.put("/privacy")
+async def update_privacy_settings(body: PrivacyUpdateRequest) -> Dict[str, Any]:
+    """Update privacy-by-design settings.
+
+    All fields are optional — only provided fields are updated.
+    """
+    try:
+        _qr().set_privacy(
+            local_only_with_data=body.local_only_with_data,
+            local_models=body.local_models,
+            data_safe_profile=body.data_safe_profile,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "privacy": _qr().get_privacy()}

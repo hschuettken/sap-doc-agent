@@ -222,6 +222,22 @@ def _default_config() -> dict[str, Any]:
         "custom_profiles": {},
         "cluster_overrides": {},
         "action_overrides": {},
+        # Privacy-by-design settings
+        "privacy": {
+            # When True, any LLM call with data_in_context=True is routed
+            # exclusively to models in the local_models list below.
+            "local_only_with_data": True,
+            # Models considered "local" (no data leaves the network).
+            # These run on the LLM Router → Ollama, never sent to cloud APIs.
+            "local_models": [
+                "qwen2.5:7b",
+                "qwen2.5:14b",
+                "qwen2.5:32b",
+            ],
+            # Profile to use when data_in_context is True and local_only_with_data
+            # is enabled. Must only contain local models.
+            "data_safe_profile": "all-local",
+        },
     }
 
 
@@ -261,15 +277,37 @@ class QualityRouter:
 
     # -- resolution ----------------------------------------------------------
 
-    def resolve(self, action_or_tier: str) -> str:
+    def resolve(self, action_or_tier: str, data_in_context: bool = False) -> str:
         """Resolve an action name, quality level, or legacy tier to a model name.
+
+        When data_in_context=True and local_only_with_data is enabled,
+        the data-safe profile is used instead of the active profile —
+        ensuring customer data never leaves the local network.
 
         Returns the concrete model name string (e.g. "claude-sonnet-4-6").
         """
         quality = self.resolve_quality(action_or_tier)
-        profile = self.get_active_profile()
+        profile = self._get_effective_profile(data_in_context)
         entry = profile.get(quality, profile.get("Q3", {"model": "qwen2.5:14b"}))
         return entry["model"]
+
+    def _get_effective_profile(self, data_in_context: bool) -> dict[str, dict[str, str]]:
+        """Return the profile to use, accounting for privacy settings."""
+        privacy = self._config.get("privacy", {})
+        if data_in_context and privacy.get("local_only_with_data", True):
+            safe_name = privacy.get("data_safe_profile", "all-local")
+            if safe_name in BUILTIN_PROFILES:
+                return BUILTIN_PROFILES[safe_name]
+            custom = self._config.get("custom_profiles", {})
+            if safe_name in custom:
+                return custom[safe_name]
+            return BUILTIN_PROFILES["all-local"]
+        return self.get_active_profile()
+
+    def is_model_local(self, model: str) -> bool:
+        """Check whether a model is considered local (no cloud API)."""
+        local = self._config.get("privacy", {}).get("local_models", [])
+        return model in local
 
     def resolve_quality(self, action_or_tier: str) -> str:
         """Resolve an action name or tier to a quality level (Q1-Q5).
@@ -372,6 +410,7 @@ class QualityRouter:
             "actions": actions_with_effective,
             "action_overrides": self._config.get("action_overrides", {}),
             "cluster_overrides": self._config.get("cluster_overrides", {}),
+            "privacy": self._config.get("privacy", _default_config()["privacy"]),
         }
 
     # -- mutations -----------------------------------------------------------
@@ -437,6 +476,32 @@ class QualityRouter:
             self._config["cluster_overrides"] = {}
             self._config["active_profile"] = "default"
             self._save()
+
+    # -- privacy mutations ---------------------------------------------------
+
+    def set_privacy(
+        self,
+        local_only_with_data: bool | None = None,
+        local_models: list[str] | None = None,
+        data_safe_profile: str | None = None,
+    ) -> None:
+        """Update privacy-by-design settings."""
+        with self._lock:
+            privacy = self._config.setdefault("privacy", _default_config()["privacy"])
+            if local_only_with_data is not None:
+                privacy["local_only_with_data"] = local_only_with_data
+            if local_models is not None:
+                privacy["local_models"] = local_models
+            if data_safe_profile is not None:
+                all_profiles = self.get_all_profiles()
+                if data_safe_profile not in all_profiles:
+                    raise ValueError(f"Unknown profile: {data_safe_profile!r}")
+                privacy["data_safe_profile"] = data_safe_profile
+            self._save()
+
+    def get_privacy(self) -> dict:
+        """Return current privacy settings."""
+        return self._config.get("privacy", _default_config()["privacy"])
 
     def reload(self) -> None:
         """Re-read config from disk."""
