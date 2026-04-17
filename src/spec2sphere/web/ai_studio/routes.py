@@ -48,7 +48,16 @@ def _render(request: Request, template: str, ctx: dict[str, Any]) -> HTMLRespons
 
 
 def create_ai_studio_router() -> APIRouter:
+    from .templates_library import create_templates_router
+    from .generation_log import create_log_router
+    from .brain_explorer import create_brain_router
+
     router = APIRouter(prefix="/ai-studio", tags=["ai-studio"])
+    # Sub-routers registered first so fixed prefixes (/templates, /log, /brain)
+    # are matched before the generic /{enh_id} path-param routes below.
+    router.include_router(create_templates_router())
+    router.include_router(create_log_router())
+    router.include_router(create_brain_router())
 
     @router.get("/", response_class=HTMLResponse)
     @router.get("", response_class=HTMLResponse)
@@ -66,6 +75,7 @@ def create_ai_studio_router() -> APIRouter:
             "partials/ai_studio.html",
             {
                 "active_page": "ai-studio",
+                "sub_nav": "enhancements",
                 "enhancements": [dict(r) for r in rows],
                 "is_author": _is_author(_current_email(request)),
             },

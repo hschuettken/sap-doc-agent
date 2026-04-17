@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Generation Log — AI Studio{% endblock %}
+{% block page_title %}AI Studio — Generation Log{% endblock %}
+{% block content %}
+<nav class="flex gap-1 text-sm border-b pb-2 mb-4">
+  {% set tabs = [
+    ('enhancements', '/ai-studio/', 'Enhancements'),
+    ('templates',    '/ai-studio/templates/', 'Templates'),
+    ('log',          '/ai-studio/log/', 'Generation Log'),
+    ('brain',        '/ai-studio/brain/', 'Brain Explorer'),
+  ] %}
+  {% for slug, url, label in tabs %}
+  <a href="{{ url }}"
+     class="px-3 py-1.5 rounded-md {{ 'bg-purple-600 text-white' if (sub_nav|default('enhancements')) == slug else 'text-gray-600 hover:bg-gray-100' }}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</nav>
+
+<form method="get" action="/ai-studio/log/" class="bg-white rounded-lg shadow p-4 mb-4 flex flex-wrap gap-3 items-end text-sm">
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500">Enhancement ID</label>
+    <input name="enhancement_id" value="{{ filters.enhancement_id or '' }}"
+           placeholder="uuid" class="border rounded px-2 py-1.5 text-sm w-48"/>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500">User ID</label>
+    <input name="user_id" value="{{ filters.user_id or '' }}"
+           placeholder="user" class="border rounded px-2 py-1.5 text-sm w-32"/>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500">Since</label>
+    <select name="since_hours" class="border rounded px-2 py-1.5 text-sm">
+      {% for h, label in [(1,'Last 1h'),(6,'Last 6h'),(24,'Last 24h'),(168,'Last 7d'),(720,'Last 30d')] %}
+      <option value="{{ h }}" {{ 'selected' if filters.since_hours == h else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500">Model</label>
+    <input name="model" value="{{ filters.model or '' }}"
+           placeholder="e.g. gpt-4o" class="border rounded px-2 py-1.5 text-sm w-32"/>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500">Error kind</label>
+    <input name="error_kind" value="{{ filters.error_kind or '' }}"
+           placeholder="e.g. timeout" class="border rounded px-2 py-1.5 text-sm w-32"/>
+  </div>
+  <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded text-sm">Filter</button>
+</form>
+
+<div class="bg-white rounded-lg shadow overflow-x-auto">
+  <table class="min-w-full text-xs">
+    <thead class="bg-gray-50">
+      <tr class="text-xs text-gray-500 uppercase tracking-wider">
+        <th class="px-3 py-2 text-left">Created</th>
+        <th class="px-3 py-2 text-left">Enhancement</th>
+        <th class="px-3 py-2 text-left">User</th>
+        <th class="px-3 py-2 text-left">Ctx</th>
+        <th class="px-3 py-2 text-left">Model</th>
+        <th class="px-3 py-2 text-center">Latency</th>
+        <th class="px-3 py-2 text-center">Cost</th>
+        <th class="px-3 py-2 text-center">Warnings</th>
+        <th class="px-3 py-2 text-center">Error</th>
+        <th class="px-3 py-2 text-center">Preview</th>
+        <th class="px-3 py-2"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for row in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ row['created_at'].strftime('%m-%d %H:%M') if row['created_at'] else '—' }}</td>
+        <td class="px-3 py-2 text-gray-900 max-w-xs truncate" title="{{ row['enh_name'] }}">{{ row['enh_name'] or (row['enhancement_id'][:8] if row['enhancement_id'] else '—') }}</td>
+        <td class="px-3 py-2 text-gray-600">{{ row['user_id'] or '—' }}</td>
+        <td class="px-3 py-2 text-gray-500 max-w-xs truncate" title="{{ row['context_key'] }}">{{ row['context_key'] or '—' }}</td>
+        <td class="px-3 py-2 text-gray-600">{{ row['model'] or '—' }}</td>
+        <td class="px-3 py-2 text-center text-gray-600">{{ row['latency_ms'] if row['latency_ms'] != none else '—' }}</td>
+        <td class="px-3 py-2 text-center text-gray-600">{% if row['cost_usd'] != none %}${{ '%.4f' % row['cost_usd'] }}{% else %}—{% endif %}</td>
+        <td class="px-3 py-2 text-center">
+          {% if row['quality_warnings'] %}
+          <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">{{ row['quality_warnings'] | length }}</span>
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-3 py-2 text-center">
+          {% if row['error_kind'] %}
+          <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">{{ row['error_kind'] }}</span>
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-3 py-2 text-center">
+          {% if row['preview'] %}
+          <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">preview</span>
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-3 py-2 text-right">
+          <a href="/ai-studio/log/{{ row['id'] }}" class="text-purple-600 hover:underline">Why</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="11" class="px-4 py-8 text-center text-gray-400">No generations found for this filter.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -2,6 +2,20 @@
 {% block title %}AI Studio — Spec2Sphere{% endblock %}
 {% block page_title %}AI Studio{% endblock %}
 {% block content %}
+<nav class="flex gap-1 text-sm border-b pb-2 mb-4">
+  {% set tabs = [
+    ('enhancements', '/ai-studio/', 'Enhancements'),
+    ('templates',    '/ai-studio/templates/', 'Templates'),
+    ('log',          '/ai-studio/log/', 'Generation Log'),
+    ('brain',        '/ai-studio/brain/', 'Brain Explorer'),
+  ] %}
+  {% for slug, url, label in tabs %}
+  <a href="{{ url }}"
+     class="px-3 py-1.5 rounded-md {{ 'bg-purple-600 text-white' if (sub_nav|default('enhancements')) == slug else 'text-gray-600 hover:bg-gray-100' }}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</nav>
 <div class="space-y-4">
   {% if is_author %}
   <form method="post" action="/ai-studio/" class="bg-white rounded-lg shadow p-4 flex gap-2 items-center">

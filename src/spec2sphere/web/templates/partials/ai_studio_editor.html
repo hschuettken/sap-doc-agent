@@ -8,11 +8,19 @@
 <div class="grid grid-cols-2 gap-4">
   <div class="bg-white rounded-lg shadow p-4">
     <label class="block text-sm font-medium text-gray-700 mb-2">Config JSON</label>
-    <textarea id="config-editor"
+    {# Fallback textarea — hidden once Monaco loads #}
+    <textarea name="config_json" id="config-json-ta"
               class="w-full h-96 font-mono text-sm border rounded p-3 focus:outline-purple-500">{{ config_json }}</textarea>
+    {# Monaco mount point #}
+    <div id="monaco-editor" style="height:400px;border:1px solid #e5e7eb;border-radius:6px;display:none;"></div>
+    {# Preview budget meter #}
+    <div class="text-xs text-gray-500 mt-2">
+      <span>Preview budget: <span id="preview-budget-remaining">20</span>/20 this session</span>
+      <button id="preview-budget-reset" class="ml-2 text-purple-600 hover:underline" type="button">Reset</button>
+    </div>
     <div class="mt-3 flex gap-2 items-center">
       <button id="btn-save" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm">Save draft</button>
-      <button id="btn-preview" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">Run preview</button>
+      <button id="btn-preview" data-preview-btn class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">Run preview</button>
       <form method="post" action="/ai-studio/{{ enh.id }}/publish" class="ml-auto">
         <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm">Publish</button>
       </form>
@@ -20,9 +28,14 @@
     <div id="save-status" class="mt-2 text-xs text-gray-500"></div>
   </div>
 
-  <div class="bg-white rounded-lg shadow p-4">
-    <h3 class="font-medium text-gray-700 mb-2">Preview</h3>
-    <pre id="preview-output" class="text-sm bg-gray-50 p-3 rounded h-96 overflow-auto font-mono">— click “Run preview” to evaluate —</pre>
+  <div class=”bg-white rounded-lg shadow p-4”>
+    <h3 class=”font-medium text-gray-700 mb-2”>Preview</h3>
+    <pre id=”preview-output” class=”text-sm bg-gray-50 p-3 rounded h-96 overflow-auto font-mono”>— click “Run preview” to evaluate —</pre>
+    {# Admin chip — populated after preview response #}
+    <div id=”admin-chip” class=”hidden mt-2 text-xs”>
+      <a id=”admin-chip-link” href=”#”
+         class=”inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200”></a>
+    </div>
   </div>
 </div>
 
@@ -33,8 +46,32 @@
   const out    = document.getElementById('preview-output');
   const status = document.getElementById('save-status');
 
+  // Admin chip helper
+  window.updateAdminChip = function(payload) {
+    var chip = document.getElementById('admin-chip');
+    var link = document.getElementById('admin-chip-link');
+    if (!payload || !payload.generation_id) { chip.classList.add('hidden'); return; }
+    var p = payload.provenance || {};
+    link.textContent = 'gen=' + String(payload.generation_id).slice(0,8)
+                    + ' · ' + (p.latency_ms || '?') + 'ms · ' + (p.model || 'model?');
+    link.href = '/ai-studio/log/' + payload.generation_id;
+    chip.classList.remove('hidden');
+  };
+
+  // Preview budget (sessionStorage)
+  var BUDGET_KEY = 'dspai:preview-budget';
+  var BUDGET_MAX = 20;
+  function budgetGet() { return parseInt(sessionStorage.getItem(BUDGET_KEY) || BUDGET_MAX, 10); }
+  function budgetSet(v) { sessionStorage.setItem(BUDGET_KEY, String(v)); budgetRender(); }
+  function budgetRender() { document.getElementById('preview-budget-remaining').textContent = budgetGet(); }
+  document.getElementById('preview-budget-reset').addEventListener('click', function() { budgetSet(BUDGET_MAX); });
+  budgetRender();
+
   async function runPreview() {
+    if (budgetGet() <= 0) { alert('Preview budget exhausted — click Reset.'); return; }
+    budgetSet(budgetGet() - 1);
     out.textContent = 'Running…';
+    window.updateAdminChip(null);
     try {
       const resp = await fetch(`/ai-studio/${ENH_ID}/preview`, {
         method: 'POST',
@@ -43,13 +80,14 @@
       });
       const data = await resp.json();
       out.textContent = JSON.stringify(data, null, 2);
+      window.updateAdminChip(data);
     } catch (err) {
       out.textContent = 'preview failed: ' + err;
     }
   }
 
   async function saveDraft() {
-    const txt = document.getElementById('config-editor').value;
+    const txt = document.getElementById('config-json-ta').value;
     let parsed;
     try { parsed = JSON.parse(txt); }
     catch (err) { status.textContent = 'invalid JSON — ' + err.message; return; }
@@ -64,6 +102,33 @@
 
   document.getElementById('btn-preview').addEventListener('click', runPreview);
   document.getElementById('btn-save').addEventListener('click', saveDraft);
+
+  // Monaco lazy-load (CDN). Falls back to textarea if CDN unavailable.
+  (function() {
+    var ta = document.getElementById('config-json-ta');
+    var monacoDiv = document.getElementById('monaco-editor');
+    var loaderUrl = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.46.0/min/vs/loader.js';
+    var s = document.createElement('script');
+    s.src = loaderUrl;
+    s.onerror = function() { monacoDiv.style.display = 'none'; /* keep textarea visible */ };
+    s.onload = function() {
+      require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.46.0/min/vs' } });
+      require(['vs/editor/editor.main'], function() {
+        monacoDiv.style.display = '';
+        ta.style.display = 'none';
+        var editor = monaco.editor.create(monacoDiv, {
+          value: ta.value,
+          language: 'json',
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 13,
+        });
+        // Keep textarea in sync so existing form submit and saveDraft() still work.
+        editor.onDidChangeModelContent(function() { ta.value = editor.getValue(); });
+      });
+    };
+    document.head.appendChild(s);
+  })();
 })();
 </script>
 {% endblock %}
