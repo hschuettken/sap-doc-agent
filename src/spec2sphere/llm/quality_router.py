@@ -554,7 +554,7 @@ def get_quality_router() -> QualityRouter:
 
 
 # ---------------------------------------------------------------------------
-# DSP-AI engine entry-point (stub — replaced in Task 10)
+# DSP-AI engine entry-point — programmatic API for Stage 5 (run_llm)
 # ---------------------------------------------------------------------------
 
 
@@ -565,11 +565,72 @@ async def resolve_and_call(
     data_in_context: bool = False,
     schema: dict | None = None,
 ) -> tuple[Any, dict]:
-    """Route an LLM call through the quality router.
+    """Route an LLM call through the quality router and hit ``$LLM_ENDPOINT``.
 
-    The full implementation lands in Task 10.  This stub lets Stage 5
-    (run_llm) import the function at module level so tests can monkeypatch
-    ``spec2sphere.dsp_ai.stages.run_llm.resolve_and_call`` without an
-    ImportError at collection time.
+    Resolves the quality level + concrete model for ``action``, then POSTs
+    to an OpenAI-compatible ``/chat/completions`` endpoint. When ``schema``
+    is provided, requests structured output via ``response_format`` so the
+    caller gets parsed JSON back; without a schema the raw text is returned.
+
+    ``data_in_context=True`` pins the call to a local-only profile (privacy
+    safety net — keeps customer data off cloud endpoints).
+
+    Returns ``(output, meta)`` where ``meta`` contains model, quality_level,
+    tokens_in/out, cost_usd (None in v1). Stage 5 attaches latency_ms.
     """
-    raise NotImplementedError("resolve_and_call is not yet implemented — see Task 10")
+    import time
+
+    import httpx
+
+    router = get_quality_router()
+    quality = router.resolve_quality(action)
+    model = router.resolve(action, data_in_context=data_in_context)
+
+    endpoint = os.environ.get("LLM_ENDPOINT", "").rstrip("/")
+    if not endpoint:
+        raise RuntimeError("LLM_ENDPOINT is not set")
+    api_key = os.environ.get("LLM_API_KEY", "")
+
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2,
+    }
+    if schema is not None:
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": action, "schema": schema},
+        }
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    t0 = time.time()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(f"{endpoint}/chat/completions", json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+    content = data["choices"][0]["message"]["content"]
+    usage = data.get("usage") or {}
+
+    if schema is not None:
+        try:
+            parsed: Any = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            # LLM returned non-JSON despite response_format — surface raw
+            # string so downstream shape_output can flag it gracefully.
+            parsed = {"raw": content}
+    else:
+        parsed = content
+
+    meta: dict[str, Any] = {
+        "model": model,
+        "quality_level": quality,
+        "tokens_in": usage.get("prompt_tokens"),
+        "tokens_out": usage.get("completion_tokens"),
+        "cost_usd": None,
+        "endpoint_latency_ms": int((time.time() - t0) * 1000),
+    }
+    return parsed, meta
