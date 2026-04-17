@@ -146,7 +146,7 @@ class TestTraceSpanDecorator:
         async def my_coro():
             return 42
 
-        result = asyncio.get_event_loop().run_until_complete(my_coro())
+        result = asyncio.new_event_loop().run_until_complete(my_coro())
         assert result == 42
 
     def test_sync_function_called_without_tracer(self):
@@ -173,6 +173,6 @@ class TestTraceSpanDecorator:
         async def my_coro():
             return 99
 
-        result = asyncio.get_event_loop().run_until_complete(my_coro())
+        result = asyncio.new_event_loop().run_until_complete(my_coro())
         assert result == 99
         mock_tracer.start_as_current_span.assert_called_once_with("test.active_span")

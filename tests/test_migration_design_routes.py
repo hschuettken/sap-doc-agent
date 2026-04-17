@@ -17,6 +17,12 @@ def _get_client(output_dir="tests/fixtures/sample_bw_scan"):
     app = create_app(output_dir=output_dir)
     client = TestClient(app, follow_redirects=True)
     client.post("/ui/login", data={"password": "testpass"}, follow_redirects=False)
+    # Prime CSRF cookie via a GET then attach matching header to the client
+    # so subsequent POSTs from authenticated tests are not CSRF-rejected.
+    client.get("/ui/dashboard", follow_redirects=False)
+    csrf = client.cookies.get("csrf_token")
+    if csrf:
+        client.headers["X-CSRF-Token"] = csrf
     return client
 
 

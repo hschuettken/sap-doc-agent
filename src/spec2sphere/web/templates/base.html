@@ -25,6 +25,15 @@
     </script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+    <script>
+    // CSRF: forward csrf_token cookie as X-CSRF-Token header on mutating HTMX requests.
+    document.addEventListener('htmx:configRequest', function(evt) {
+        var m = (evt.detail.verb || '').toUpperCase();
+        if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
+        var match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        if (match) evt.detail.headers['X-CSRF-Token'] = decodeURIComponent(match[1]);
+    });
+    </script>
     <link rel="stylesheet" href="/static/style.css">
     {% block head %}{% endblock %}
 </head>
