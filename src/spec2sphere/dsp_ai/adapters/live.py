@@ -13,10 +13,11 @@ import json  # noqa: F401 — used in why() and stream() function bodies
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from .. import cache
+from ..auth import Principal, require_author, require_or_anon
 from ..config import EnhancementMode
 from ..engine import run_engine
 
@@ -33,7 +34,11 @@ class EnhanceRequest(BaseModel):
 
 
 @router.post("/v1/enhance/{enhancement_id}")
-async def enhance(enhancement_id: str, body: EnhanceRequest = Body(default=None)) -> dict:
+async def enhance(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require_or_anon),
+) -> dict:
     """Run an enhancement. Preview bypasses cache + skips DSP write-back."""
     body = body or EnhanceRequest()
     key = cache.key_for(enhancement_id, body.user, body.context_hints)
@@ -62,7 +67,11 @@ async def enhance(enhancement_id: str, body: EnhanceRequest = Body(default=None)
 
 
 @router.post("/v1/actions/{enhancement_id}/run")
-async def run_action(enhancement_id: str, body: EnhanceRequest = Body(default=None)) -> dict:
+async def run_action(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require_or_anon),
+) -> dict:
     """Synchronous click-to-run action. No cache. Full shaped output."""
     body = body or EnhanceRequest()
     try:
@@ -77,8 +86,41 @@ async def run_action(enhancement_id: str, body: EnhanceRequest = Body(default=No
         raise HTTPException(status_code=404, detail="enhancement not found")
 
 
+@router.post("/v1/actions/{enhancement_id}/regen")
+async def force_regen(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require_author),
+) -> dict:
+    """Force regeneration, bypassing any cached result. Author only."""
+    body = body or EnhanceRequest()
+
+    # Bust cache for this (enhancement, user, ctx) triplet before re-running
+    key = cache.key_for(enhancement_id, body.user or p.user_id, body.context_hints)
+    try:
+        await cache._get().delete(key)
+    except Exception:
+        pass  # cache bust is best-effort; still proceed with fresh generation
+
+    try:
+        result = await run_engine(
+            enhancement_id,
+            user_id=body.user or p.user_id,
+            context_hints=body.context_hints,
+            context_key=body.context_key,
+            mode_override=EnhancementMode.LIVE,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail="enhancement not found")
+    return result
+
+
 @router.get("/v1/stream/{enhancement_id}/{user_id}")
-async def stream(enhancement_id: str, user_id: str):
+async def stream(
+    enhancement_id: str,
+    user_id: str,
+    p: Principal = Depends(require_or_anon),
+):
     """SSE stream — pushes ``briefing_generated`` events filtered by enhancement + user."""
     from sse_starlette.sse import EventSourceResponse  # noqa: PLC0415
 
@@ -93,7 +135,7 @@ async def stream(enhancement_id: str, user_id: str):
 
 
 @router.post("/v1/why/{generation_id}")
-async def why(generation_id: str) -> dict:
+async def why(generation_id: str, p: Principal = Depends(require_or_anon)) -> dict:
     """Return provenance + 1-hop brain expansion for a completed generation."""
     from ..db import get_conn  # noqa: PLC0415
 

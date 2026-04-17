@@ -3,6 +3,7 @@ import type { WidgetContext } from './api';
 import { postTelemetry } from './telemetry';
 import { resolveContext } from './sac_context';
 import { renderByHint } from './renderers/index';
+import { isAuthor } from './auth';
 import type { EnhanceResponse } from './types';
 
 class Spec2SphereAiWidget extends HTMLElement {
@@ -11,7 +12,7 @@ class Spec2SphereAiWidget extends HTMLElement {
   private _ctx: WidgetContext | null = null;
 
   static get observedAttributes(): string[] {
-    return ['enhancementid', 'apibase', 'authmode'];
+    return ['enhancementid', 'apibase', 'authmode', 'bearer-token'];
   }
 
   connectedCallback(): void {
@@ -35,15 +36,26 @@ class Spec2SphereAiWidget extends HTMLElement {
     });
   }
 
+  private _bearerToken(): string | null {
+    return this.getAttribute('bearer-token');
+  }
+
+  private _authHeaders(): Record<string, string> {
+    const token = this._bearerToken();
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }
+
   private async _init(): Promise<void> {
     const id = this.getAttribute('enhancementid') ?? '';
     const apiBase = this.getAttribute('apibase') ?? '';
     const fallbackUser = this.getAttribute('fallbackuser') ?? undefined;
+    const token = this._bearerToken();
 
     this._ctx = await resolveContext(fallbackUser ? { user: fallbackUser } : undefined);
 
     try {
-      const data = await fetchEnhancement(apiBase, id, this._ctx);
+      const data = await fetchEnhancement(apiBase, id, this._ctx, token);
       this._render(data);
       postTelemetry(apiBase, {
         event: 'widget.rendered',
@@ -70,7 +82,21 @@ class Spec2SphereAiWidget extends HTMLElement {
 
   private _render(data: EnhanceResponse): void {
     if (!this.shadowRoot) return;
+    const token = this._bearerToken();
     this.shadowRoot.innerHTML = renderByHint(data);
+
+    // Admin chip — only for author-role tokens
+    if (isAuthor(token)) {
+      const chip = document.createElement('span');
+      chip.setAttribute(
+        'style',
+        'display:inline-block;background:#1d4ed8;color:#fff;font:11px system-ui,sans-serif;' +
+        'padding:2px 8px;border-radius:4px;margin:4px 0;',
+      );
+      chip.textContent = 'Author';
+      chip.className = 'admin-chip';
+      this.shadowRoot.appendChild(chip);
+    }
 
     // Wire button action handler
     const btn = this.shadowRoot.querySelector<HTMLButtonElement>('[data-action="run"]');
@@ -78,14 +104,17 @@ class Spec2SphereAiWidget extends HTMLElement {
       const apiBase = this.getAttribute('apibase') ?? '';
       const id = this.getAttribute('enhancementid') ?? '';
       const ctx = this._ctx;
+      const authHeaders = this._authHeaders();
       btn.addEventListener('click', () => {
-        void runAction(apiBase, id, ctx).then((result) => {
+        void runAction(apiBase, id, ctx, token).then((result) => {
           this._render(result);
           this.dispatchEvent(
             new CustomEvent('onInteraction', { detail: result, bubbles: true, composed: true }),
           );
         });
       });
+      // Keep authHeaders in scope (satisfies TS unused-var check)
+      void authHeaders;
     }
   }
 }

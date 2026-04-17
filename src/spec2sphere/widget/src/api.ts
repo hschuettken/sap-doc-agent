@@ -5,14 +5,20 @@ export interface WidgetContext {
   hints: Record<string, unknown>;
 }
 
+function _authHeaders(token: string | null): Record<string, string> {
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 export async function fetchEnhancement(
   apiBase: string,
   id: string,
   ctx: WidgetContext,
+  token: string | null = null,
 ): Promise<EnhanceResponse> {
   const res = await fetch(`${apiBase}/v1/enhance/${id}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ..._authHeaders(token) },
     body: JSON.stringify({ user: ctx.user, context_hints: ctx.hints }),
   });
   if (!res.ok) {
@@ -26,10 +32,11 @@ export async function runAction(
   apiBase: string,
   id: string,
   ctx: WidgetContext,
+  token: string | null = null,
 ): Promise<EnhanceResponse> {
   const res = await fetch(`${apiBase}/v1/actions/${id}/run`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ..._authHeaders(token) },
     body: JSON.stringify({ user: ctx.user, context_hints: ctx.hints }),
   });
   if (!res.ok) {
