@@ -16,7 +16,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..client import run
 
 
 def _normalise_graph(raw: dict[str, Any]) -> list[dict[str, Any]]:
@@ -42,20 +41,22 @@ async def feed_from_graph_json(customer: str, graph_path: Path) -> dict[str, int
     Returns counts of objects + columns written so callers can log the
     feeder's effect.
     """
+    from ..client import run_scoped  # noqa: PLC0415
+
     data = json.loads(Path(graph_path).read_text())
     counts = {"objects": 0, "columns": 0}
     for obj in _normalise_graph(data):
         oid = obj.get("id")
         if not oid:
             continue
-        await run(
+        await run_scoped(
             """
-            MERGE (o:DspObject {id: $id})
-            SET o.kind = $kind, o.customer = $customer
+            MERGE (o:DspObject {id: $id, customer: $customer})
+            SET o.kind = $kind
             """,
+            customer,
             id=oid,
             kind=obj.get("kind", "Unknown"),
-            customer=customer,
         )
         counts["objects"] += 1
         for col in obj.get("columns") or []:
@@ -63,13 +64,14 @@ async def feed_from_graph_json(customer: str, graph_path: Path) -> dict[str, int
             if not col_name:
                 continue
             col_id = f"{oid}.{col_name}"
-            await run(
+            await run_scoped(
                 """
-                MATCH (o:DspObject {id: $oid})
+                MATCH (o:DspObject {id: $oid, customer: $customer})
                 MERGE (c:Column {id: $cid})
                 SET c.dtype = $dtype, c.nullable = $nullable
                 MERGE (o)-[:HAS_COLUMN]->(c)
                 """,
+                customer,
                 oid=oid,
                 cid=col_id,
                 dtype=col.get("dtype", "?"),

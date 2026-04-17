@@ -15,9 +15,6 @@ import json
 import logging
 from pathlib import Path
 
-import asyncpg
-
-from .settings import postgres_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +30,12 @@ async def upsert_enhancement(config: dict, *, author: str = "system", publish: b
     """Insert ``config`` as a draft (or published) Enhancement. Returns the new id, or
     None if a row with that (name, version) already exists.
     """
+    from .db import current_customer, get_conn  # noqa: PLC0415
+
     name = config["name"]
     kind = config["kind"]
     status = "published" if publish else "draft"
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         existing = await conn.fetchval(
             "SELECT id::text FROM dsp_ai.enhancements WHERE name = $1 AND version = $2",
             name,
@@ -46,13 +44,14 @@ async def upsert_enhancement(config: dict, *, author: str = "system", publish: b
         if existing:
             return None
         new_id = await conn.fetchval(
-            "INSERT INTO dsp_ai.enhancements (name, kind, status, config, author) "
-            "VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id::text",
+            "INSERT INTO dsp_ai.enhancements (name, kind, status, config, author, customer) "
+            "VALUES ($1, $2, $3, $4::jsonb, $5, $6) RETURNING id::text",
             name,
             kind,
             status,
             json.dumps(config),
             author,
+            current_customer(),
         )
         if new_id and publish:
             try:
@@ -63,8 +62,6 @@ async def upsert_enhancement(config: dict, *, author: str = "system", publish: b
             except Exception:
                 pass  # best-effort NOTIFY
         return new_id
-    finally:
-        await conn.close()
 
 
 async def ensure_morning_brief_seeded() -> str | None:

@@ -9,11 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
-import asyncpg
+import asyncpg  # noqa: F401 — used in type annotations below
 from celery import shared_task
 
 from ..engine import run_engine
-from ..settings import postgres_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +30,11 @@ async def _published_batch_enhancements(conn: asyncpg.Connection) -> list[str]:
 
 
 async def _run_batch_enhancements_async() -> dict:
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    from ..db import get_conn  # noqa: PLC0415
+
+    async with get_conn() as conn:
         enh_ids = await _published_batch_enhancements(conn)
         users = await _active_users(conn)
-    finally:
-        await conn.close()
 
     ran = 0
     errors = 0

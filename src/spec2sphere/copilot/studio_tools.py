@@ -12,10 +12,7 @@ import os
 import uuid
 from typing import Any
 
-import asyncpg
 import httpx
-
-from spec2sphere.dsp_ai.settings import postgres_dsn
 
 
 def _text(msg: str) -> dict:
@@ -27,9 +24,10 @@ def _err(msg: str) -> dict:
 
 
 async def list_enhancements(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
     status = args.get("status")
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         if status:
             rows = await conn.fetch(
                 "SELECT id::text AS id, name, kind, version, status "
@@ -40,8 +38,6 @@ async def list_enhancements(args: dict) -> dict:
             rows = await conn.fetch(
                 "SELECT id::text AS id, name, kind, version, status FROM dsp_ai.enhancements ORDER BY updated_at DESC"
             )
-    finally:
-        await conn.close()
     if not rows:
         return _text("No enhancements found.")
     lines = [f"Found {len(rows)} enhancement(s):"]
@@ -51,17 +47,16 @@ async def list_enhancements(args: dict) -> dict:
 
 
 async def get_enhancement(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
     enh_id = args.get("enhancement_id", "")
     if not enh_id:
         return _err("enhancement_id is required")
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "SELECT id::text AS id, name, kind, version, status, config FROM dsp_ai.enhancements WHERE id = $1::uuid",
             enh_id,
         )
-    finally:
-        await conn.close()
     if row is None:
         return _err(f"Enhancement not found: {enh_id}")
     cfg = row["config"]
@@ -75,6 +70,8 @@ async def get_enhancement(args: dict) -> dict:
 
 
 async def create_enhancement(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
+
     name = args.get("name", "")
     kind = args.get("kind", "")
     config = args.get("config") or {}
@@ -87,22 +84,23 @@ async def create_enhancement(args: dict) -> dict:
         except Exception:
             return _err("config must be a JSON object or stringified JSON")
     new_id = str(uuid.uuid4())
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         await conn.execute(
-            "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author) VALUES ($1::uuid, $2, $3, $4::jsonb, $5)",
+            "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author, customer) "
+            "VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6)",
             new_id,
             name,
             kind,
             json.dumps(config),
             author,
+            current_customer(),
         )
-    finally:
-        await conn.close()
     return _text(f"Created enhancement {new_id} (status=draft).")
 
 
 async def update_enhancement(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
     enh_id = args.get("enhancement_id", "")
     patch = args.get("patch") or {}
     if not enh_id:
@@ -112,8 +110,7 @@ async def update_enhancement(args: dict) -> dict:
             patch = json.loads(patch)
         except Exception:
             return _err("patch must be a JSON object or stringified JSON")
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "SELECT config FROM dsp_ai.enhancements WHERE id = $1::uuid",
             enh_id,
@@ -129,8 +126,6 @@ async def update_enhancement(args: dict) -> dict:
             json.dumps(merged),
             enh_id,
         )
-    finally:
-        await conn.close()
     return _text(f"Updated enhancement {enh_id} (merged {len(patch)} key(s)).")
 
 
@@ -155,22 +150,21 @@ async def preview(args: dict) -> dict:
 
 
 async def publish(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
     enh_id = args.get("enhancement_id", "")
     if not enh_id:
         return _err("enhancement_id is required")
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "UPDATE dsp_ai.enhancements SET status='published', updated_at=NOW() "
             "WHERE id = $1::uuid RETURNING id::text AS id",
             enh_id,
         )
-    finally:
-        await conn.close()
     if row is None:
         return _err(f"Enhancement not found: {enh_id}")
     try:
-        from spec2sphere.dsp_ai.events import emit
+        from spec2sphere.dsp_ai.events import emit  # noqa: PLC0415
 
         await emit("enhancement_published", {"id": enh_id})
     except Exception:
@@ -191,7 +185,7 @@ async def query_brain(args: dict) -> dict:
         if (" " + verb + " ") in (" " + cypher.upper() + " "):
             return _err(f"write verb '{verb}' not permitted")
     try:
-        from spec2sphere.dsp_ai.brain.client import run as brain_run
+        from spec2sphere.dsp_ai.brain.client import run as brain_run  # noqa: PLC0415
 
         rows = await brain_run(cypher, **params)
     except Exception as e:
@@ -200,6 +194,8 @@ async def query_brain(args: dict) -> dict:
 
 
 async def generation_log(args: dict) -> dict:
+    from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
     enh_id: str | None = args.get("enhancement_id")
     user_id: str | None = args.get("user_id")
     limit = int(args.get("limit", 50))
@@ -219,11 +215,8 @@ async def generation_log(args: dict) -> dict:
     if filters:
         sql += " WHERE " + " AND ".join(filters)
     sql += f" ORDER BY created_at DESC LIMIT {max(1, min(limit, 200))}"
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         rows = await conn.fetch(sql, *params)
-    finally:
-        await conn.close()
     if not rows:
         return _text("No generations found.")
     lines = [f"{len(rows)} generation(s):"]

@@ -77,6 +77,9 @@ class _FakeConn:
     def __init__(self, row):
         self._row = row
 
+    async def execute(self, query, *args):
+        pass  # GUC set_config no-op
+
     async def fetchrow(self, query, *args):
         return self._row
 
@@ -124,7 +127,7 @@ async def test_why_404_on_unknown() -> None:
     _, connect = _make_why_conn(None)
 
     # asyncpg is imported lazily inside why() — patch the module directly
-    with patch("asyncpg.connect", connect):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", connect):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             r = await c.post("/v1/why/00000000-0000-0000-0000-000000000000")
 
@@ -138,7 +141,7 @@ async def test_why_200_with_narrative() -> None:
     _, connect = _make_why_conn(row)
 
     with (
-        patch("asyncpg.connect", connect),
+        patch("spec2sphere.dsp_ai.db.asyncpg.connect", connect),
         patch("spec2sphere.dsp_ai.brain.client.run", AsyncMock(return_value=[])),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

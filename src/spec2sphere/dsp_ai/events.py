@@ -33,11 +33,10 @@ async def emit(channel: str, payload: dict[str, Any]) -> None:
     Opens and closes a dedicated connection — emits are rare and short,
     so the pool overhead is wasted complexity here.
     """
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    from .db import get_conn  # noqa: PLC0415
+
+    async with get_conn() as conn:
         await conn.execute("SELECT pg_notify($1, $2)", channel, json.dumps(payload))
-    finally:
-        await conn.close()
 
 
 async def subscribe(
@@ -59,9 +58,12 @@ async def subscribe(
         except Exception:  # pragma: no cover — malformed NOTIFY payload
             logger.exception("failed to decode NOTIFY payload on %s", channel)
 
+    from .db import current_customer  # noqa: PLC0415
+
     while True:
         try:
             conn = await asyncpg.connect(postgres_dsn())
+            await conn.execute("SELECT set_config('dspai.customer', $1, false)", current_customer())
         except Exception:
             logger.warning("NOTIFY listen connect failed for %s; retrying", channel, exc_info=True)
             await asyncio.sleep(reconnect_delay)

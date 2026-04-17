@@ -6,9 +6,6 @@ import datetime as dt
 import logging
 from typing import TYPE_CHECKING
 
-import asyncpg
-
-from ...settings import postgres_dsn
 from ..client import run as brain_run
 
 if TYPE_CHECKING:
@@ -23,20 +20,20 @@ async def record_event(event: "TelemetryEvent") -> None:
     Best-effort on the Brain side — Neo4j down must not break widget
     telemetry. The Postgres upsert is the system of record for last-visit.
     """
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    from ...db import current_customer, get_conn  # noqa: PLC0415
+
+    async with get_conn() as conn:
         await conn.execute(
             """
-            INSERT INTO dsp_ai.user_state (user_id, last_visited_at, updated_at)
-            VALUES ($1, NOW(), NOW())
+            INSERT INTO dsp_ai.user_state (user_id, last_visited_at, updated_at, customer)
+            VALUES ($1, NOW(), NOW(), $2)
             ON CONFLICT (user_id) DO UPDATE SET
                 last_visited_at = EXCLUDED.last_visited_at,
                 updated_at = EXCLUDED.updated_at
             """,
             event.user_id,
+            current_customer(),
         )
-    finally:
-        await conn.close()
 
     if not event.object_id:
         return

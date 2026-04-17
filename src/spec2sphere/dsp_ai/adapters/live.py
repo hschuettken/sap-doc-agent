@@ -95,12 +95,9 @@ async def stream(enhancement_id: str, user_id: str):
 @router.post("/v1/why/{generation_id}")
 async def why(generation_id: str) -> dict:
     """Return provenance + 1-hop brain expansion for a completed generation."""
-    import asyncpg  # noqa: PLC0415
+    from ..db import get_conn  # noqa: PLC0415
 
-    from ..settings import postgres_dsn  # noqa: PLC0415
-
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "SELECT g.id::text AS gen_id, g.enhancement_id::text AS eid, g.user_id, g.context_key, "
             "g.prompt_hash, g.input_ids, g.model, g.quality_level, g.latency_ms, "
@@ -112,8 +109,6 @@ async def why(generation_id: str) -> dict:
             "WHERE g.id = $1::uuid",
             generation_id,
         )
-    finally:
-        await conn.close()
 
     if row is None:
         raise HTTPException(status_code=404, detail="generation not found")
@@ -207,12 +202,10 @@ async def readyz() -> dict:
     warnings: list[str] = []
 
     try:
-        import asyncpg
+        from ..db import get_conn  # noqa: PLC0415
 
-        from ..settings import postgres_dsn
-
-        conn = await asyncpg.connect(postgres_dsn())
-        await conn.close()
+        async with get_conn() as conn:
+            await conn.fetchval("SELECT 1")
     except Exception:
         warnings.append("postgres")
 

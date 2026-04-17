@@ -7,7 +7,6 @@ NEVER break the underlying LLM call.
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import logging
 import time
@@ -121,35 +120,27 @@ class ObservedLLMProvider(LLMProvider):
         latency_ms = int((time.time() - t0) * 1000)
         prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
         try:
-            import asyncpg
+            from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
 
-            from spec2sphere.dsp_ai.settings import postgres_dsn
-
-            conn = await asyncpg.connect(postgres_dsn())
-        except Exception:
-            logger.debug("observed_llm: skipping log (db unavailable)", exc_info=True)
-            return
-        try:
-            await conn.execute(
-                """
-                INSERT INTO dsp_ai.generations
-                    (id, enhancement_id, user_id, context_key, prompt_hash, input_ids,
-                     model, quality_level, latency_ms, tokens_in, tokens_out, cost_usd,
-                     cached, quality_warnings, error_kind, preview, caller)
-                VALUES ($1::uuid, NULL, NULL, NULL, $2, '[]'::jsonb,
-                        $3, $4, $5, NULL, NULL, NULL,
-                        FALSE, NULL, $6, FALSE, $7)
-                """,
-                str(uuid.uuid4()),
-                prompt_hash,
-                str(self._model_hint),
-                _TIER_TO_Q.get(tier, "Q3"),
-                latency_ms,
-                error,
-                caller or "unknown",
-            )
+            async with get_conn() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO dsp_ai.generations
+                        (id, enhancement_id, user_id, context_key, prompt_hash, input_ids,
+                         model, quality_level, latency_ms, tokens_in, tokens_out, cost_usd,
+                         cached, quality_warnings, error_kind, preview, caller, customer)
+                    VALUES ($1::uuid, NULL, NULL, NULL, $2, '[]'::jsonb,
+                            $3, $4, $5, NULL, NULL, NULL,
+                            FALSE, NULL, $6, FALSE, $7, $8)
+                    """,
+                    str(uuid.uuid4()),
+                    prompt_hash,
+                    str(self._model_hint),
+                    _TIER_TO_Q.get(tier, "Q3"),
+                    latency_ms,
+                    error,
+                    caller or "unknown",
+                    current_customer(),
+                )
         except Exception:
             logger.debug("observed_llm: insert failed (non-fatal)", exc_info=True)
-        finally:
-            with contextlib.suppress(Exception):
-                await conn.close()

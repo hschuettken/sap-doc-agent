@@ -58,7 +58,7 @@ async def test_list_enhancements_renders_rows() -> None:
             },
         ]
     )
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.list_enhancements({})
     text = out["content"][0]["text"]
     assert "Morning Brief" in text
@@ -68,7 +68,7 @@ async def test_list_enhancements_renders_rows() -> None:
 @pytest.mark.asyncio
 async def test_list_enhancements_empty() -> None:
     conn = _FakeConn(fetchall=[])
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.list_enhancements({})
     assert "No enhancements found" in out["content"][0]["text"]
 
@@ -86,7 +86,7 @@ async def test_list_enhancements_with_status_filter() -> None:
             },
         ]
     )
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.list_enhancements({"status": "draft"})
     assert "Draft One" in out["content"][0]["text"]
 
@@ -106,7 +106,7 @@ async def test_get_enhancement_renders_config() -> None:
             "config": '{"render_hint": "narrative_text"}',
         }
     )
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.get_enhancement({"enhancement_id": "abc"})
     text = out["content"][0]["text"]
     assert "Test Enh" in text
@@ -116,7 +116,7 @@ async def test_get_enhancement_renders_config() -> None:
 @pytest.mark.asyncio
 async def test_get_enhancement_404_when_missing() -> None:
     conn = _FakeConn(fetchone=None)
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.get_enhancement({"enhancement_id": "00000000-0000-0000-0000-000000000000"})
     assert out.get("isError") is True
 
@@ -134,7 +134,7 @@ async def test_get_enhancement_missing_id() -> None:
 @pytest.mark.asyncio
 async def test_create_enhancement_inserts_row() -> None:
     conn = _FakeConn()
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.create_enhancement(
             {
                 "name": "Test",
@@ -155,7 +155,7 @@ async def test_create_enhancement_missing_name_or_kind() -> None:
 @pytest.mark.asyncio
 async def test_create_enhancement_bad_config_json() -> None:
     conn = _FakeConn()
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.create_enhancement({"name": "T", "kind": "narrative", "config": "NOT_JSON{{"})
     assert out.get("isError") is True
 
@@ -166,7 +166,7 @@ async def test_create_enhancement_bad_config_json() -> None:
 @pytest.mark.asyncio
 async def test_update_enhancement_merges_patch() -> None:
     conn = _FakeConn(fetchone={"config": '{"existing_key": "val"}'})
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.update_enhancement(
             {
                 "enhancement_id": "abc",
@@ -181,7 +181,7 @@ async def test_update_enhancement_merges_patch() -> None:
 @pytest.mark.asyncio
 async def test_update_enhancement_404() -> None:
     conn = _FakeConn(fetchone=None)
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.update_enhancement({"enhancement_id": "missing", "patch": {"x": 1}})
     assert out.get("isError") is True
 
@@ -253,7 +253,7 @@ async def test_preview_http_error() -> None:
 @pytest.mark.asyncio
 async def test_publish_updates_status() -> None:
     conn = _FakeConn(fetchone={"id": "abc"})
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         with patch("spec2sphere.dsp_ai.events.emit", AsyncMock()):
             out = await studio_tools.publish({"enhancement_id": "abc"})
     assert "Published" in out["content"][0]["text"]
@@ -262,7 +262,7 @@ async def test_publish_updates_status() -> None:
 @pytest.mark.asyncio
 async def test_publish_404() -> None:
     conn = _FakeConn(fetchone=None)
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.publish({"enhancement_id": "missing"})
     assert out.get("isError") is True
 
@@ -308,7 +308,7 @@ async def test_query_brain_empty_cypher() -> None:
 @pytest.mark.asyncio
 async def test_generation_log_empty() -> None:
     conn = _FakeConn(fetchall=[])
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.generation_log({})
     assert "No generations" in out["content"][0]["text"]
 
@@ -327,7 +327,7 @@ async def test_generation_log_renders_rows() -> None:
             }
         ]
     )
-    with patch.object(studio_tools.asyncpg, "connect", _connect_returning(conn)):
+    with patch.object(__import__("spec2sphere.dsp_ai.db", fromlist=["asyncpg"]).asyncpg, "connect", _connect_returning(conn)):
         out = await studio_tools.generation_log({})
     text = out["content"][0]["text"]
     assert "gpt-4o" in text

@@ -14,7 +14,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import asyncpg
 import httpx
 from fastapi import APIRouter, Body, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -23,7 +22,6 @@ from pydantic import ValidationError
 
 from spec2sphere.dsp_ai.config import EnhancementConfig
 from spec2sphere.dsp_ai.events import emit
-from spec2sphere.dsp_ai.settings import postgres_dsn
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 _templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -48,9 +46,9 @@ def _render(request: Request, template: str, ctx: dict[str, Any]) -> HTMLRespons
 
 
 def create_ai_studio_router() -> APIRouter:
-    from .templates_library import create_templates_router
-    from .generation_log import create_log_router
-    from .brain_explorer import create_brain_router
+    from .brain_explorer import create_brain_router  # noqa: PLC0415
+    from .generation_log import create_log_router  # noqa: PLC0415
+    from .templates_library import create_templates_router  # noqa: PLC0415
 
     router = APIRouter(prefix="/ai-studio", tags=["ai-studio"])
     # Sub-routers registered first so fixed prefixes (/templates, /log, /brain)
@@ -62,14 +60,13 @@ def create_ai_studio_router() -> APIRouter:
     @router.get("/", response_class=HTMLResponse)
     @router.get("", response_class=HTMLResponse)
     async def list_enhancements(request: Request):
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
+        async with get_conn() as conn:
             rows = await conn.fetch(
                 "SELECT id::text AS id, name, kind, version, status, updated_at "
                 "FROM dsp_ai.enhancements ORDER BY updated_at DESC"
             )
-        finally:
-            await conn.close()
         return _render(
             request,
             "partials/ai_studio.html",
@@ -84,6 +81,8 @@ def create_ai_studio_router() -> APIRouter:
     @router.post("/")
     @router.post("")
     async def create(request: Request, name: str = Form(...), kind: str = Form(...)):
+        from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
+
         email = _current_email(request)
         if not _is_author(email):
             raise HTTPException(403, detail="not an AI Studio author")
@@ -98,35 +97,32 @@ def create_ai_studio_router() -> APIRouter:
             "render_hint": "narrative_text",
             "ttl_seconds": 600,
         }
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        async with get_conn() as conn:
             await conn.execute(
-                "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author) "
-                "VALUES ($1::uuid, $2, $3, $4::jsonb, $5)",
+                "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author, customer) "
+                "VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6)",
                 new_id,
                 name,
                 kind,
                 json.dumps(default_config),
                 email,
+                current_customer(),
             )
-        finally:
-            await conn.close()
         return RedirectResponse(f"/ai-studio/{new_id}/edit", status_code=303)
 
     @router.get("/{enh_id}/edit", response_class=HTMLResponse)
     async def edit(request: Request, enh_id: str):
+        from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
         email = _current_email(request)
         if not _is_author(email):
             raise HTTPException(403, detail="not an AI Studio author")
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        async with get_conn() as conn:
             row = await conn.fetchrow(
                 "SELECT id::text AS id, name, kind, version, status, config "
                 "FROM dsp_ai.enhancements WHERE id = $1::uuid",
                 enh_id,
             )
-        finally:
-            await conn.close()
         if row is None:
             raise HTTPException(404, detail="enhancement not found")
         data = dict(row)
@@ -145,6 +141,8 @@ def create_ai_studio_router() -> APIRouter:
 
     @router.put("/{enh_id}/config")
     async def update_config(request: Request, enh_id: str, body: dict = Body(...)):
+        from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
         email = _current_email(request)
         if not _is_author(email):
             raise HTTPException(403, detail="not an AI Studio author")
@@ -152,15 +150,12 @@ def create_ai_studio_router() -> APIRouter:
             EnhancementConfig.model_validate(body)
         except ValidationError as exc:
             raise HTTPException(422, detail=exc.errors())
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        async with get_conn() as conn:
             await conn.execute(
                 "UPDATE dsp_ai.enhancements SET config = $1::jsonb, updated_at = NOW() WHERE id = $2::uuid",
                 json.dumps(body),
                 enh_id,
             )
-        finally:
-            await conn.close()
         return {"ok": True}
 
     @router.post("/{enh_id}/preview")
@@ -181,11 +176,12 @@ def create_ai_studio_router() -> APIRouter:
 
     @router.post("/{enh_id}/publish")
     async def publish(request: Request, enh_id: str):
+        from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
+
         email = _current_email(request)
         if not _is_author(email):
             raise HTTPException(403, detail="not an AI Studio author")
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        async with get_conn() as conn:
             row = await conn.fetchrow("SELECT status FROM dsp_ai.enhancements WHERE id = $1::uuid", enh_id)
             if row is None:
                 raise HTTPException(404, detail="enhancement not found")
@@ -194,16 +190,15 @@ def create_ai_studio_router() -> APIRouter:
                 enh_id,
             )
             await conn.execute(
-                "INSERT INTO dsp_ai.studio_audit (action, enhancement_id, author, before, after) "
-                "VALUES ($1, $2::uuid, $3, $4::jsonb, $5::jsonb)",
+                "INSERT INTO dsp_ai.studio_audit (action, enhancement_id, author, before, after, customer) "
+                "VALUES ($1, $2::uuid, $3, $4::jsonb, $5::jsonb, $6)",
                 "publish",
                 enh_id,
                 email,
                 json.dumps({"status": row["status"]}),
                 json.dumps({"status": "published"}),
+                current_customer(),
             )
-        finally:
-            await conn.close()
         await emit("enhancement_published", {"id": enh_id})
         return RedirectResponse(f"/ai-studio/{enh_id}/edit", status_code=303)
 

@@ -86,7 +86,7 @@ async def test_template_fork_creates_draft_and_redirects(tmp_path: Path, monkeyp
     async def fake_connect(dsn):
         return FakeConn()
 
-    with patch("spec2sphere.web.ai_studio.templates_library.asyncpg.connect", side_effect=fake_connect):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", side_effect=fake_connect):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
             r = await c.post(f"/ai-studio/templates/{slug}/fork", follow_redirects=False)
@@ -158,6 +158,9 @@ async def test_generation_log_filters_by_since_hours(monkeypatch) -> None:
     ]
 
     class FakeConn:
+        async def execute(self, *args):
+            pass  # GUC set_config no-op
+
         async def fetch(self, *args):
             # Return plain dicts; generation_log.py does dict(r) for r in rows
             return fake_rows
@@ -168,7 +171,7 @@ async def test_generation_log_filters_by_since_hours(monkeypatch) -> None:
     async def fake_connect(dsn):
         return FakeConn()
 
-    with patch("spec2sphere.web.ai_studio.generation_log.asyncpg.connect", side_effect=fake_connect):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", side_effect=fake_connect):
         app = _make_app()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
             r = await c.get("/ai-studio/log/?since_hours=1")

@@ -33,15 +33,17 @@ async def test_wrapper_records_generate_call() -> None:
     async def _connect(*a, **k):
         return fake_conn
 
-    with patch("asyncpg.connect", _connect):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", _connect):
         out = await wrapped.generate("hi", caller="agents.doc_review")
 
     assert out == "ok"
-    fake_conn.execute.assert_awaited_once()
+    # execute is called at least twice: GUC set_config + INSERT
+    assert fake_conn.execute.await_count >= 2
+    # await_args is the last call — the INSERT
     args = fake_conn.execute.await_args.args
-    # positional args after SQL: uuid, prompt_hash, model, quality_level, latency_ms, error, caller
-    assert args[-1] == "agents.doc_review"  # caller
-    assert args[-2] is None  # error (success)
+    # positional args after SQL: uuid, prompt_hash, model, quality_level, latency_ms, error, caller, customer
+    assert args[-2] == "agents.doc_review"  # caller
+    assert args[-3] is None  # error (success)
     assert args[3] == "fake-model"  # model hint
 
 
@@ -55,12 +57,13 @@ async def test_wrapper_records_generate_json_call() -> None:
     async def _connect(*a, **k):
         return fake_conn
 
-    with patch("asyncpg.connect", _connect):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", _connect):
         out = await wrapped.generate_json("hi", {"type": "object"}, caller="migration.classifier")
 
     assert out == {"ok": True}
-    fake_conn.execute.assert_awaited_once()
-    assert fake_conn.execute.await_args.args[-1] == "migration.classifier"
+    assert fake_conn.execute.await_count >= 2
+    # await_args is the last call — the INSERT; caller is second-to-last arg, customer is last
+    assert fake_conn.execute.await_args.args[-2] == "migration.classifier"
 
 
 @pytest.mark.asyncio
@@ -83,13 +86,14 @@ async def test_wrapper_does_not_swallow_provider_exceptions() -> None:
     async def _connect(*a, **k):
         return fake_conn
 
-    with patch("asyncpg.connect", _connect), pytest.raises(RuntimeError):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", _connect), pytest.raises(RuntimeError):
         await wrapped.generate("x", caller="test")
 
     # Logging still happened (with error="exception")
-    fake_conn.execute.assert_awaited_once()
-    assert fake_conn.execute.await_args.args[-2] == "exception"
-    assert fake_conn.execute.await_args.args[-1] == "test"
+    assert fake_conn.execute.await_count >= 2
+    # await_args is the last call — the INSERT; error is 3rd-to-last, caller is 2nd-to-last, customer is last
+    assert fake_conn.execute.await_args.args[-3] == "exception"
+    assert fake_conn.execute.await_args.args[-2] == "test"
 
 
 @pytest.mark.asyncio
@@ -100,7 +104,7 @@ async def test_wrapper_swallows_db_failures() -> None:
     async def _connect_fail(*a, **k):
         raise ConnectionError("pg down")
 
-    with patch("asyncpg.connect", _connect_fail):
+    with patch("spec2sphere.dsp_ai.db.asyncpg.connect", _connect_fail):
         out = await wrapped.generate("hi", caller="whatever")
     assert out == "ok"  # underlying call succeeded
 

@@ -12,12 +12,9 @@ import os
 import uuid
 from pathlib import Path
 
-import asyncpg
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-
-from spec2sphere.dsp_ai.settings import postgres_dsn
 
 _SEEDS_DIR = Path(os.environ.get("SEEDS_DIR", "templates/seeds")).resolve()
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -77,19 +74,19 @@ def create_templates_router() -> APIRouter:
         new_id = str(uuid.uuid4())
         forked_name = config.get("name", slug) + " (copy)"
         kind = config.get("kind", "narrative")
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        from spec2sphere.dsp_ai.db import current_customer, get_conn  # noqa: PLC0415
+
+        async with get_conn() as conn:
             await conn.execute(
-                "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author) "
-                "VALUES ($1::uuid, $2, $3, $4::jsonb, $5)",
+                "INSERT INTO dsp_ai.enhancements (id, name, kind, config, author, customer) "
+                "VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6)",
                 new_id,
                 forked_name,
                 kind,
                 json.dumps(config),
                 email,
+                current_customer(),
             )
-        finally:
-            await conn.close()
         return RedirectResponse(f"/ai-studio/{new_id}/edit", status_code=303)
 
     return router

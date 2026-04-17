@@ -6,13 +6,11 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import asyncpg
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from spec2sphere.dsp_ai.settings import postgres_dsn
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 _templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -58,11 +56,10 @@ def create_log_router() -> APIRouter:
             "WHERE " + " AND ".join(filters) + " "
             "ORDER BY g.created_at DESC LIMIT 200"
         )
-        conn = await asyncpg.connect(postgres_dsn())
-        try:
+        from spec2sphere.dsp_ai.db import get_conn  # noqa: PLC0415
+
+        async with get_conn() as conn:
             rows = await conn.fetch(sql, *params)
-        finally:
-            await conn.close()
         return _templates.TemplateResponse(
             request,
             "partials/ai_studio_log.html",

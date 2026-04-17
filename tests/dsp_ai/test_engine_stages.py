@@ -114,7 +114,7 @@ class TestResolve:
         mock_conn.fetchrow = AsyncMock(return_value=fake_row)
         mock_conn.close = AsyncMock()
 
-        monkeypatch.setattr("spec2sphere.dsp_ai.stages.resolve.asyncpg.connect", AsyncMock(return_value=mock_conn))
+        monkeypatch.setattr("spec2sphere.dsp_ai.db.asyncpg.connect", AsyncMock(return_value=mock_conn))
 
         enh = await resolve_mod.resolve(enh_id)
 
@@ -131,7 +131,7 @@ class TestResolve:
         mock_conn.fetchrow = AsyncMock(return_value=None)
         mock_conn.close = AsyncMock()
 
-        monkeypatch.setattr("spec2sphere.dsp_ai.stages.resolve.asyncpg.connect", AsyncMock(return_value=mock_conn))
+        monkeypatch.setattr("spec2sphere.dsp_ai.db.asyncpg.connect", AsyncMock(return_value=mock_conn))
 
         with pytest.raises(LookupError, match="not found"):
             await resolve_mod.resolve(str(uuid.uuid4()))
@@ -157,7 +157,7 @@ class TestResolve:
         mock_conn.fetchrow = AsyncMock(return_value=fake_row)
         mock_conn.close = AsyncMock()
 
-        monkeypatch.setattr("spec2sphere.dsp_ai.stages.resolve.asyncpg.connect", AsyncMock(return_value=mock_conn))
+        monkeypatch.setattr("spec2sphere.dsp_ai.db.asyncpg.connect", AsyncMock(return_value=mock_conn))
 
         enh = await resolve_mod.resolve(enh_id)
         assert enh.config.render_hint == RenderHint.BRIEF

@@ -4,15 +4,12 @@ from __future__ import annotations
 
 import json
 
-import asyncpg
-
 from ..config import Enhancement, EnhancementConfig
-from ..settings import postgres_dsn
+from ..db import get_conn
 
 
 async def resolve(enhancement_id: str) -> Enhancement:
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "SELECT id::text AS id, version, status, author, config FROM dsp_ai.enhancements WHERE id = $1",
             enhancement_id,
@@ -29,5 +26,3 @@ async def resolve(enhancement_id: str) -> Enhancement:
                 json.loads(raw_config) if isinstance(raw_config, str) else raw_config
             ),
         )
-    finally:
-        await conn.close()

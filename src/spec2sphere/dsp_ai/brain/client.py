@@ -38,6 +38,11 @@ async def run(cypher: str, **params: Any) -> list[dict[str, Any]]:
         return [dict(record) async for record in result]
 
 
+async def run_scoped(cypher: str, customer: str, **params: Any) -> list[dict[str, Any]]:
+    """Run Cypher with the customer param merged in so queries can MATCH (:Node {customer: $customer})."""
+    return await run(cypher, customer=customer, **params)
+
+
 async def close() -> None:
     """Close the shared driver (for tests / clean shutdown)."""
     global _driver

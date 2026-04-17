@@ -12,7 +12,7 @@ import httpx
 
 from ..brain.client import run as brain_run
 from ..config import Enhancement
-from ..settings import dsp_dsn, postgres_dsn
+from ..settings import dsp_dsn
 
 
 @dataclass
@@ -61,16 +61,15 @@ async def _external_fetch(enh: Enhancement, context: dict) -> list[dict]:
 
 
 async def _user_state(user_id: str) -> dict:
-    conn = await asyncpg.connect(postgres_dsn())
-    try:
+    from ..db import get_conn  # noqa: PLC0415
+
+    async with get_conn() as conn:
         row = await conn.fetchrow(
             "SELECT last_visited_at, last_briefed_at, topics_of_interest, preferences "
             "FROM dsp_ai.user_state WHERE user_id = $1",
             user_id,
         )
         return dict(row) if row else {}
-    finally:
-        await conn.close()
 
 
 async def gather(enh: Enhancement, user_id: str | None, context_hints: dict) -> GatheredContext:

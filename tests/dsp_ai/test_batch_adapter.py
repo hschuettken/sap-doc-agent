@@ -12,12 +12,15 @@ import pytest
 
 
 class _FakeConn:
-    """Asyncpg-ish stub — the batch adapter only calls fetch() + close()."""
+    """Asyncpg-ish stub — supports fetch(), execute() (for GUC set), and close()."""
 
     def __init__(self, *, enh_rows=None, user_rows=None):
         self._enh_rows = enh_rows or []
         self._user_rows = user_rows or []
         self.closed = False
+
+    async def execute(self, query, *args):
+        pass  # GUC set_config and any other executes are no-ops in tests
 
     async def fetch(self, query, *args):
         q = query.lower()
@@ -45,7 +48,9 @@ async def test_batch_skips_when_no_published_enhancements() -> None:
     from spec2sphere.dsp_ai.adapters import batch as batch_mod
 
     conn, connect = _make_conn(enh_rows=[], user_rows=[])
-    with patch.object(batch_mod.asyncpg, "connect", connect):
+    import spec2sphere.dsp_ai.db as db_mod
+
+    with patch.object(db_mod.asyncpg, "connect", connect):
         result = await batch_mod._run_batch_enhancements_async()
 
     assert result["enhancements"] == 0
@@ -64,7 +69,9 @@ async def test_batch_runs_one_published_enhancement_for_default_user() -> None:
     )
     engine = AsyncMock(return_value={"generation_id": "gen-1", "content": "ok"})
 
-    with patch.object(batch_mod.asyncpg, "connect", connect), patch.object(batch_mod, "run_engine", engine):
+    import spec2sphere.dsp_ai.db as db_mod
+
+    with patch.object(db_mod.asyncpg, "connect", connect), patch.object(batch_mod, "run_engine", engine):
         result = await batch_mod._run_batch_enhancements_async()
 
     assert result == {"enhancements": 1, "users": 1, "ran": 1, "errors": 0}
@@ -90,7 +97,9 @@ async def test_batch_continues_on_per_user_failure() -> None:
             raise RuntimeError("boom")
         return {"ok": True}
 
-    with patch.object(batch_mod.asyncpg, "connect", connect), patch.object(batch_mod, "run_engine", flaky_engine):
+    import spec2sphere.dsp_ai.db as db_mod
+
+    with patch.object(db_mod.asyncpg, "connect", connect), patch.object(batch_mod, "run_engine", flaky_engine):
         result = await batch_mod._run_batch_enhancements_async()
 
     assert result["ran"] == 1

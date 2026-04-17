@@ -18,11 +18,20 @@ from spec2sphere.dsp_ai.adapters.live import TelemetryEvent
 
 
 def _fake_conn() -> MagicMock:
-    """Return a mock asyncpg connection that supports async context manager."""
+    """Return a mock asyncpg connection that supports async context manager.
+
+    execute() is called at least twice: once by get_conn for the GUC set,
+    then once (or more) by record_event for the actual SQL.
+    """
     conn = AsyncMock()
     conn.execute = AsyncMock()
     conn.close = AsyncMock()
     return conn
+
+
+def _patch_db_connect(conn):
+    """Patch asyncpg.connect in the db module (which get_conn uses)."""
+    return patch("spec2sphere.dsp_ai.db.asyncpg.connect", AsyncMock(return_value=conn))
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +46,7 @@ async def test_rendered_event_upserts_user_state_and_opened_edge() -> None:
     brain = AsyncMock(return_value=[])
 
     with (
-        patch("spec2sphere.dsp_ai.brain.feeders.behavior.asyncpg.connect", AsyncMock(return_value=conn)),
+        _patch_db_connect(conn),
         patch("spec2sphere.dsp_ai.brain.feeders.behavior.brain_run", brain),
     ):
         from spec2sphere.dsp_ai.brain.feeders.behavior import record_event
@@ -45,11 +54,13 @@ async def test_rendered_event_upserts_user_state_and_opened_edge() -> None:
         event = TelemetryEvent(kind="widget.rendered", user_id="h@x", object_id="s.sales")
         await record_event(event)
 
-    # Postgres upsert was called
-    conn.execute.assert_awaited_once()
-    sql_arg = conn.execute.call_args[0][0]
-    assert "INSERT INTO dsp_ai.user_state" in sql_arg
-    assert "ON CONFLICT" in sql_arg
+    # Postgres execute was called at least twice: once for GUC, once for INSERT
+    assert conn.execute.await_count >= 2
+    # Find the INSERT call among all execute calls
+    sql_calls = [call[0][0] for call in conn.execute.call_args_list]
+    insert_calls = [s for s in sql_calls if "INSERT INTO dsp_ai.user_state" in s]
+    assert len(insert_calls) == 1
+    assert "ON CONFLICT" in insert_calls[0]
 
     # Brain got one call containing OPENED
     brain.assert_awaited_once()
@@ -64,7 +75,7 @@ async def test_dwelled_event_records_duration() -> None:
     brain = AsyncMock(return_value=[])
 
     with (
-        patch("spec2sphere.dsp_ai.brain.feeders.behavior.asyncpg.connect", AsyncMock(return_value=conn)),
+        _patch_db_connect(conn),
         patch("spec2sphere.dsp_ai.brain.feeders.behavior.brain_run", brain),
     ):
         from spec2sphere.dsp_ai.brain.feeders.behavior import record_event
@@ -86,7 +97,7 @@ async def test_clicked_event_increments_count() -> None:
     brain = AsyncMock(return_value=[])
 
     with (
-        patch("spec2sphere.dsp_ai.brain.feeders.behavior.asyncpg.connect", AsyncMock(return_value=conn)),
+        _patch_db_connect(conn),
         patch("spec2sphere.dsp_ai.brain.feeders.behavior.brain_run", brain),
     ):
         from spec2sphere.dsp_ai.brain.feeders.behavior import record_event
@@ -107,7 +118,7 @@ async def test_no_object_id_skips_brain_write() -> None:
     brain = AsyncMock(return_value=[])
 
     with (
-        patch("spec2sphere.dsp_ai.brain.feeders.behavior.asyncpg.connect", AsyncMock(return_value=conn)),
+        _patch_db_connect(conn),
         patch("spec2sphere.dsp_ai.brain.feeders.behavior.brain_run", brain),
     ):
         from spec2sphere.dsp_ai.brain.feeders.behavior import record_event
@@ -115,7 +126,10 @@ async def test_no_object_id_skips_brain_write() -> None:
         event = TelemetryEvent(kind="widget.rendered", user_id="h@x")
         await record_event(event)
 
-    conn.execute.assert_awaited_once()
+    # At least one execute call (INSERT INTO dsp_ai.user_state) besides the GUC
+    assert conn.execute.await_count >= 2
+    sql_calls = [call[0][0] for call in conn.execute.call_args_list]
+    assert any("INSERT INTO dsp_ai.user_state" in s for s in sql_calls)
     brain.assert_not_awaited()
 
 
@@ -126,7 +140,7 @@ async def test_brain_write_failure_does_not_propagate() -> None:
     brain = AsyncMock(side_effect=RuntimeError("neo4j down"))
 
     with (
-        patch("spec2sphere.dsp_ai.brain.feeders.behavior.asyncpg.connect", AsyncMock(return_value=conn)),
+        _patch_db_connect(conn),
         patch("spec2sphere.dsp_ai.brain.feeders.behavior.brain_run", brain),
     ):
         from spec2sphere.dsp_ai.brain.feeders.behavior import record_event
@@ -136,7 +150,9 @@ async def test_brain_write_failure_does_not_propagate() -> None:
         await record_event(event)
 
     # Postgres upsert still happened
-    conn.execute.assert_awaited_once()
+    assert conn.execute.await_count >= 2
+    sql_calls = [call[0][0] for call in conn.execute.call_args_list]
+    assert any("INSERT INTO dsp_ai.user_state" in s for s in sql_calls)
 
 
 # ---------------------------------------------------------------------------
