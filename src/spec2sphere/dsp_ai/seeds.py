@@ -69,3 +69,29 @@ async def ensure_morning_brief_seeded() -> str | None:
     if new_id:
         logger.info("Seeded Morning Brief enhancement id=%s", new_id)
     return new_id
+
+
+async def ensure_all_seeds_loaded() -> dict[str, int]:
+    """Load every seed JSON under templates/seeds/ — idempotent per (name,version).
+
+    Session B ships 5 seeds covering all enhancement kinds (narrative,
+    ranking, item_enrich, action, briefing). Running this at dsp-ai
+    startup guarantees the Studio's template library + ship criterion
+    "all 5 kinds seeded" are satisfied on fresh compose.
+    """
+    if not SEEDS_DIR.exists():
+        return {"seeded": 0, "skipped": 0, "errors": 0}
+    seeded = skipped = errors = 0
+    for path in sorted(SEEDS_DIR.glob("*.json")):
+        try:
+            config = await load_seed_file(path)
+            new_id = await upsert_enhancement(config, author="setup_wizard")
+            if new_id:
+                seeded += 1
+                logger.info("Seeded %s id=%s", config.get("name", path.stem), new_id)
+            else:
+                skipped += 1
+        except Exception:
+            errors += 1
+            logger.exception("Failed to seed %s", path)
+    return {"seeded": seeded, "skipped": skipped, "errors": errors}

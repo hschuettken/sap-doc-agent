@@ -25,11 +25,12 @@ async def _lifespan(_: FastAPI):
     schema. Any failure is logged and swallowed — dsp-ai must still start
     even when Postgres or Neo4j is warming up."""
     try:
-        from .seeds import ensure_morning_brief_seeded
+        from .seeds import ensure_all_seeds_loaded
 
-        await ensure_morning_brief_seeded()
+        result = await ensure_all_seeds_loaded()
+        logger.info("Seed library: %s", result)
     except Exception:
-        logger.exception("Morning Brief seed failed on startup")
+        logger.exception("Seed library load failed on startup")
 
     try:
         from .brain.schema import bootstrap as bootstrap_brain
