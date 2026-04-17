@@ -1,0 +1,51 @@
+{
+  "name": "Weekly Sell-Through Analysis",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT sku, category, SUM(units_sold) AS units_sold, AVG(inventory_available) AS avg_inventory, ROUND(100.0 * SUM(units_sold) / NULLIF(SUM(units_sold) + AVG(inventory_available), 0), 1) AS sell_through_pct FROM public.stock_level WHERE date >= NOW() - INTERVAL '7 days' GROUP BY sku, category ORDER BY sell_through_pct ASC",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (s:Sku)-[:BELONGS_TO]->(c:Category) RETURN s.sku AS sku, c.name AS category, s.target_sell_through AS target LIMIT 50",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 604800
+  },
+  "prompt_template": "Analyze the following weekly sell-through data. Identify SKUs with sell-through < 20% (slow movers) or > 80% (fast movers at risk of stockout). For each flagged category, suggest actions (replenishment, promotion, clearance).\n\nSell-Through Data:\n{% for row in dsp_data %}\n- {{ row.sku }} ({{ row.category }}): {{ row.sell_through_pct }}% sell-through, {{ row.units_sold }} units, {{ row.avg_inventory }} avg inventory\n{% endfor %}\n\nReturn a JSON object with: narrative_text (markdown summary), slow_movers (array of SKU objects with sku, reason), fast_movers (array of SKU objects with sku, reason).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "slow_movers", "fast_movers"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "slow_movers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sku": {"type": "string"},
+            "reason": {"type": "string"}
+          }
+        }
+      },
+      "fast_movers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sku": {"type": "string"},
+            "reason": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "brief",
+  "ttl_seconds": 604800
+}

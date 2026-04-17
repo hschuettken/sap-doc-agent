@@ -1,0 +1,31 @@
+{
+  "name": "Supplier Scorecard",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT supplier_id, supplier_name, ROUND(AVG(on_time_delivery_pct), 1) AS otd, ROUND(AVG(quality_score), 2) AS quality, ROUND(AVG(lead_time_days), 1) AS lead_time, COUNT(DISTINCT order_id) AS order_count FROM public.suppliers WHERE last_order_date >= NOW() - INTERVAL '30 days' GROUP BY supplier_id, supplier_name ORDER BY otd DESC",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (s:Supplier)-[r:SUPPLIES]->(sku:Sku) RETURN s.name, s.risk_level, COUNT(sku) AS sku_count",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 2592000
+  },
+  "prompt_template": "Evaluate supplier performance across reliability, quality, and speed. For each supplier, assess health status (green/yellow/red) and recommend actions: continue, conditional review, or escalation.\n\nSupplier Metrics (30-day):\n{% for row in dsp_data %}\n- {{ row.supplier_name }}: {{ row.otd }}% on-time, {{ row.quality }} quality score, {{ row.lead_time }} day lead time, {{ row.order_count }} orders\n{% endfor %}\n\nReturn a JSON object with: narrative_text (summary of supplier ecosystem health and 1-2 recommended actions).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text"],
+    "properties": {
+      "narrative_text": {"type": "string"}
+    }
+  },
+  "render_hint": "brief",
+  "ttl_seconds": 604800
+}

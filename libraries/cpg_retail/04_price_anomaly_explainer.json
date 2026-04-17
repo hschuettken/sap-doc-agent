@@ -1,0 +1,37 @@
+{
+  "name": "Price Anomaly Explainer",
+  "kind": "action",
+  "mode": "live",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT sku, category, region, current_price, previous_price, price_delta_pct, price_change_date, avg_regional_price FROM public.price_changes WHERE price_change_id = %(anomaly_id)s LIMIT 1",
+      "parameters": {
+        "anomaly_id": null
+      }
+    },
+    "semantic": {
+      "cypher": "MATCH (p:PricePoint {region: {region}, category: {category}}) RETURN p.avg_price, p.std_dev LIMIT 1",
+      "parameters": {
+        "region": null,
+        "category": null
+      }
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 3600
+  },
+  "prompt_template": "Explain the price change anomaly detected for this product. Consider: regional market conditions, competitive prices, cost inflation, promotion context, and seasonal patterns.\n\nPrice Change:\n- SKU: {{ dsp_data[0].sku if dsp_data else 'unknown' }}\n- Region: {{ dsp_data[0].region if dsp_data else 'unknown' }}\n- Previous Price: ${{ dsp_data[0].previous_price if dsp_data else 'N/A' }}\n- Current Price: ${{ dsp_data[0].current_price if dsp_data else 'N/A' }}\n- Change: {{ dsp_data[0].price_delta_pct if dsp_data else 'N/A' }}%\n- Changed on: {{ dsp_data[0].price_change_date if dsp_data else 'N/A' }}\n\nReturn a JSON object with: label (text for button label), explanation_text (detailed explanation in 2-3 sentences).",
+  "output_schema": {
+    "type": "object",
+    "required": ["label", "explanation_text"],
+    "properties": {
+      "label": {"type": "string"},
+      "explanation_text": {"type": "string"}
+    }
+  },
+  "render_hint": "button",
+  "ttl_seconds": 3600
+}

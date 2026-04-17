@@ -1,0 +1,31 @@
+{
+  "name": "Promo Lift Post-Analysis",
+  "kind": "narrative",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT promo_id, campaign_name, start_date, end_date, SUM(promo_revenue) - SUM(baseline_revenue) AS revenue_lift, SUM(promo_units) - SUM(baseline_units) AS unit_lift, COUNT(DISTINCT sku) AS skus_in_promo FROM public.promotions WHERE end_date >= NOW() - INTERVAL '30 days' GROUP BY promo_id, campaign_name, start_date, end_date ORDER BY revenue_lift DESC LIMIT 10",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (promo:Promotion)-[:TARGETS]->(sku:Sku) RETURN promo.name, COUNT(sku) AS sku_count, COLLECT(sku.category) AS categories",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "Analyze the promotional lift results. For each campaign, summarize the revenue and unit lift, identify top-performing SKUs, and comment on campaign effectiveness.\n\nPromo Results:\n{% for row in dsp_data %}\n- {{ row.campaign_name }} ({{ row.start_date }} to {{ row.end_date }}): +${{ row.revenue_lift | int }} revenue, +{{ row.unit_lift | int }} units ({{ row.skus_in_promo }} SKUs)\n{% endfor %}\n\nReturn a JSON object with: narrative_text (markdown summary of overall performance and insights, max 150 words).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text"],
+    "properties": {
+      "narrative_text": {"type": "string"}
+    }
+  },
+  "render_hint": "narrative_text",
+  "ttl_seconds": 86400
+}

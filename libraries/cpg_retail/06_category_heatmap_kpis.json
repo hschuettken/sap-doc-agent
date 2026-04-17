@@ -1,0 +1,38 @@
+{
+  "name": "Category KPI Heatmap",
+  "kind": "ranking",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT category, SUM(revenue) AS revenue, AVG(gross_margin_pct) AS margin, COUNT(DISTINCT sku) AS sku_count, SUM(units) AS units, AVG(return_rate_pct) AS return_rate FROM public.category_metrics WHERE date >= NOW() - INTERVAL '30 days' GROUP BY category ORDER BY revenue DESC",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (c:Category) RETURN c.name, c.strategic_priority, c.growth_target LIMIT 20",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 2592000
+  },
+  "prompt_template": "Rank the top 5 KPIs that need management attention per category. Consider: revenue trend, margin erosion, return rate anomalies, unit volume changes. For each category, identify which 1-2 metrics require immediate action.\n\nCategory Metrics (30-day):\n{% for row in dsp_data %}\n- {{ row.category }}: ${{ row.revenue | int }} revenue, {{ row.margin | round(1) }}% margin, {{ row.units | int }} units, {{ row.return_rate | round(1) }}% returns\n{% endfor %}\n\nReturn a JSON array where each item is: {category, priority_kpi_1, priority_kpi_2, score (0-100), action_text}.",
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["category", "priority_kpi_1", "priority_kpi_2", "score", "action_text"],
+      "properties": {
+        "category": {"type": "string"},
+        "priority_kpi_1": {"type": "string"},
+        "priority_kpi_2": {"type": "string"},
+        "score": {"type": "number"},
+        "action_text": {"type": "string"}
+      }
+    }
+  },
+  "render_hint": "chart",
+  "ttl_seconds": 2592000
+}

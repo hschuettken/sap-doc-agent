@@ -1,0 +1,38 @@
+{
+  "name": "Stock Urgency Ranking",
+  "kind": "ranking",
+  "mode": "live",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT sku, category, current_stock, projected_daily_demand, CEIL(current_stock::float / NULLIF(projected_daily_demand, 0)) AS days_of_cover FROM public.stock_level WHERE current_stock < 100 ORDER BY days_of_cover ASC LIMIT 10",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (s:Sku {supplier_lead_days: {lead_days}}) RETURN s.sku, s.supplier_id, s.supplier_lead_days LIMIT 20",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 3600
+  },
+  "prompt_template": "Rank the following SKUs by stockout urgency. A SKU is urgent if days_of_cover < 3 or if daily demand exceeds current stock. For each SKU, assign a score (0-100, higher = more urgent) and provide a brief reason.\n\nCandidates:\n{% for row in dsp_data %}\n- {{ row.sku }} ({{ row.category }}): {{ row.days_of_cover }} days of cover, {{ row.projected_daily_demand }} daily demand\n{% endfor %}\n\nReturn a JSON array of items, each with: id (sku), rank (1-10), score (0-100), reason (text).",
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["id", "rank", "score", "reason"],
+      "properties": {
+        "id": {"type": "string"},
+        "rank": {"type": "integer"},
+        "score": {"type": "number"},
+        "reason": {"type": "string"}
+      }
+    }
+  },
+  "render_hint": "ranked_list",
+  "ttl_seconds": 1800,
+  "cost_cap_usd": 5.0
+}

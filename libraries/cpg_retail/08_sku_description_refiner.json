@@ -1,0 +1,39 @@
+{
+  "name": "SKU Description Refiner",
+  "kind": "item_enrich",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT sku, category, current_title, current_description, ingredients, net_weight, uom FROM public.sku_master WHERE last_updated < NOW() - INTERVAL '90 days' LIMIT 20",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (s:Sku {sku: {sku_id}})-[:HAS_ATTRIBUTE]->(a:Attribute) RETURN s.sku, COLLECT(a.name) AS attributes",
+      "parameters": {
+        "sku_id": null
+      }
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 0
+  },
+  "prompt_template": "Enhance the SKU master data by enriching the product title, description, and tags. Use category, ingredients, weight, and attributes to generate: a richer product title (max 80 chars), a detailed description emphasizing benefits and use cases (max 300 chars), and 3-5 relevant tags.\n\nCurrent Data:\n{% for row in dsp_data %}\n- SKU {{ row.sku }} ({{ row.category }})\n  Title: {{ row.current_title }}\n  Desc: {{ row.current_description }}\n  Ingredients: {{ row.ingredients }}\n  Size: {{ row.net_weight }} {{ row.uom }}\n{% endfor %}\n\nReturn a JSON array where each item has: sku, title_suggested, description_suggested, tags (array of strings).",
+  "output_schema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["sku", "title_suggested", "description_suggested", "tags"],
+      "properties": {
+        "sku": {"type": "string"},
+        "title_suggested": {"type": "string"},
+        "description_suggested": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "render_hint": "callout",
+  "ttl_seconds": 2592000
+}

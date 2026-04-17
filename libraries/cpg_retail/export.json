@@ -1,0 +1,450 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-04-17T20:19:12.594921+00:00",
+  "customer": "cpg_retail_reference",
+  "enhancements": [
+    {
+      "name": "CPG Morning Brief \u2014 Revenue",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Morning Brief \u2014 Revenue",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT date_trunc('day', order_date) AS d, region, SUM(amount) AS rev FROM public.sales WHERE order_date >= NOW() - INTERVAL '7 days' GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject)-[:DOMAIN_OF]->(d:Domain {name: 'Sales'}) RETURN o.id AS id, d.name AS domain LIMIT 20",
+            "parameters": {}
+          },
+          "external": {
+            "searxng_query": "{{ user_state.get('topics_of_interest', ['cpg revenue'])[0] if user_state else 'cpg revenue' }} news",
+            "categories": [
+              "news"
+            ],
+            "max_results": 3
+          }
+        },
+        "adaptive_rules": {
+          "per_user": true,
+          "per_time": true,
+          "per_delta": true,
+          "delta_lookback_seconds": 86400
+        },
+        "prompt_template": "You are a CPG analyst writing a morning briefing for {{ user_id }}.\nTime of day: {{ user_state.get('time_bucket', 'morning') }}.\nSince last visit ({{ user_state.get('last_visited_at', 'never') }}), here are the changes:\n\nRecent sales:\n{% for row in dsp_data %}- {{ row.d }}: {{ row.region }} region ${{ row.rev | int }}\n{% endfor %}\n\nRelated news:\n{% for n in external_info %}- {{ n.title }} \u2014 {{ n.url }}\n{% endfor %}\n\nReturn a JSON object with keys: narrative_text (markdown, max 120 words), key_points (array of 2-4 bullets), suggested_actions (array of 0-3 imperative short sentences).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text",
+            "key_points",
+            "suggested_actions"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            },
+            "key_points": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "suggested_actions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "brief",
+        "ttl_seconds": 3600
+      }
+    },
+    {
+      "name": "Weekly Sell-Through Analysis",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Weekly Sell-Through Analysis",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT sku, category, SUM(units_sold) AS units_sold, AVG(inventory_available) AS avg_inventory, ROUND(100.0 * SUM(units_sold) / NULLIF(SUM(units_sold) + AVG(inventory_available), 0), 1) AS sell_through_pct FROM public.stock_level WHERE date >= NOW() - INTERVAL '7 days' GROUP BY sku, category ORDER BY sell_through_pct ASC",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (s:Sku)-[:BELONGS_TO]->(c:Category) RETURN s.sku AS sku, c.name AS category, s.target_sell_through AS target LIMIT 50",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 604800
+        },
+        "prompt_template": "Analyze the following weekly sell-through data. Identify SKUs with sell-through < 20% (slow movers) or > 80% (fast movers at risk of stockout). For each flagged category, suggest actions (replenishment, promotion, clearance).\n\nSell-Through Data:\n{% for row in dsp_data %}\n- {{ row.sku }} ({{ row.category }}): {{ row.sell_through_pct }}% sell-through, {{ row.units_sold }} units, {{ row.avg_inventory }} avg inventory\n{% endfor %}\n\nReturn a JSON object with: narrative_text (markdown summary), slow_movers (array of SKU objects with sku, reason), fast_movers (array of SKU objects with sku, reason).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text",
+            "slow_movers",
+            "fast_movers"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            },
+            "slow_movers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "fast_movers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "render_hint": "brief",
+        "ttl_seconds": 604800
+      }
+    },
+    {
+      "name": "Stock Urgency Ranking",
+      "kind": "ranking",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Stock Urgency Ranking",
+        "kind": "ranking",
+        "mode": "live",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT sku, category, current_stock, projected_daily_demand, CEIL(current_stock::float / NULLIF(projected_daily_demand, 0)) AS days_of_cover FROM public.stock_level WHERE current_stock < 100 ORDER BY days_of_cover ASC LIMIT 10",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (s:Sku {supplier_lead_days: {lead_days}}) RETURN s.sku, s.supplier_id, s.supplier_lead_days LIMIT 20",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 3600
+        },
+        "prompt_template": "Rank the following SKUs by stockout urgency. A SKU is urgent if days_of_cover < 3 or if daily demand exceeds current stock. For each SKU, assign a score (0-100, higher = more urgent) and provide a brief reason.\n\nCandidates:\n{% for row in dsp_data %}\n- {{ row.sku }} ({{ row.category }}): {{ row.days_of_cover }} days of cover, {{ row.projected_daily_demand }} daily demand\n{% endfor %}\n\nReturn a JSON array of items, each with: id (sku), rank (1-10), score (0-100), reason (text).",
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "rank",
+              "score",
+              "reason"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "rank": {
+                "type": "integer"
+              },
+              "score": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "ranked_list",
+        "ttl_seconds": 1800,
+        "cost_cap_usd": 5.0
+      }
+    },
+    {
+      "name": "Price Anomaly Explainer",
+      "kind": "action",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Price Anomaly Explainer",
+        "kind": "action",
+        "mode": "live",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT sku, category, region, current_price, previous_price, price_delta_pct, price_change_date, avg_regional_price FROM public.price_changes WHERE price_change_id = %(anomaly_id)s LIMIT 1",
+            "parameters": {
+              "anomaly_id": null
+            }
+          },
+          "semantic": {
+            "cypher": "MATCH (p:PricePoint {region: {region}, category: {category}}) RETURN p.avg_price, p.std_dev LIMIT 1",
+            "parameters": {
+              "region": null,
+              "category": null
+            }
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 3600
+        },
+        "prompt_template": "Explain the price change anomaly detected for this product. Consider: regional market conditions, competitive prices, cost inflation, promotion context, and seasonal patterns.\n\nPrice Change:\n- SKU: {{ dsp_data[0].sku if dsp_data else 'unknown' }}\n- Region: {{ dsp_data[0].region if dsp_data else 'unknown' }}\n- Previous Price: ${{ dsp_data[0].previous_price if dsp_data else 'N/A' }}\n- Current Price: ${{ dsp_data[0].current_price if dsp_data else 'N/A' }}\n- Change: {{ dsp_data[0].price_delta_pct if dsp_data else 'N/A' }}%\n- Changed on: {{ dsp_data[0].price_change_date if dsp_data else 'N/A' }}\n\nReturn a JSON object with: label (text for button label), explanation_text (detailed explanation in 2-3 sentences).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "label",
+            "explanation_text"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "explanation_text": {
+              "type": "string"
+            }
+          }
+        },
+        "render_hint": "button",
+        "ttl_seconds": 3600
+      }
+    },
+    {
+      "name": "Promo Lift Post-Analysis",
+      "kind": "narrative",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Promo Lift Post-Analysis",
+        "kind": "narrative",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT promo_id, campaign_name, start_date, end_date, SUM(promo_revenue) - SUM(baseline_revenue) AS revenue_lift, SUM(promo_units) - SUM(baseline_units) AS unit_lift, COUNT(DISTINCT sku) AS skus_in_promo FROM public.promotions WHERE end_date >= NOW() - INTERVAL '30 days' GROUP BY promo_id, campaign_name, start_date, end_date ORDER BY revenue_lift DESC LIMIT 10",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (promo:Promotion)-[:TARGETS]->(sku:Sku) RETURN promo.name, COUNT(sku) AS sku_count, COLLECT(sku.category) AS categories",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 86400
+        },
+        "prompt_template": "Analyze the promotional lift results. For each campaign, summarize the revenue and unit lift, identify top-performing SKUs, and comment on campaign effectiveness.\n\nPromo Results:\n{% for row in dsp_data %}\n- {{ row.campaign_name }} ({{ row.start_date }} to {{ row.end_date }}): +${{ row.revenue_lift | int }} revenue, +{{ row.unit_lift | int }} units ({{ row.skus_in_promo }} SKUs)\n{% endfor %}\n\nReturn a JSON object with: narrative_text (markdown summary of overall performance and insights, max 150 words).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            }
+          }
+        },
+        "render_hint": "narrative_text",
+        "ttl_seconds": 86400
+      }
+    },
+    {
+      "name": "Category KPI Heatmap",
+      "kind": "ranking",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Category KPI Heatmap",
+        "kind": "ranking",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT category, SUM(revenue) AS revenue, AVG(gross_margin_pct) AS margin, COUNT(DISTINCT sku) AS sku_count, SUM(units) AS units, AVG(return_rate_pct) AS return_rate FROM public.category_metrics WHERE date >= NOW() - INTERVAL '30 days' GROUP BY category ORDER BY revenue DESC",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (c:Category) RETURN c.name, c.strategic_priority, c.growth_target LIMIT 20",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 2592000
+        },
+        "prompt_template": "Rank the top 5 KPIs that need management attention per category. Consider: revenue trend, margin erosion, return rate anomalies, unit volume changes. For each category, identify which 1-2 metrics require immediate action.\n\nCategory Metrics (30-day):\n{% for row in dsp_data %}\n- {{ row.category }}: ${{ row.revenue | int }} revenue, {{ row.margin | round(1) }}% margin, {{ row.units | int }} units, {{ row.return_rate | round(1) }}% returns\n{% endfor %}\n\nReturn a JSON array where each item is: {category, priority_kpi_1, priority_kpi_2, score (0-100), action_text}.",
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "category",
+              "priority_kpi_1",
+              "priority_kpi_2",
+              "score",
+              "action_text"
+            ],
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "priority_kpi_1": {
+                "type": "string"
+              },
+              "priority_kpi_2": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "action_text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "chart",
+        "ttl_seconds": 2592000
+      }
+    },
+    {
+      "name": "Supplier Scorecard",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "Supplier Scorecard",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT supplier_id, supplier_name, ROUND(AVG(on_time_delivery_pct), 1) AS otd, ROUND(AVG(quality_score), 2) AS quality, ROUND(AVG(lead_time_days), 1) AS lead_time, COUNT(DISTINCT order_id) AS order_count FROM public.suppliers WHERE last_order_date >= NOW() - INTERVAL '30 days' GROUP BY supplier_id, supplier_name ORDER BY otd DESC",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (s:Supplier)-[r:SUPPLIES]->(sku:Sku) RETURN s.name, s.risk_level, COUNT(sku) AS sku_count",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 2592000
+        },
+        "prompt_template": "Evaluate supplier performance across reliability, quality, and speed. For each supplier, assess health status (green/yellow/red) and recommend actions: continue, conditional review, or escalation.\n\nSupplier Metrics (30-day):\n{% for row in dsp_data %}\n- {{ row.supplier_name }}: {{ row.otd }}% on-time, {{ row.quality }} quality score, {{ row.lead_time }} day lead time, {{ row.order_count }} orders\n{% endfor %}\n\nReturn a JSON object with: narrative_text (summary of supplier ecosystem health and 1-2 recommended actions).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            }
+          }
+        },
+        "render_hint": "brief",
+        "ttl_seconds": 604800
+      }
+    },
+    {
+      "name": "SKU Description Refiner",
+      "kind": "item_enrich",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "SKU Description Refiner",
+        "kind": "item_enrich",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT sku, category, current_title, current_description, ingredients, net_weight, uom FROM public.sku_master WHERE last_updated < NOW() - INTERVAL '90 days' LIMIT 20",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (s:Sku {sku: {sku_id}})-[:HAS_ATTRIBUTE]->(a:Attribute) RETURN s.sku, COLLECT(a.name) AS attributes",
+            "parameters": {
+              "sku_id": null
+            }
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 0
+        },
+        "prompt_template": "Enhance the SKU master data by enriching the product title, description, and tags. Use category, ingredients, weight, and attributes to generate: a richer product title (max 80 chars), a detailed description emphasizing benefits and use cases (max 300 chars), and 3-5 relevant tags.\n\nCurrent Data:\n{% for row in dsp_data %}\n- SKU {{ row.sku }} ({{ row.category }})\n  Title: {{ row.current_title }}\n  Desc: {{ row.current_description }}\n  Ingredients: {{ row.ingredients }}\n  Size: {{ row.net_weight }} {{ row.uom }}\n{% endfor %}\n\nReturn a JSON array where each item has: sku, title_suggested, description_suggested, tags (array of strings).",
+        "output_schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sku",
+              "title_suggested",
+              "description_suggested",
+              "tags"
+            ],
+            "properties": {
+              "sku": {
+                "type": "string"
+              },
+              "title_suggested": {
+                "type": "string"
+              },
+              "description_suggested": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "render_hint": "callout",
+        "ttl_seconds": 2592000
+      }
+    }
+  ]
+}
