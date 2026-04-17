@@ -248,12 +248,32 @@ def test_data_in_context_disabled(router):
 def test_privacy_config_persists(tmp_path):
     path = tmp_path / "routing.json"
     r1 = QualityRouter(config_path=path)
-    r1.set_privacy(local_only_with_data=True, local_models=["my-model"])
+    # local_models must include every model in the data-safe profile, otherwise
+    # set_privacy raises to prevent misconfiguration.
+    r1.set_privacy(
+        local_only_with_data=True,
+        local_models=["my-model", "qwen2.5:7b", "qwen2.5:14b"],
+    )
 
     r2 = QualityRouter(config_path=path)
     privacy = r2.get_privacy()
     assert privacy["local_only_with_data"] is True
     assert "my-model" in privacy["local_models"]
+
+
+def test_privacy_rejects_non_local_profile_models(tmp_path):
+    path = tmp_path / "routing.json"
+    r = QualityRouter(config_path=path)
+    import pytest as _pytest
+
+    # The default "all-local" profile uses qwen models; supplying an empty
+    # local_models list should be rejected when enforcement is on.
+    with _pytest.raises(ValueError, match="non-local models"):
+        r.set_privacy(local_only_with_data=True, local_models=[])
+
+    # If enforcement is off, any local_models list is accepted
+    r.set_privacy(local_only_with_data=False, local_models=[])
+    assert r.get_privacy()["local_only_with_data"] is False
 
 
 def test_is_model_local(router):

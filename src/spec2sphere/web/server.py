@@ -106,10 +106,16 @@ async def _register_with_oracle() -> None:
                 {"repo": "sap-doc-agent", "paths": ["src/spec2sphere/"]},
             ],
         }
+        oracle_url = os.environ.get("ORACLE_REGISTRY_URL", "http://192.168.0.50:8225/oracle/register")
         async with httpx.AsyncClient(timeout=5) as c:
-            await c.post("http://192.168.0.50:8225/oracle/register", json=manifest)
-    except Exception:
-        pass
+            resp = await c.post(oracle_url, json=manifest)
+        if resp.status_code >= 400:
+            logger.warning(
+                "Oracle registration returned HTTP %s — service may not be discoverable",
+                resp.status_code,
+            )
+    except Exception as exc:  # noqa: BLE001 — non-fatal; service must still start
+        logger.warning("Oracle registration failed (service will not be discoverable): %s", exc)
 
 
 def create_app(
@@ -714,7 +720,11 @@ def create_app(
 
     @app.post("/api/scan/start")
     async def start_scan(request: Request):
-        """Enqueue a scan task. Returns task_id immediately."""
+        """Enqueue a scan task. Returns task_id immediately.
+
+        Guarded by a Redis-backed advisory lock keyed on (scanner_type, system_name)
+        to prevent two parallel scans from writing the same graph.json.
+        """
         from fastapi.responses import JSONResponse as _JSONResponse
 
         body = await request.json()
@@ -724,6 +734,33 @@ def create_app(
         import uuid
 
         run_id = str(uuid.uuid4())
+
+        # Acquire advisory lock (non-blocking). Lock expires after 30min so a
+        # crashed scanner can't block forever.
+        lock_key = f"spec2sphere:scan:lock:{scanner_type}:{system_name}"
+        lock_acquired = False
+        try:
+            import redis.asyncio as _aioredis
+
+            redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+            _r = _aioredis.from_url(redis_url, decode_responses=True)
+            lock_acquired = bool(await _r.set(lock_key, run_id, nx=True, ex=1800))
+            if not lock_acquired:
+                holder = await _r.get(lock_key)
+                await _r.aclose()
+                return _JSONResponse(
+                    {
+                        "status": "conflict",
+                        "error": f"a scan is already in progress for {scanner_type}/{system_name}",
+                        "active_run_id": holder,
+                    },
+                    status_code=409,
+                )
+            await _r.aclose()
+        except Exception as exc:  # noqa: BLE001
+            # Redis down is not a hard-blocker for this endpoint; log and continue
+            logger.warning("Scan-lock guard unavailable (%s) — proceeding without it", exc)
+
         if run_scan is not None:
             # Chain: run_scan → build_chains (auto-trigger chain building)
             scan_kwargs = {"scanner_type": scanner_type, "config_path": config_path, "run_id": run_id}
@@ -742,7 +779,10 @@ def create_app(
             task_id = task.id
         else:
             task_id = run_id
-        return _JSONResponse({"task_id": task_id, "run_id": run_id, "status": "queued"}, status_code=202)
+        return _JSONResponse(
+            {"task_id": task_id, "run_id": run_id, "status": "queued", "lock_acquired": lock_acquired},
+            status_code=202,
+        )
 
     @app.get("/api/scan/status/{task_id}")
     async def scan_status(task_id: str):

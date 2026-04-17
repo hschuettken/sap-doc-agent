@@ -313,7 +313,7 @@ async def test_ollama_handles_error(ollama_provider):
 @pytest.fixture
 def anthropic_provider(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "anthro-key-123")
-    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-4-6")
+    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-4-7")
     from spec2sphere.llm.anthropic import AnthropicProvider
 
     return AnthropicProvider()

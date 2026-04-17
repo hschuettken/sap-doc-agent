@@ -487,18 +487,42 @@ class QualityRouter:
         local_models: list[str] | None = None,
         data_safe_profile: str | None = None,
     ) -> None:
-        """Update privacy-by-design settings."""
+        """Update privacy-by-design settings.
+
+        Raises ValueError if the resulting configuration would send customer
+        data to a non-local model (e.g., the chosen data_safe_profile contains
+        a model not in the local_models list).
+        """
         with self._lock:
             privacy = self._config.setdefault("privacy", _default_config()["privacy"])
-            if local_only_with_data is not None:
-                privacy["local_only_with_data"] = local_only_with_data
-            if local_models is not None:
-                privacy["local_models"] = local_models
-            if data_safe_profile is not None:
-                all_profiles = self.get_all_profiles()
-                if data_safe_profile not in all_profiles:
-                    raise ValueError(f"Unknown profile: {data_safe_profile!r}")
-                privacy["data_safe_profile"] = data_safe_profile
+            # Apply proposed changes to a working copy, then validate before committing
+            new_local_only = (
+                local_only_with_data if local_only_with_data is not None else privacy.get("local_only_with_data", True)
+            )
+            new_local_models = list(local_models) if local_models is not None else list(privacy.get("local_models", []))
+            new_safe_profile = (
+                data_safe_profile if data_safe_profile is not None else privacy.get("data_safe_profile", "all-local")
+            )
+
+            # Validate profile exists
+            all_profiles = self.get_all_profiles()
+            if new_safe_profile not in all_profiles:
+                raise ValueError(f"Unknown profile: {new_safe_profile!r}")
+
+            # Validate every model in the data-safe profile is local (only matters when enforcement is on)
+            if new_local_only:
+                profile_models = {entry.get("model") for entry in all_profiles[new_safe_profile].values()}
+                non_local = [m for m in profile_models if m and m not in new_local_models]
+                if non_local:
+                    raise ValueError(
+                        f"Data-safe profile {new_safe_profile!r} contains non-local models: {non_local}. "
+                        f"Either add them to local_models or pick a different profile."
+                    )
+
+            # All checks passed — commit
+            privacy["local_only_with_data"] = new_local_only
+            privacy["local_models"] = new_local_models
+            privacy["data_safe_profile"] = new_safe_profile
             self._save()
 
     def get_privacy(self) -> dict:

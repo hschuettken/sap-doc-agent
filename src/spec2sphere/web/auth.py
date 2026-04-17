@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
+
+logger = logging.getLogger(__name__)
 
 import bcrypt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -157,11 +160,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             # Bootstrap admin on first login attempt
             try:
                 await ensure_admin_user()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("ensure_admin_user failed (continuing anyway): %s", exc)
 
             user = await authenticate_user(email, password)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Login flow failed for %s: %s", email, exc)
             return _bad("Login service unavailable")
 
         if not user:
@@ -185,8 +189,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         tenant_id = str(row["tenant_id"])
                 finally:
                     await conn.close()
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to resolve active customer/tenant for %s: %s", email, exc)
 
         # Fall back to default tenant if none found
         if not tenant_id:
@@ -195,8 +199,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
                 if _DEFAULT_TENANT_ID:
                     tenant_id = str(_DEFAULT_TENANT_ID)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not resolve default tenant id: %s", exc)
 
         session_data = {
             "user_id": str(user["id"]),

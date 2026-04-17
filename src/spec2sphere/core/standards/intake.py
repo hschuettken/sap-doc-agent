@@ -106,7 +106,13 @@ async def _extract_rules_enhanced(text: str, llm: LLMProvider) -> list[dict]:
             f"Extract all documentation rules from the following standard text "
             f"(chunk {i + 1}/{len(chunks)}):\n\n{chunk}"
         )
-        result = await llm.generate_json(prompt, _ENHANCED_RULE_SCHEMA, system=_SYSTEM_PROMPT, tier="standards_intake")
+        result = await llm.generate_json(
+            prompt,
+            _ENHANCED_RULE_SCHEMA,
+            system=_SYSTEM_PROMPT,
+            tier="standards_intake",
+            data_in_context=True,
+        )
         if result and isinstance(result.get("rules"), list):
             all_rules.extend(result["rules"])
 

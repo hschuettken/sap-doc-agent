@@ -108,7 +108,7 @@ class OpenAICompatibleAdapter(LLMProvider):
     ) -> Optional[dict]:
         system_msg = system or "You are a structured data extraction assistant."
         system_msg += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        raw = await self.generate(prompt, system=system_msg, tier=tier)
+        raw = await self.generate(prompt, system=system_msg, tier=tier, data_in_context=data_in_context)
         if raw is None:
             return None
         try:

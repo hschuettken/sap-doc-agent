@@ -13,7 +13,7 @@ from spec2sphere.llm.base import LLMProvider
 logger = logging.getLogger(__name__)
 
 _MESSAGES_URL = "https://api.anthropic.com/v1/messages"
-_DEFAULT_MODEL = "claude-opus-4-6"
+_DEFAULT_MODEL = "claude-opus-4-7"
 _ANTHROPIC_VERSION = "2023-06-01"
 _MAX_TOKENS = 4096
 
@@ -25,7 +25,7 @@ class AnthropicProvider(LLMProvider):
 
     Reads:
       ANTHROPIC_API_KEY — required
-      ANTHROPIC_MODEL   — optional, defaults to claude-opus-4-6
+      ANTHROPIC_MODEL   — optional, defaults to claude-opus-4-7
     """
 
     def __init__(self) -> None:
@@ -41,7 +41,7 @@ class AnthropicProvider(LLMProvider):
         "small": "claude-haiku-4-5-20251001",
         "medium": "claude-sonnet-4-6",
         "large": "claude-sonnet-4-6",
-        "reasoning": "claude-opus-4-6",
+        "reasoning": "claude-opus-4-7",
     }
 
     def _resolve_model(self, tier: str) -> str:
@@ -89,7 +89,7 @@ class AnthropicProvider(LLMProvider):
 
         system_msg = system or "You are a structured data extraction assistant."
         system_msg += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        raw = await self.generate(prompt, system=system_msg, tier=tier)
+        raw = await self.generate(prompt, system=system_msg, tier=tier, data_in_context=data_in_context)
         if raw is None:
             return None
         try:

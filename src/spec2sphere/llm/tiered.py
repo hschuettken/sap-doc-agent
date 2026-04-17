@@ -88,7 +88,7 @@ class TieredProvider(LLMProvider):
             messages.append({"role": "user", "content": prompt})
             return await provider._chat(messages, model=model)
 
-        return await provider.generate(prompt, system=system, tier=tier)
+        return await provider.generate(prompt, system=system, tier=tier, data_in_context=data_in_context)
 
     async def generate_json(
         self,
@@ -119,7 +119,7 @@ class TieredProvider(LLMProvider):
                 logger.warning("LLM returned non-JSON response: %s", raw[:200])
                 return None
 
-        return await provider.generate_json(prompt, schema, system=system, tier=tier)
+        return await provider.generate_json(prompt, schema, system=system, tier=tier, data_in_context=data_in_context)
 
     def is_available(self) -> bool:
         return self._local.is_available() or (self._cloud is not None and self._cloud.is_available())

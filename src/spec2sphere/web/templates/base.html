@@ -121,8 +121,13 @@
 <div class="main-content">
     <!-- Topbar -->
     <header class="bg-white border-b border-[#E5E5E5] px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <button class="md:hidden mr-3" onclick="document.getElementById('sidebar').classList.toggle('open')">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <button class="md:hidden mr-3"
+                type="button"
+                aria-label="Toggle navigation menu"
+                aria-expanded="false"
+                aria-controls="sidebar"
+                onclick="(function(btn){const sb=document.getElementById('sidebar');const open=sb.classList.toggle('open');btn.setAttribute('aria-expanded',open);})(this)">
+            <svg aria-hidden="true" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <h2 class="font-heading text-lg text-[#1a2332]">{% block page_title %}Dashboard{% endblock %}</h2>
         <div class="flex items-center gap-4">
@@ -135,7 +140,7 @@
                  hx-trigger="load, every 30s"
                  hx-swap="innerHTML">
             </div>
-            <a href="/ui/login?logout=1" class="text-sm text-gray-400 hover:text-charcoal">Logout</a>
+            <a href="/ui/login?logout=1" class="text-sm text-gray-600 hover:text-[#1a2332]">Logout</a>
         </div>
     </header>
 
