@@ -78,6 +78,7 @@ class TieredProvider(LLMProvider):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[str]:
         provider, model = self._resolve(tier, data_in_context=data_in_context)
 
@@ -98,6 +99,7 @@ class TieredProvider(LLMProvider):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[dict]:
         provider, model = self._resolve(tier, data_in_context=data_in_context)
 

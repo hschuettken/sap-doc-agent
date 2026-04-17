@@ -607,6 +607,7 @@ class DocReviewAgent:
             system=system_prompt,
             tier="doc_review",
             data_in_context=True,
+            caller="agents.doc_review",
         )
 
         if result and "document_types" in result:

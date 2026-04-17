@@ -100,6 +100,7 @@ async def generate_json_with_retry(
     max_retries: int = 2,
     tier: str = "large",
     data_in_context: bool = False,
+    caller: str | None = None,
 ) -> Optional[dict]:
     """Call provider.generate(), parse with extract_json_from_response.
 
@@ -125,7 +126,7 @@ async def generate_json_with_retry(
             )
 
         raw = await provider.generate(
-            current_prompt, system=system_with_schema, tier=tier, data_in_context=data_in_context
+            current_prompt, system=system_with_schema, tier=tier, data_in_context=data_in_context, caller=caller
         )
         if raw is None:
             return None

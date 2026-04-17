@@ -39,6 +39,7 @@ class LLMProvider(ABC):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[str]:
         """Generate a text completion. Returns None if LLM is unavailable.
 
@@ -57,6 +58,7 @@ class LLMProvider(ABC):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[dict]:
         """Generate a structured JSON response. Returns None if LLM is unavailable."""
 
@@ -89,6 +91,7 @@ class OpenAICompatibleAdapter(LLMProvider):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[str]:
         from spec2sphere.telemetry import get_tracer  # noqa: PLC0415
 
@@ -115,6 +118,7 @@ class OpenAICompatibleAdapter(LLMProvider):
         *,
         tier: str = DEFAULT_TIER,
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[dict]:
         from spec2sphere.telemetry import get_tracer  # noqa: PLC0415
 

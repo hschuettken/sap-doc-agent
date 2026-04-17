@@ -9,7 +9,13 @@ from spec2sphere.llm.base import LLMProvider
 
 class NoopLLMProvider(LLMProvider):
     async def generate(
-        self, prompt: str, system: str = "", *, tier: str = "large", data_in_context: bool = False
+        self,
+        prompt: str,
+        system: str = "",
+        *,
+        tier: str = "large",
+        data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[str]:
         return None
 
@@ -21,6 +27,7 @@ class NoopLLMProvider(LLMProvider):
         *,
         tier: str = "large",
         data_in_context: bool = False,
+        caller: str | None = None,
     ) -> Optional[dict]:
         return None
 

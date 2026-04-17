@@ -112,6 +112,7 @@ async def _extract_rules_enhanced(text: str, llm: LLMProvider) -> list[dict]:
             system=_SYSTEM_PROMPT,
             tier="standards_intake",
             data_in_context=True,
+            caller="standards.intake",
         )
         if result and isinstance(result.get("rules"), list):
             all_rules.extend(result["rules"])
