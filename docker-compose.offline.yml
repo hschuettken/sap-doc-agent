@@ -1,0 +1,47 @@
+# Docker Compose override for offline profile (Session C Task 1)
+# Bundles Ollama sidecar for customer/tenant deployments without homelab infra
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile offline up
+#
+# Or set COMPOSE_FILE env var:
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.offline.yml
+#   docker compose --profile offline up
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sap-doc-agent-ollama
+    profiles: ["offline"]
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b}
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ./ops/ollama-entrypoint.sh:/entrypoint.sh:ro
+      - ollama-data:/root/.ollama
+    entrypoint: ["/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  dsp-ai:
+    environment:
+      # Route dsp-ai to local Ollama when offline profile is active
+      LLM_ENDPOINT: http://ollama:11434/v1
+    depends_on:
+      ollama:
+        condition: service_healthy
+        required: false
+
+volumes:
+  ollama-data:
+
+networks:
+  app-network:
+    driver: bridge
