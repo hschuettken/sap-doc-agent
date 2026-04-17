@@ -160,6 +160,12 @@ services:
     build: .
     container_name: sap-doc-agent-dsp-ai
     command: ["uvicorn", "spec2sphere.dsp_ai.service:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/v1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://sapdoc:sapdoc@postgres:5432/sapdoc}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
