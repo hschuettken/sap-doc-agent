@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Expand from vertical slice to a full-breadth system. All 5 enhancement kinds ship. The SAC Custom Widget (Pattern A) is deployed, runs against live dsp-ai endpoints, and feeds behavior back into the Corporate Brain. Studio gains template library, Generation Log, and Brain Explorer. Consolidation: `graph.json` migrates to Neo4j, Copilot ContentHub merges into the Brain, Spec2Sphere Copilot MCP exposes Studio tools.
+**Goal:** Expand from vertical slice to a full-breadth system. All 5 enhancement kinds ship. The SAC Custom Widget (Pattern A) is deployed, runs against live dsp-ai endpoints, and feeds behavior back into the Corporate Brain. Studio gains template library, Generation Log, and Brain Explorer. Consolidation: `graph.json` migrates to Neo4j, Copilot ContentHub merges into the Brain, Spec2Sphere Copilot MCP exposes Studio tools, **and every existing LLM call (agents, migration, standards, knowledge) logs to `dsp_ai.generations` for unified cost + quality observability**.
 
 **Architecture:** Builds on Session A's engine and schema. Adds: live-adapter endpoints (`/v1/actions`, `/v1/stream` SSE, `/v1/why`, `/v1/telemetry`), behavior feeder, dispatch paths for ranking/item_enrich/action, SAC widget (TypeScript + esbuild, served from FastAPI static route), Studio polish, Neo4j write-both bridge for `graph.json`, ContentHub replacement.
 
@@ -58,6 +58,9 @@
 | `tests/dsp_ai/test_item_enrich_dispatch.py` | Dispatch writes to dsp_ai.item_enhancements |
 | `tests/dsp_ai/test_graph_cutover.py` | Neo4j write-both mode + cutover flag |
 | `tests/dsp_ai/test_mcp_studio_tools.py` | MCP tool invocations |
+| `migrations/versions/013_dsp_ai_generations_nullable_enh.py` | Alembic: `enhancement_id` nullable + add `caller TEXT` column for non-engine LLM calls |
+| `src/spec2sphere/llm/observed.py` | `ObservedLLMProvider` — thin wrapper that logs every `generate()` / `generate_json()` call to `dsp_ai.generations` |
+| `tests/dsp_ai/test_observed_llm.py` | Wrapper records provider calls with caller + tokens + model |
 
 ### Modified files
 
@@ -74,6 +77,8 @@
 | `src/spec2sphere/copilot/content_hub.py` | Query Brain for topics/objects instead of filesystem walking |
 | `src/spec2sphere/copilot/mcp_server.py` | Register studio_tools |
 | `src/spec2sphere/app.py` | Mount widget_routes |
+| `src/spec2sphere/llm/__init__.py` | `create_llm_provider()` wraps its result in `ObservedLLMProvider` — one-line change, every call site gets observability |
+| `src/spec2sphere/llm/base.py` | Optional `caller: str \| None = None` kwarg on `generate()` / `generate_json()` — default-compatible with all existing signatures |
 
 ---
 
@@ -1211,12 +1216,278 @@ git commit -m "refactor(tasks): file_drop 5-min poll → inotify + NOTIFY"
 
 ---
 
-## Task 13: Integration smoke + ship criteria
+## Task 13: Universal LLM observability — every call lands in `dsp_ai.generations`
+
+**Why this task:** Existing Spec2Sphere modules (`agents/*`, `migration/*`, `core/standards/*`, `core/knowledge/*`, `standards/rule_extractor.py`) go through `LLMProvider.generate()` / `generate_json()` and never touch `dsp_ai.generations`. Without this task, Session C's cost guard covers only engine-driven enhancements — a large observability gap. This closes it with a single factory change; no call sites modified.
+
+**Files:**
+- Create: `migrations/versions/013_dsp_ai_generations_nullable_enh.py`
+- Create: `src/spec2sphere/llm/observed.py`
+- Modify: `src/spec2sphere/llm/base.py` — add optional `caller` kwarg (default-compatible)
+- Modify: `src/spec2sphere/llm/__init__.py` — wrap in factory
+- Create: `tests/dsp_ai/test_observed_llm.py`
+
+- [ ] **Step 13.1: Migration — relax FK, add caller column**
+
+```python
+# migrations/versions/013_dsp_ai_generations_nullable_enh.py
+"""Allow non-engine LLM calls to log into dsp_ai.generations."""
+from alembic import op
+
+revision = "013"
+down_revision = "012"   # after Session C's 012 — order carefully; if C hasn't run yet, adjust down_revision to 011
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.execute("ALTER TABLE dsp_ai.generations ALTER COLUMN enhancement_id DROP NOT NULL")
+    op.execute("ALTER TABLE dsp_ai.generations ADD COLUMN IF NOT EXISTS caller TEXT")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_generations_caller ON dsp_ai.generations(caller) WHERE caller IS NOT NULL")
+
+
+def downgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS dsp_ai.idx_generations_caller")
+    op.execute("ALTER TABLE dsp_ai.generations DROP COLUMN IF EXISTS caller")
+    op.execute("UPDATE dsp_ai.generations SET enhancement_id = gen_random_uuid() WHERE enhancement_id IS NULL")
+    op.execute("ALTER TABLE dsp_ai.generations ALTER COLUMN enhancement_id SET NOT NULL")
+```
+
+*Note:* Session C's migration 012 is later in Session C's plan. If Session B merges before Session C's 012 runs on prod, renumber this as 012 and Session C's as 013. Resolve during Session B task execution.
+
+- [ ] **Step 13.2: `base.py` — add optional `caller` kwarg**
+
+```python
+# In src/spec2sphere/llm/base.py — update abstract method signatures
+
+class LLMProvider(ABC):
+    @abstractmethod
+    async def generate(
+        self,
+        prompt: str,
+        system: str = "",
+        *,
+        tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
+        caller: str | None = None,      # NEW — identifies the call site for observability
+    ) -> Optional[str]: ...
+
+    @abstractmethod
+    async def generate_json(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        system: str = "",
+        *,
+        tier: str = DEFAULT_TIER,
+        data_in_context: bool = False,
+        caller: str | None = None,      # NEW
+    ) -> Optional[dict]: ...
+```
+
+Update each concrete provider (`anthropic.py`, `azure_openai.py`, `direct.py`, `gemini.py`, `ollama.py`, `openai.py`, `vllm.py`, `passthrough.py`, `noop.py`, `router.py`) to accept `caller` — simplest: add `caller: str | None = None` to every override, ignore the value (the wrapper logs it, not the concrete provider).
+
+- [ ] **Step 13.3: `ObservedLLMProvider` wrapper**
+
+```python
+# src/spec2sphere/llm/observed.py
+"""Wraps any LLMProvider and logs every call into dsp_ai.generations.
+
+Applied in create_llm_provider() so every Spec2Sphere caller benefits
+without code changes.
+"""
+from __future__ import annotations
+import hashlib, json, time, uuid, logging
+from typing import Any, Optional
+import asyncpg
+from spec2sphere.config import settings
+from .base import LLMProvider, DEFAULT_TIER
+
+logger = logging.getLogger(__name__)
+
+# tier → quality_level mapping (for dsp_ai.generations.quality_level)
+_TIER_TO_Q = {"small": "Q1", "medium": "Q2", "large": "Q3", "reasoning": "Q5"}
+
+
+class ObservedLLMProvider(LLMProvider):
+    def __init__(self, inner: LLMProvider):
+        self._inner = inner
+        self._model_hint = getattr(inner, "model", None) or inner.__class__.__name__
+
+    async def generate(self, prompt, system="", *, tier=DEFAULT_TIER, data_in_context=False, caller=None) -> Optional[str]:
+        t0 = time.time()
+        try:
+            result = await self._inner.generate(
+                prompt, system, tier=tier, data_in_context=data_in_context, caller=caller,
+            )
+        except Exception:
+            await self._log(prompt, tier, caller, t0, error="exception")
+            raise
+        await self._log(prompt, tier, caller, t0, output=result)
+        return result
+
+    async def generate_json(self, prompt, schema, system="", *, tier=DEFAULT_TIER, data_in_context=False, caller=None) -> Optional[dict]:
+        t0 = time.time()
+        try:
+            result = await self._inner.generate_json(
+                prompt, schema, system, tier=tier, data_in_context=data_in_context, caller=caller,
+            )
+        except Exception:
+            await self._log(prompt, tier, caller, t0, error="exception")
+            raise
+        await self._log(prompt, tier, caller, t0, output=result)
+        return result
+
+    async def _log(self, prompt: str, tier: str, caller: str | None, t0: float,
+                   *, output: Any = None, error: str | None = None) -> None:
+        latency_ms = int((time.time() - t0) * 1000)
+        prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
+        try:
+            conn = await asyncpg.connect(settings.postgres_dsn)
+            try:
+                await conn.execute(
+                    """
+                    INSERT INTO dsp_ai.generations
+                        (id, enhancement_id, user_id, context_key, prompt_hash, input_ids,
+                         model, quality_level, latency_ms, tokens_in, tokens_out, cost_usd,
+                         cached, quality_warnings, error_kind, preview, caller)
+                    VALUES ($1::uuid, NULL, NULL, NULL, $2, '[]'::jsonb,
+                            $3, $4, $5, NULL, NULL, NULL,
+                            FALSE, NULL, $6, FALSE, $7)
+                    """,
+                    str(uuid.uuid4()), prompt_hash, self._model_hint,
+                    _TIER_TO_Q.get(tier, "Q3"), latency_ms, error, caller or "unknown",
+                )
+            finally:
+                await conn.close()
+        except Exception:
+            logger.exception("observed_llm: failed to log generation (non-fatal)")
+```
+
+The wrapper is **best-effort**: logging failures never break the underlying LLM call.
+
+- [ ] **Step 13.4: Factory wraps automatically**
+
+```python
+# At the bottom of create_llm_provider() in src/spec2sphere/llm/__init__.py
+
+from .observed import ObservedLLMProvider
+
+def create_llm_provider(cfg: LLMConfig, output_dir: Optional[Path] = None) -> LLMProvider:
+    # ... existing branches that build `provider` ...
+    return ObservedLLMProvider(provider)
+```
+
+- [ ] **Step 13.5: Test the wrapper**
+
+```python
+# tests/dsp_ai/test_observed_llm.py
+import pytest, asyncpg
+from spec2sphere.config import settings
+from spec2sphere.llm.observed import ObservedLLMProvider
+from spec2sphere.llm.base import LLMProvider
+
+
+class _FakeProvider(LLMProvider):
+    model = "fake-model"
+    async def generate(self, prompt, system="", *, tier="large", data_in_context=False, caller=None):
+        return "ok"
+    async def generate_json(self, prompt, schema, system="", *, tier="large", data_in_context=False, caller=None):
+        return {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_wrapper_records_generate_call(clean_generations):
+    wrapped = ObservedLLMProvider(_FakeProvider())
+    out = await wrapped.generate("hi", caller="agents.doc_review")
+    assert out == "ok"
+    conn = await asyncpg.connect(settings.postgres_dsn)
+    try:
+        row = await conn.fetchrow(
+            "SELECT caller, enhancement_id, model FROM dsp_ai.generations "
+            "WHERE caller='agents.doc_review' ORDER BY created_at DESC LIMIT 1"
+        )
+        assert row is not None
+        assert row["caller"] == "agents.doc_review"
+        assert row["enhancement_id"] is None
+        assert row["model"] == "fake-model"
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_wrapper_records_generate_json_call(clean_generations):
+    wrapped = ObservedLLMProvider(_FakeProvider())
+    out = await wrapped.generate_json("hi", {"type":"object"}, caller="migration.classifier")
+    assert out == {"ok": True}
+    conn = await asyncpg.connect(settings.postgres_dsn)
+    try:
+        row = await conn.fetchrow(
+            "SELECT caller FROM dsp_ai.generations WHERE caller='migration.classifier' ORDER BY created_at DESC LIMIT 1"
+        )
+        assert row is not None
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_wrapper_does_not_swallow_provider_exceptions():
+    class _Broken(LLMProvider):
+        async def generate(self, prompt, system="", *, tier="large", data_in_context=False, caller=None):
+            raise RuntimeError("boom")
+        async def generate_json(self, prompt, schema, system="", *, tier="large", data_in_context=False, caller=None):
+            raise RuntimeError("boom")
+    wrapped = ObservedLLMProvider(_Broken())
+    with pytest.raises(RuntimeError):
+        await wrapped.generate("x", caller="test")
+```
+
+- [ ] **Step 13.6: Optional — populate caller at call sites**
+
+Not strictly required (wrapper logs `caller="unknown"` if not passed), but one-liners across the high-traffic call sites make the Generation Log vastly more useful:
+
+```python
+# examples (apply in a best-effort pass — don't block the session on this)
+# agents/doc_review.py
+result = await llm.generate(prompt, caller="agents.doc_review")
+
+# agents/doc_qa.py
+result = await llm.generate_json(prompt, schema, caller="agents.doc_qa")
+
+# migration/classifier.py
+result = await llm.generate_json(prompt, schema, caller="migration.classifier")
+
+# migration/generator.py
+result = await llm.generate(prompt, caller="migration.generator")
+
+# core/standards/intake.py
+result = await llm.generate_json(prompt, schema, caller="standards.intake")
+
+# core/knowledge/knowledge_service.py
+result = await llm.generate_json(prompt, schema, caller="knowledge.service")
+```
+
+Grep for `\.generate\(` and `\.generate_json\(` inside `src/spec2sphere/` to find them all — ~15–25 call sites. Add `caller=...` positionally or as kwarg. Zero behavioral risk since `caller` defaults to None.
+
+- [ ] **Step 13.7: Smoke check**
+
+Run any existing agent path (e.g., trigger a doc_review from the pipeline) and verify a row lands in `dsp_ai.generations` with `enhancement_id IS NULL` and the expected `caller`.
+
+- [ ] **Step 13.8: Commit**
+
+```bash
+git add migrations/versions/013_dsp_ai_generations_nullable_enh.py src/spec2sphere/llm/observed.py src/spec2sphere/llm/__init__.py src/spec2sphere/llm/base.py src/spec2sphere/llm/*.py src/spec2sphere/agents/ src/spec2sphere/migration/ src/spec2sphere/core/ tests/dsp_ai/test_observed_llm.py
+git commit -m "feat(llm): universal observability — every LLM call logs to dsp_ai.generations"
+```
+
+---
+
+## Task 14: Integration smoke + ship criteria
 
 **Files:**
 - Extend: `tests/dsp_ai/test_smoke.py`
 
-- [ ] **Step 13.1: Session B smoke checks**
+- [ ] **Step 14.1: Session B smoke checks**
 
 ```python
 @pytest.mark.smoke
@@ -1259,7 +1530,7 @@ async def test_sse_stream_delivers_event_within_2s():
                     return
 ```
 
-- [ ] **Step 13.2: Manual demo checklist**
+- [ ] **Step 14.2: Manual demo checklist**
 
 ```
 □ All 5 seed templates published; each has at least one generation row
@@ -1273,9 +1544,10 @@ async def test_sse_stream_delivers_event_within_2s():
 □ MCP studio_tools accessible from Claude Code (via Spec2Sphere MCP server)
 □ graph.json reads still work with BRAIN_READ_FROM_BRAIN=false (rollback path safe)
 □ /events/browser SSE delivers updates within 1s of state change (no more 5s polling)
+□ After triggering any existing agent path (doc_review, classifier, etc.), a new row appears in dsp_ai.generations with caller='agents.X' or similar + enhancement_id=NULL
 ```
 
-- [ ] **Step 13.3: Commit**
+- [ ] **Step 14.3: Commit**
 
 ```bash
 git add tests/dsp_ai/test_smoke.py
@@ -1295,5 +1567,6 @@ git commit -m "test(dsp-ai): Session B smoke suite + demo checklist"
 7. Browser + agent-terminal polling replaced with SSE; file_drop uses inotify
 8. `pytest -m smoke` green against a running compose with all Session B additions
 9. Provenance works end-to-end: click admin chip in a widget render → jumps to Generation Log → `/v1/why/{gen}` narrative explains inputs
+10. Every existing LLM call across `agents/`, `migration/`, `core/standards/`, `core/knowledge/` logs to `dsp_ai.generations` via the `ObservedLLMProvider` wrapper — Generation Log shows rows with `caller='agents.doc_review'` etc. alongside engine rows
 
 Anything below is Session C territory.

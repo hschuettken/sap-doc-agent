@@ -98,7 +98,10 @@ GOAL
 Expand from vertical slice to full breadth. All 5 enhancement kinds ship.
 SAC Custom Widget (Pattern A) built and deployed. Studio gains Template
 Library, Generation Log, Brain Explorer. Consolidate: graph.json →
-Neo4j, Copilot ContentHub → Corporate Brain, MCP Studio tools.
+Neo4j, Copilot ContentHub → Corporate Brain, MCP Studio tools, AND every
+existing LLM call across agents/, migration/, core/standards/,
+core/knowledge/ logs to dsp_ai.generations via the ObservedLLMProvider
+wrapper (one-line factory change; zero call-site changes required).
 
 READ FIRST (mandatory):
   1. docs/superpowers/specs/2026-04-17-dsp-ai-enhancements-design.md
@@ -120,6 +123,12 @@ Special attention points for Session B:
   Session C.
 - MCP Studio tools (Task 10) must not interfere with existing Copilot
   MCP tools — register alongside, don't replace.
+- Task 13 observability — the one-line factory change in
+  llm/__init__.py is the whole migration; don't overthink it. The
+  wrapper is best-effort (logging failures never break LLM calls).
+  Migration 013 renumbers to 012 if Session C hasn't landed its 012
+  first — resolve during execution. Populating `caller=...` at the
+  ~15–25 call sites is a nice-to-have (Step 13.6), not a blocker.
 
 AUTONOMY RULES
 Same as Session A:
@@ -146,6 +155,10 @@ All must be true:
   □ Copilot ContentHub queries Brain; existing Copilot answers unchanged
   □ browser_viewer + agent_terminal polling replaced with SSE
   □ file_drop uses inotify + NOTIFY (no 5-min poll)
+  □ Task 13 observability: ObservedLLMProvider wraps every factory
+    result; trigger any agent/migration/standards path and confirm
+    dsp_ai.generations has a new row with caller='...' and
+    enhancement_id=NULL
   □ `pytest -m smoke` green
 
 ON COMPLETION

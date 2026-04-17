@@ -647,13 +647,22 @@ git commit -m "feat(ai-studio): publish diff preview with breaking-change warnin
 
 ```python
 # src/spec2sphere/dsp_ai/cost_guard.py
-"""Per-enhancement monthly cap. Auto-pauses enhancement on overrun."""
+"""Per-enhancement monthly cap. Auto-pauses enhancement on overrun.
+
+Note: Session B's ObservedLLMProvider also writes to dsp_ai.generations
+with enhancement_id=NULL and caller='agents.*' / 'migration.*' / etc.
+This cost guard's totals therefore cover both engine-driven enhancements
+AND existing agent/migration LLM usage. Per-enhancement cap only applies
+to rows with non-NULL enhancement_id; global monthly total (separate env
+var COST_GUARD_GLOBAL_CAP_USD, optional) covers the lot.
+"""
 from __future__ import annotations
 import os
 import asyncpg
 from spec2sphere.config import settings
 
 DEFAULT_CAP = float(os.environ.get("COST_GUARD_DEFAULT_CAP_USD", "25.0"))
+GLOBAL_CAP = float(os.environ.get("COST_GUARD_GLOBAL_CAP_USD", "100.0"))  # covers agent + migration + standards + knowledge LLM calls
 
 class CostExceeded(Exception):
     pass
