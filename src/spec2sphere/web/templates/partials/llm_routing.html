@@ -647,7 +647,7 @@ async function saveAsCustomProfile() {
 async function resetAllOverrides() {
   if (!window.confirm('This will clear all cluster and action overrides. Continue?')) return;
   try {
-    await apiCall('DELETE', '/overrides');
+    await apiCall('POST', '/reset');
     await refreshState();
     showToast('All overrides reset', 'success');
   } catch (err) {
