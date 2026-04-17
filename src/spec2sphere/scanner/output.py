@@ -375,6 +375,18 @@ def write_scan_output(result: ScanResult, output_dir: Path) -> None:
     except Exception:  # pragma: no cover — NOTIFY is fire-and-forget
         pass
 
+    # Session B cutover bridge: also feed the Corporate Brain when BRAIN_WRITE_BOTH=true.
+    # File remains the source of truth; Brain is a mirror this session.
+    import os as _os
+
+    if _os.environ.get("BRAIN_WRITE_BOTH", "false").lower() == "true":
+        try:
+            _feed_brain_from_graph(graph_file, customer=str(result.source_system))
+        except Exception:  # pragma: no cover — never break the scan on Brain errors
+            import logging as _log
+
+            _log.getLogger(__name__).exception("Brain write-both failed (file write succeeded)")
+
 
 def _emit_scan_completed(customer: str, graph_path: str) -> None:
     """Fire ``NOTIFY scan_completed`` with the graph.json path.
@@ -393,6 +405,30 @@ def _emit_scan_completed(customer: str, graph_path: str) -> None:
         asyncio.run(emit("scan_completed", payload))
     else:
         loop.create_task(emit("scan_completed", payload))
+
+
+def _feed_brain_from_graph(graph_file: Path, *, customer: str) -> None:
+    """Best-effort mirror of graph.json to the Corporate Brain.
+
+    Calls the Session A schema_semantic feeder (feed_from_graph_json) which
+    accepts a file path.  Runs synchronously if outside an event loop
+    (scanner CLI), or schedules a task if inside one (FastAPI/Celery).
+    """
+    import asyncio
+
+    from spec2sphere.dsp_ai.brain.feeders.schema_semantic import (  # noqa: E402
+        feed_from_graph_json,
+    )
+
+    async def _run() -> None:
+        await feed_from_graph_json(customer, graph_file)
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_run())
+    else:
+        loop.create_task(_run())
 
 
 def _render_readme(result: ScanResult) -> str:
