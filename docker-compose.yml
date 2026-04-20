@@ -107,9 +107,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    # Beat doesn't expose a ping endpoint; verify the process and that the schedule file is current.
+    # Beat doesn't expose a ping endpoint and python:slim lacks procps/pgrep.
+    # PID 1 is the celery beat command; check its cmdline contains 'beat' plus the schedule file.
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null && [ -f /tmp/celerybeat-schedule ] || exit 1"]
+      test: ["CMD-SHELL", "grep -aq beat /proc/1/cmdline && [ -f /tmp/celerybeat-schedule ] || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
