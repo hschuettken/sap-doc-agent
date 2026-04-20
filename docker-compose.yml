@@ -58,6 +58,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Override the image's HTTP /healthz HEALTHCHECK — celery workers don't serve HTTP.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A spec2sphere.tasks.celery_app inspect ping -d celery@$$HOSTNAME -t 5 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - app-network
 
@@ -80,6 +87,12 @@ services:
         condition: service_healthy
       chrome:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A spec2sphere.tasks.celery_app inspect ping -d celery@$$HOSTNAME -t 5 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - app-network
 
@@ -94,6 +107,13 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    # Beat doesn't expose a ping endpoint; verify the process and that the schedule file is current.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null && [ -f /tmp/celerybeat-schedule ] || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
       - app-network
 
@@ -207,7 +227,8 @@ services:
       - "9222:9222"    # Chrome DevTools Protocol
     shm_size: "2gb"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9222/json/version || exit 1"]
+      # Chrome image ships wget, not curl.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9222/json/version || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
