@@ -67,6 +67,11 @@
   document.getElementById('preview-budget-reset').addEventListener('click', function() { budgetSet(BUDGET_MAX); });
   budgetRender();
 
+  function _csrfToken() {
+    var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
   async function runPreview() {
     if (budgetGet() <= 0) { alert('Preview budget exhausted — click Reset.'); return; }
     budgetSet(budgetGet() - 1);
@@ -75,7 +80,7 @@
     try {
       const resp = await fetch(`/ai-studio/${ENH_ID}/preview`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-User-Email': EMAIL},
+        headers: {'Content-Type': 'application/json', 'X-User-Email': EMAIL, 'X-CSRF-Token': _csrfToken()},
         body: JSON.stringify({user: EMAIL, context_hints: {}})
       });
       const data = await resp.json();
@@ -94,7 +99,7 @@
     status.textContent = 'saving…';
     const resp = await fetch(`/ai-studio/${ENH_ID}/config`, {
       method: 'PUT',
-      headers: {'Content-Type': 'application/json', 'X-User-Email': EMAIL},
+      headers: {'Content-Type': 'application/json', 'X-User-Email': EMAIL, 'X-CSRF-Token': _csrfToken()},
       body: JSON.stringify(parsed)
     });
     status.textContent = resp.ok ? 'saved' : 'save failed (' + resp.status + ')';

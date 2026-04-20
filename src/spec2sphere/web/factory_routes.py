@@ -149,10 +149,15 @@ def create_factory_routes() -> APIRouter:
 
         return JSONResponse({"run_id": run_id, "steps": steps})
 
-    @router.get("/api/factory/active")
+    @router.get("/api/factory/active", response_class=HTMLResponse)
     async def factory_active(request: Request):
-        """Check if any deployment run is currently active."""
+        """Check if any deployment run is currently active.
+
+        Returns an HTML badge fragment for HTMX (hx-swap="innerHTML" on #active-badge).
+        """
         conn = None
+        active = False
+        run_id = None
         try:
             conn = await _get_conn()
             row = await conn.fetchrow(
@@ -164,14 +169,27 @@ def create_factory_routes() -> APIRouter:
                 """
             )
             if row:
-                return JSONResponse({"active": True, "run_id": str(row["id"])})
+                active = True
+                run_id = str(row["id"])
         except Exception as exc:
             logger.warning("factory_active: %s", exc)
         finally:
             if conn:
                 await conn.close()
 
-        return JSONResponse({"active": False, "run_id": None})
+        if active:
+            return HTMLResponse(
+                f'<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">'
+                f'<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>'
+                f'Active run {run_id[:8] if run_id else ""}'
+                f"</span>"
+            )
+        return HTMLResponse(
+            '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">'
+            '<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>'
+            "Idle"
+            "</span>"
+        )
 
     @router.post("/api/factory/deploy/dsp")
     async def factory_deploy_dsp(request: Request):
