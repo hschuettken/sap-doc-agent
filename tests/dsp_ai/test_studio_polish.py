@@ -179,6 +179,54 @@ async def test_generation_log_filters_by_since_hours(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_generation_log_warnings_count_uses_array_length_not_string_length(monkeypatch) -> None:
+    """asyncpg returns JSONB as str — normalize so Jinja `| length` counts items, not chars."""
+    from datetime import datetime, timezone
+
+    # Simulate asyncpg's JSONB-as-string return shape
+    fake_rows = [
+        {
+            "id": str(uuid.uuid4()),
+            "enhancement_id": str(uuid.uuid4()),
+            "user_id": "u1",
+            "context_key": None,
+            "model": "qwen2.5:14b",
+            "quality_level": "Q3",
+            "latency_ms": 100,
+            "cost_usd": None,
+            "cached": False,
+            # String, not list — what asyncpg actually gives us for JSONB
+            "quality_warnings": '["dsp_context_missing", "external_context_missing"]',
+            "error_kind": None,
+            "preview": True,
+            "created_at": datetime.now(timezone.utc),
+            "enh_name": "Morning Brief",
+        },
+    ]
+
+    class FakeConn:
+        async def fetch(self, *args):
+            return fake_rows
+
+        async def close(self):
+            pass
+
+    async def fake_connect(dsn):
+        return FakeConn()
+
+    with patch("spec2sphere.web.ai_studio.generation_log.asyncpg.connect", side_effect=fake_connect):
+        app = _make_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            r = await c.get("/ai-studio/log/?since_hours=1")
+
+    assert r.status_code == 200
+    # The warnings badge should show "2" (array length), not "51" (string length)
+    assert '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">2</span>' in r.text
+    # And should NOT contain the character count
+    assert ">51<" not in r.text
+
+
+@pytest.mark.asyncio
 async def test_generation_detail_fetches_why_from_dspai(monkeypatch) -> None:
     """GET /ai-studio/log/{gen_id} calls dsp-ai /v1/why and renders narrative."""
     gen_id = "gen-abc-123"

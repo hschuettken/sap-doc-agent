@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,6 +17,19 @@ from spec2sphere.dsp_ai.settings import postgres_dsn
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 _templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+
+def _normalize_warnings(row: dict) -> dict:
+    """asyncpg returns JSONB as str; parse so Jinja `| length` gives array count."""
+    w = row.get("quality_warnings")
+    if isinstance(w, str):
+        try:
+            row["quality_warnings"] = json.loads(w)
+        except (ValueError, TypeError):
+            row["quality_warnings"] = []
+    elif w is None:
+        row["quality_warnings"] = []
+    return row
 
 
 def create_log_router() -> APIRouter:
@@ -70,7 +84,7 @@ def create_log_router() -> APIRouter:
                 "request": request,
                 "active_page": "ai-studio",
                 "sub_nav": "log",
-                "rows": [dict(r) for r in rows],
+                "rows": [_normalize_warnings(dict(r)) for r in rows],
                 "filters": {
                     "enhancement_id": enhancement_id,
                     "user_id": user_id,
