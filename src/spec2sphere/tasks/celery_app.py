@@ -25,7 +25,11 @@ celery_app.conf.update(
         "spec2sphere.tasks.file_drop_tasks.*": {"queue": "scan"},
         "spec2sphere.dsp_ai.run_batch_enhancements": {"queue": "ai-batch"},
     },
-    imports=("spec2sphere.dsp_ai.adapters.batch",),
+    imports=(
+        "spec2sphere.dsp_ai.adapters.batch",
+        "spec2sphere.tasks.agent_tasks",
+        "spec2sphere.tasks.m365_sync",
+    ),
     worker_prefetch_multiplier=1,
 )
 

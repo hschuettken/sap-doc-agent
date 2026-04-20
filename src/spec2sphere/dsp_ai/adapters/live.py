@@ -56,7 +56,7 @@ async def enhance(enhancement_id: str, body: EnhanceRequest = Body(default=None)
     except LookupError:
         raise HTTPException(status_code=404, detail="enhancement not found")
 
-    if not body.preview:
+    if not body.preview and not result.get("error_kind"):
         await cache.set_(key, result, ttl=600)
     return result
 

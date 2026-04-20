@@ -93,6 +93,48 @@ async def test_enhance_preview_bypasses_cache() -> None:
     cache_set.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_enhance_error_result_not_cached() -> None:
+    """Results with error_kind must NOT be written to cache to prevent permanent failure lock-in."""
+    cache_set = AsyncMock()
+
+    async def fake_engine_timeout(enhancement_id, **kwargs):
+        return {"generation_id": "err1", "content": None, "error_kind": "llm_timeout"}
+
+    with (
+        patch("spec2sphere.dsp_ai.adapters.live.cache.get", AsyncMock(return_value=None)),
+        patch("spec2sphere.dsp_ai.adapters.live.cache.set_", cache_set),
+        patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine_timeout),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.post("/v1/enhance/abc", json={"user": "h"})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("error_kind") == "llm_timeout"
+    cache_set.assert_not_called(), "error result must never be written to cache"
+
+
+@pytest.mark.asyncio
+async def test_enhance_success_result_is_cached() -> None:
+    """Successful results (no error_kind) must be written to cache."""
+    cache_set = AsyncMock()
+
+    async def fake_engine_ok(enhancement_id, **kwargs):
+        return {"generation_id": "ok1", "content": "hello", "error_kind": None}
+
+    with (
+        patch("spec2sphere.dsp_ai.adapters.live.cache.get", AsyncMock(return_value=None)),
+        patch("spec2sphere.dsp_ai.adapters.live.cache.set_", cache_set),
+        patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine_ok),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            r = await c.post("/v1/enhance/abc", json={"user": "h"})
+
+    assert r.status_code == 200
+    cache_set.assert_called_once()
+
+
 def test_cache_key_is_stable_for_same_inputs() -> None:
     from spec2sphere.dsp_ai.cache import key_for
 

@@ -64,11 +64,10 @@ function toggleFullscreen() {
 (function () {
   function refreshStatus() {
     fetch('/api/factory/active')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.task_name) {
-          document.getElementById('viewer-task').textContent = 'Watching: ' + data.task_name;
-        }
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var badge = document.getElementById('active-badge');
+        if (badge) { badge.innerHTML = html; }
       })
       .catch(function (err) { console.debug('Factory status refresh error:', err); });
   }

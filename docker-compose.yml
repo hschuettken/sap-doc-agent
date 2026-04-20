@@ -22,6 +22,8 @@ services:
       - BOOKSTACK_TOKEN=${BOOKSTACK_TOKEN:-}
       - SECRET_KEY=${SPEC2SPHERE_SECRET_KEY:-${SECRET_KEY:-spec2sphere-demo-secret-change-me}}
       - ENABLED_MODULES=${SPEC2SPHERE_ENABLED_MODULES:-${ENABLED_MODULES:-core,migration_accelerator,dsp_factory,sac_factory,governance,artifact_lab,multi_tenant}}
+      - NEO4J_URL=${NEO4J_URL:-bolt://neo4j:7687}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-}
       # Quality router config persistence path
       - LLM_ROUTING_CONFIG=/app/data/llm_routing.json
     volumes:

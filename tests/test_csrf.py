@@ -106,3 +106,26 @@ def test_safe_methods_not_checked(csrf_app):
     # OPTIONS also bypasses (but may 405 depending on ASGI); ensure it's never 403
     resp2 = client.options("/api/items")
     assert resp2.status_code != 403
+
+
+def test_ai_studio_preview_accepts_cookie_plus_header(csrf_app):
+    """Preview endpoint (or any POST) accepts when both cookie and matching header are sent."""
+    # Seed the CSRF cookie via a GET
+    client = TestClient(csrf_app)
+    client.get("/api/items")
+    token = client.cookies.get(CSRF_COOKIE)
+    assert token, "CSRF cookie must be set after GET"
+
+    # Simulate session cookie so CSRF check is active
+    client.cookies.set("session", "fake-session")
+
+    # POST with matching cookie + header: must be 200, not 403
+    resp = client.post(
+        "/api/items",
+        headers={CSRF_HEADER: token},
+    )
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+    # POST with cookie but no header: must be 403
+    resp_no_header = client.post("/api/items")
+    assert resp_no_header.status_code == 403

@@ -242,11 +242,22 @@ async def list_projects(ctx: AdminDep, customer_id: Optional[str] = None) -> lis
 ui_router = APIRouter(prefix="/ui/workspace", tags=["workspace-ui"], include_in_schema=False)
 
 
-@ui_router.get("/switcher", response_class=HTMLResponse)
-async def workspace_switcher_component(ctx: ContextDep) -> str:
-    """Return the workspace switcher HTML component (HTMX partial)."""
-    from spec2sphere.tenant.users import get_user_customers
-    from spec2sphere.db import _get_conn
+@ui_router.get("/switcher")
+async def workspace_switcher_component(request: Request):
+    """Return the workspace switcher HTML component (HTMX partial).
+
+    Returns 204 No Content when the user has no active workspace session so
+    the HTMX call on every page-load doesn't spam the browser console with 401s.
+    """
+    from fastapi.responses import Response  # noqa: PLC0415
+    from spec2sphere.tenant.deps import get_context  # noqa: PLC0415
+    from spec2sphere.tenant.users import get_user_customers  # noqa: PLC0415
+    from spec2sphere.db import _get_conn  # noqa: PLC0415
+
+    try:
+        ctx = await get_context(request)
+    except HTTPException:
+        return Response(status_code=204)
 
     try:
         customers = await get_user_customers(ctx.user_id)
