@@ -2,10 +2,10 @@
 {% block title %}SAP Source — Spec2Sphere Setup{% endblock %}
 {% block content %}
 <h2 class="font-heading text-xl text-petrol mb-1">SAP Source Connection</h2>
-<p class="text-sm text-gray-500 mb-2">Optionally add your first SAP Datasphere or BW connection. You can skip this and add connections later.</p>
+<p class="text-gray-500 text-sm mb-2">Optionally add your first SAP Datasphere or BW connection. You can skip this and add connections later.</p>
 
 {% if error %}
-<div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+<div class="wizard-alert wizard-alert--error">
     {{ error | replace('+', ' ') }}
 </div>
 {% endif %}
@@ -13,49 +13,40 @@
 <form method="post" action="/ui/setup/sap" class="space-y-4">
 
     <div>
-        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" for="dsp_url">
-            DSP / BW Base URL
-        </label>
+        <label class="wizard-label" for="dsp_url">DSP / BW Base URL</label>
         <input type="url" id="dsp_url" name="dsp_url"
                placeholder="https://your-tenant.eu10.hcs.cloud.sap"
-               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-petrol focus:ring-2 focus:ring-petrol/20">
+               class="atlas-input w-full">
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid-cols-2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--atlas-space-3);">
         <div>
-            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" for="dsp_user">
-                Username
-            </label>
+            <label class="wizard-label" for="dsp_user">Username</label>
             <input type="text" id="dsp_user" name="dsp_user"
                    placeholder="user@example.com"
-                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-petrol focus:ring-2 focus:ring-petrol/20">
+                   class="atlas-input w-full">
         </div>
         <div>
-            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" for="dsp_pass">
-                Password
-            </label>
+            <label class="wizard-label" for="dsp_pass">Password</label>
             <input type="password" id="dsp_pass" name="dsp_pass"
                    placeholder="••••••••"
-                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-petrol focus:ring-2 focus:ring-petrol/20">
+                   class="atlas-input w-full">
         </div>
     </div>
 
-    <div class="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
-        Credentials are stored in <code class="bg-gray-100 px-1 rounded">.env</code> and loaded at startup.
+    <div class="wizard-tip">
+        Credentials are stored in <code style="background-color:var(--atlas-color-border);padding:0 4px;border-radius:var(--atlas-radius-sm);">.env</code> and loaded at startup.
         You can add additional systems in <em>Scanner &rarr; Configure</em> after setup.
     </div>
 
-    <div class="flex items-center justify-between pt-2">
-        <a href="/ui/setup/privacy" class="text-sm text-gray-400 hover:text-petrol transition-colors">&larr; Back</a>
+    <div class="wizard-nav">
+        <a href="/ui/setup/privacy" class="wizard-back-link">&larr; Back</a>
         <div class="flex gap-2">
             <button type="submit" name="skip" value="1"
-                    class="py-2 px-4 border border-gray-200 text-gray-500 hover:border-petrol hover:text-petrol rounded-lg font-medium text-sm transition-colors">
+                    class="atlas-btn atlas-btn--ghost">
                 Skip
             </button>
-            <button type="submit"
-                    class="py-2 px-6 bg-petrol hover:bg-petrol-dark text-white rounded-lg font-medium text-sm transition-colors">
-                Continue &rarr;
-            </button>
+            <button type="submit" class="atlas-btn atlas-btn--primary">Continue &rarr;</button>
         </div>
     </div>
 </form>

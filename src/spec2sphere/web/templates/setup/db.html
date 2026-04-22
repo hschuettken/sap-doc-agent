@@ -2,46 +2,44 @@
 {% block title %}Database — Spec2Sphere Setup{% endblock %}
 {% block content %}
 <h2 class="font-heading text-xl text-petrol mb-1">Database Connection</h2>
-<p class="text-sm text-gray-500 mb-6">Spec2Sphere requires PostgreSQL 14+. Enter the connection URL and verify connectivity.</p>
+<p class="text-gray-500 text-sm mb-6">Spec2Sphere requires PostgreSQL 14+. Enter the connection URL and verify connectivity.</p>
 
 {% if error %}
-<div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+<div class="wizard-alert wizard-alert--error">
     <strong>Connection failed:</strong> {{ error | replace('+', ' ') }}
 </div>
 {% endif %}
 
 {% if ok %}
-<div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-700">
+<div class="wizard-alert wizard-alert--success">
     <strong>Success:</strong> {{ ok | replace('+', ' ') }}
 </div>
 {% endif %}
 
 <form method="post" action="/ui/setup/db" class="space-y-4">
     <div>
-        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1" for="db_url">
-            PostgreSQL URL
-        </label>
+        <label class="wizard-label" for="db_url">PostgreSQL URL</label>
         <input type="text" id="db_url" name="db_url"
                value="{{ db_url }}"
                placeholder="postgresql://user:password@host:5432/dbname"
-               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-petrol focus:ring-2 focus:ring-petrol/20">
-        <p class="text-xs text-gray-400 mt-1">Leave blank to keep the current DATABASE_URL environment variable.</p>
+               class="atlas-input w-full font-mono">
+        <p class="wizard-hint">Leave blank to keep the current DATABASE_URL environment variable.</p>
     </div>
 
-    <div class="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
-        <strong>Tip:</strong> Use <code class="bg-gray-100 px-1 rounded">postgresql+asyncpg://</code> prefix for async connections.
+    <div class="wizard-tip">
+        <strong>Tip:</strong> Use <code style="background-color:var(--atlas-color-border);padding:0 4px;border-radius:var(--atlas-radius-sm);">postgresql+asyncpg://</code> prefix for async connections.
         The test button uses a direct sync check.
     </div>
 
-    <div class="flex items-center justify-between pt-2">
-        <a href="/ui/setup/admin" class="text-sm text-gray-400 hover:text-petrol transition-colors">&larr; Back</a>
+    <div class="wizard-nav">
+        <a href="/ui/setup/admin" class="wizard-back-link">&larr; Back</a>
         <div class="flex gap-2">
             <button type="submit" name="action" value="test"
-                    class="py-2 px-4 border border-petrol text-petrol hover:bg-petrol/5 rounded-lg font-medium text-sm transition-colors">
+                    class="atlas-btn atlas-btn--secondary">
                 Test Connection
             </button>
             <button type="submit" name="action" value="next"
-                    class="py-2 px-6 bg-petrol hover:bg-petrol-dark text-white rounded-lg font-medium text-sm transition-colors">
+                    class="atlas-btn atlas-btn--primary">
                 Continue &rarr;
             </button>
         </div>

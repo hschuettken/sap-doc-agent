@@ -160,3 +160,87 @@ class TestBaseTemplate:
     def test_mobile_drawer_toggle(self):
         assert "openDrawer" in self._base()
         assert "closeDrawer" in self._base()
+
+
+# ── Setup wizard ──────────────────────────────────────────────────────────────
+
+class TestSetupWizard:
+    def _wizard(self):
+        return (TEMPLATES_DIR / "setup" / "base_wizard.html").read_text()
+
+    def test_no_tailwind_cdn(self):
+        assert "cdn.tailwindcss.com" not in self._wizard(), "Tailwind CDN must be removed from setup wizard"
+
+    def test_loads_atlas_tokens(self):
+        assert "atlas-tokens.css" in self._wizard()
+
+    def test_loads_atlas_ui(self):
+        assert "atlas-ui.css" in self._wizard()
+
+    def test_loads_style_css(self):
+        assert "style.css" in self._wizard()
+
+    def test_dark_theme_default(self):
+        assert 'data-theme="dark"' in self._wizard()
+
+    def test_no_hardcoded_petrol_hex(self):
+        wizard = self._wizard()
+        assert "#05415A" not in wizard, "Old petrol hex colour in wizard base"
+        assert "#C8963E" not in wizard, "Old accent hex colour in wizard base"
+
+    def test_uses_atlas_token_vars(self):
+        assert "var(--atlas-color-" in self._wizard()
+
+    def test_wizard_card_class_present(self):
+        assert "wizard-card" in self._wizard()
+
+    def test_wizard_progress_present(self):
+        assert "wizard-progress" in self._wizard()
+
+    def test_sub_page_welcome_no_tailwind_cdn(self):
+        welcome = (TEMPLATES_DIR / "setup" / "welcome.html").read_text()
+        assert "cdn.tailwindcss.com" not in welcome
+
+    def test_sub_page_admin_uses_atlas_input(self):
+        admin = (TEMPLATES_DIR / "setup" / "admin.html").read_text()
+        assert "atlas-input" in admin
+
+    def test_sub_page_admin_uses_atlas_btn(self):
+        admin = (TEMPLATES_DIR / "setup" / "admin.html").read_text()
+        assert "atlas-btn" in admin
+
+
+# ── Error pages ───────────────────────────────────────────────────────────────
+
+class TestErrorPages:
+    def _page(self, name: str) -> str:
+        return (TEMPLATES_DIR / "errors" / name).read_text()
+
+    def test_404_loads_atlas_tokens(self):
+        assert "atlas-tokens.css" in self._page("404.html")
+
+    def test_404_no_hardcoded_petrol(self):
+        page = self._page("404.html")
+        assert "#05415A" not in page, "Old petrol colour in 404 page"
+        assert "#C8963E" not in page, "Old accent colour in 404 page"
+
+    def test_404_uses_atlas_primary_var(self):
+        assert "var(--atlas-color-primary)" in self._page("404.html")
+
+    def test_404_dark_theme_default(self):
+        assert 'data-theme="dark"' in self._page("404.html")
+
+    def test_404_respects_stored_theme(self):
+        assert "atlasTheme" in self._page("404.html")
+
+    def test_500_loads_atlas_tokens(self):
+        assert "atlas-tokens.css" in self._page("500.html")
+
+    def test_500_uses_destructive_var(self):
+        assert "var(--atlas-color-destructive)" in self._page("500.html")
+
+    def test_500_no_hardcoded_colors(self):
+        page = self._page("500.html")
+        assert "#05415A" not in page
+        assert "#C8963E" not in page
+        assert "#353434" not in page

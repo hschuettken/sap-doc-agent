@@ -2,52 +2,51 @@
 {% block title %}Setup Complete — Spec2Sphere{% endblock %}
 {% block content %}
 <div class="text-center mb-6">
-    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background-color:var(--atlas-color-success-subtle);margin-bottom:var(--atlas-space-4);">
+        <svg style="width:32px;height:32px;color:var(--atlas-color-success)" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
         </svg>
     </div>
-    <h2 class="font-heading text-2xl text-petrol">You're all set!</h2>
-    <p class="text-gray-500 text-sm mt-2">Spec2Sphere is configured and ready to use.</p>
+    <h2 class="font-heading text-2xl text-petrol" style="margin:0 0 var(--atlas-space-2);">You&rsquo;re all set!</h2>
+    <p class="text-gray-500 text-sm" style="margin:0;">Spec2Sphere is configured and ready to use.</p>
 </div>
 
-<div class="space-y-3 mb-8 text-sm text-gray-600">
-    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+<div class="space-y-3 mb-8">
+    <div class="wizard-summary-row">
+        <svg style="width:16px;height:16px;color:var(--atlas-color-success);flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
-        <span>Admin password configured</span>
+        <span class="text-sm text-gray-700">Admin password configured</span>
     </div>
-    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+    <div class="wizard-summary-row">
+        <svg style="width:16px;height:16px;color:var(--atlas-color-success);flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
-        <span>Database connection verified</span>
+        <span class="text-sm text-gray-700">Database connection verified</span>
     </div>
-    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+    <div class="wizard-summary-row">
+        <svg style="width:16px;height:16px;color:var(--atlas-color-success);flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
-        <span>LLM routing profile selected</span>
+        <span class="text-sm text-gray-700">LLM routing profile selected</span>
     </div>
-    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+    <div class="wizard-summary-row">
+        <svg style="width:16px;height:16px;color:var(--atlas-color-success);flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
-        <span>Privacy settings saved</span>
+        <span class="text-sm text-gray-700">Privacy settings saved</span>
     </div>
 </div>
 
-<div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6 text-sm text-blue-700">
-    <strong>What happens next?</strong> Clicking "Launch Spec2Sphere" will write the setup marker and redirect you to the dashboard.
+<div class="wizard-alert wizard-alert--info mb-6">
+    <strong>What happens next?</strong> Clicking &ldquo;Launch Spec2Sphere&rdquo; will write the setup marker and redirect you to the dashboard.
     You will be asked to log in with the password you set in step 2.
 </div>
 
 <form method="post" action="/ui/setup/done">
-    <div class="flex items-center justify-between">
-        <a href="/ui/setup/sap" class="text-sm text-gray-400 hover:text-petrol transition-colors">&larr; Back</a>
-        <button type="submit"
-                class="py-2.5 px-8 bg-accent hover:bg-amber-600 text-white rounded-lg font-medium text-sm transition-colors">
+    <div class="wizard-nav">
+        <a href="/ui/setup/sap" class="wizard-back-link">&larr; Back</a>
+        <button type="submit" class="atlas-btn atlas-btn--primary">
             Launch Spec2Sphere &rarr;
         </button>
     </div>

@@ -2,44 +2,44 @@
 {% block title %}Welcome — Spec2Sphere Setup{% endblock %}
 {% block content %}
 <div class="text-center mb-6">
-    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-petrol/10 mb-4">
-        <svg class="w-8 h-8 text-petrol" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background-color:var(--atlas-color-primary-subtle);margin-bottom:var(--atlas-space-4);">
+        <svg style="width:32px;height:32px;color:var(--atlas-color-primary)" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 4a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
         </svg>
     </div>
-    <h2 class="font-heading text-2xl text-petrol">Welcome to Spec2Sphere</h2>
-    <p class="text-gray-500 text-sm mt-2">Let's get your system configured in a few simple steps.</p>
+    <h2 class="font-heading text-2xl text-petrol" style="margin:0 0 var(--atlas-space-2);">Welcome to Spec2Sphere</h2>
+    <p class="text-gray-500 text-sm" style="margin:0;">Let&rsquo;s get your system configured in a few simple steps.</p>
 </div>
 
-<div class="space-y-3 mb-8 text-sm text-gray-600">
-    <div class="flex items-start gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent font-semibold text-xs flex items-center justify-center mt-0.5">1</span>
+<div class="wizard-step-list">
+    <div class="wizard-step-item">
+        <span class="wizard-step-num">1</span>
         <div><span class="font-medium text-charcoal">Admin credentials</span> — Set the admin password for the web interface.</div>
     </div>
-    <div class="flex items-start gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent font-semibold text-xs flex items-center justify-center mt-0.5">2</span>
+    <div class="wizard-step-item">
+        <span class="wizard-step-num">2</span>
         <div><span class="font-medium text-charcoal">Database</span> — Verify PostgreSQL connectivity.</div>
     </div>
-    <div class="flex items-start gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent font-semibold text-xs flex items-center justify-center mt-0.5">3</span>
+    <div class="wizard-step-item">
+        <span class="wizard-step-num">3</span>
         <div><span class="font-medium text-charcoal">LLM routing</span> — Choose an AI profile (local or cloud).</div>
     </div>
-    <div class="flex items-start gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent font-semibold text-xs flex items-center justify-center mt-0.5">4</span>
+    <div class="wizard-step-item">
+        <span class="wizard-step-num">4</span>
         <div><span class="font-medium text-charcoal">Privacy</span> — Configure data residency settings.</div>
     </div>
-    <div class="flex items-start gap-3">
-        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent font-semibold text-xs flex items-center justify-center mt-0.5">5</span>
+    <div class="wizard-step-item">
+        <span class="wizard-step-num">5</span>
         <div><span class="font-medium text-charcoal">SAP source</span> — Optionally add your first DSP/BW connection.</div>
     </div>
 </div>
 
-<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
+<div class="wizard-alert wizard-alert--warning mb-6">
     <strong>First time here?</strong> This wizard only appears once. All settings can be changed later in the system settings page.
 </div>
 
 <a href="/ui/setup/admin"
-   class="block w-full text-center py-2.5 px-4 bg-petrol hover:bg-petrol-dark text-white rounded-lg font-medium text-sm transition-colors">
+   class="atlas-btn atlas-btn--primary w-full text-center" style="display:block;">
     Get Started &rarr;
 </a>
 {% endblock %}

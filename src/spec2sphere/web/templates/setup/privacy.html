@@ -2,18 +2,18 @@
 {% block title %}Privacy — Spec2Sphere Setup{% endblock %}
 {% block content %}
 <h2 class="font-heading text-xl text-petrol mb-1">Privacy Settings</h2>
-<p class="text-sm text-gray-500 mb-6">Control how Spec2Sphere handles customer data and external service calls.</p>
+<p class="text-gray-500 text-sm mb-6">Control how Spec2Sphere handles customer data and external service calls.</p>
 
 <form method="post" action="/ui/setup/privacy" class="space-y-4">
 
-    <div class="p-4 border rounded-lg {% if local_only %}border-petrol bg-petrol/5{% else %}border-gray-200{% endif %}">
+    <div class="wizard-checkbox-option {{ 'wizard-checkbox-option--selected' if local_only }}">
         <label class="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" name="local_only" id="local_only"
-                   class="mt-0.5 accent-petrol"
+                   style="margin-top:2px;accent-color:var(--atlas-color-primary);"
                    {% if local_only %}checked{% endif %}>
             <div>
-                <div class="text-sm font-medium text-charcoal">Local-only mode with customer data</div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="wizard-option-title">Local-only mode with customer data</div>
+                <div class="wizard-option-desc" style="margin-top:var(--atlas-space-1);">
                     When enabled, Spec2Sphere will never send customer-specific data to external AI services.
                     All inference on customer documents will use local models only (Ollama), regardless of the LLM profile above.
                     Recommended for regulated industries and data-sensitive environments.
@@ -22,17 +22,14 @@
         </label>
     </div>
 
-    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+    <div class="wizard-alert wizard-alert--info">
         <strong>Note:</strong> This setting can be changed at any time in <em>System &rarr; Settings &rarr; Privacy</em>.
         It does not affect anonymised telemetry or system health checks.
     </div>
 
-    <div class="flex items-center justify-between pt-2">
-        <a href="/ui/setup/llm" class="text-sm text-gray-400 hover:text-petrol transition-colors">&larr; Back</a>
-        <button type="submit"
-                class="py-2 px-6 bg-petrol hover:bg-petrol-dark text-white rounded-lg font-medium text-sm transition-colors">
-            Continue &rarr;
-        </button>
+    <div class="wizard-nav">
+        <a href="/ui/setup/llm" class="wizard-back-link">&larr; Back</a>
+        <button type="submit" class="atlas-btn atlas-btn--primary">Continue &rarr;</button>
     </div>
 </form>
 {% endblock %}

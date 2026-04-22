@@ -1,67 +1,246 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Setup — Spec2Sphere{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    petrol: { DEFAULT: '#05415A', light: '#0a6b8f', dark: '#032d3e' },
-                    accent: '#C8963E',
-                    charcoal: '#353434',
-                },
-                fontFamily: {
-                    heading: ['Georgia', 'Times New Roman', 'serif'],
-                    body: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-                }
-            }
+    <link rel="stylesheet" href="/static/atlas-tokens.css">
+    <link rel="stylesheet" href="/static/atlas-ui.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: var(--atlas-space-12) var(--atlas-space-4);
         }
-    }
+        .wizard-wrap { width: 100%; max-width: 560px; }
+        .wizard-brand {
+            text-align: center;
+            margin-bottom: var(--atlas-space-8);
+        }
+        .wizard-brand-name {
+            font-size: var(--atlas-text-2xl);
+            font-weight: var(--atlas-font-weight-semibold);
+            color: var(--atlas-color-primary);
+            margin: 0 0 var(--atlas-space-1);
+        }
+        .wizard-brand-sub {
+            font-size: var(--atlas-text-sm);
+            color: var(--atlas-color-fg-muted);
+            margin: 0;
+        }
+        .wizard-progress { margin-bottom: var(--atlas-space-6); }
+        .wizard-progress-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--atlas-text-xs);
+            color: var(--atlas-color-fg-muted);
+            margin-bottom: var(--atlas-space-1);
+        }
+        .wizard-progress-track {
+            height: 6px;
+            background-color: var(--atlas-color-elevated);
+            border-radius: var(--atlas-radius-full);
+            overflow: hidden;
+        }
+        .wizard-progress-bar {
+            height: 100%;
+            background-color: var(--atlas-color-primary);
+            border-radius: var(--atlas-radius-full);
+            transition: width var(--atlas-duration-normal) var(--atlas-ease-standard);
+        }
+        .wizard-progress-dots {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--atlas-space-2);
+        }
+        .wizard-progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--atlas-color-border);
+        }
+        .wizard-progress-dot--done    { background-color: var(--atlas-color-success); }
+        .wizard-progress-dot--active  { background-color: var(--atlas-color-primary); }
+        .wizard-card {
+            background-color: var(--atlas-color-surface);
+            border: 1px solid var(--atlas-color-border);
+            border-radius: var(--atlas-radius-lg);
+            box-shadow: var(--atlas-shadow-2);
+            padding: var(--atlas-space-8);
+        }
+        .wizard-footer {
+            margin-top: var(--atlas-space-4);
+            text-align: center;
+            font-size: var(--atlas-text-xs);
+            color: var(--atlas-color-fg-muted);
+        }
+        /* Step list items used in welcome.html */
+        .wizard-step-list { display: flex; flex-direction: column; gap: var(--atlas-space-3); margin-bottom: var(--atlas-space-8); font-size: var(--atlas-text-sm); color: var(--atlas-color-fg-muted); }
+        .wizard-step-item { display: flex; align-items: flex-start; gap: var(--atlas-space-3); }
+        .wizard-step-num {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--atlas-color-primary-subtle);
+            color: var(--atlas-color-primary);
+            font-weight: var(--atlas-font-weight-semibold);
+            font-size: var(--atlas-text-xs);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+        }
+        /* Summary row used in done.html */
+        .wizard-summary-row {
+            display: flex;
+            align-items: center;
+            gap: var(--atlas-space-3);
+            padding: var(--atlas-space-3);
+            background-color: var(--atlas-color-elevated);
+            border-radius: var(--atlas-radius-md);
+        }
+        /* Inline alerts */
+        .wizard-alert {
+            padding: var(--atlas-space-3) var(--atlas-space-4);
+            border-radius: var(--atlas-radius-md);
+            font-size: var(--atlas-text-sm);
+            margin-bottom: var(--atlas-space-4);
+            border: 1px solid;
+        }
+        .wizard-alert--error {
+            background-color: var(--atlas-color-destructive-subtle);
+            border-color: var(--atlas-color-destructive);
+            color: var(--atlas-color-destructive);
+        }
+        .wizard-alert--success {
+            background-color: var(--atlas-color-success-subtle);
+            border-color: var(--atlas-color-success);
+            color: var(--atlas-color-success);
+        }
+        .wizard-alert--warning {
+            background-color: var(--atlas-color-warning-subtle);
+            border-color: var(--atlas-color-warning);
+            color: var(--atlas-color-warning);
+        }
+        .wizard-alert--info {
+            background-color: var(--atlas-color-info-subtle);
+            border-color: var(--atlas-color-info);
+            color: var(--atlas-color-info);
+        }
+        /* Navigation row */
+        .wizard-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: var(--atlas-space-2);
+        }
+        .wizard-back-link {
+            font-size: var(--atlas-text-sm);
+            color: var(--atlas-color-fg-muted);
+            text-decoration: none;
+        }
+        .wizard-back-link:hover { color: var(--atlas-color-primary); }
+        /* Radio option cards */
+        .wizard-option {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--atlas-space-3);
+            padding: var(--atlas-space-3);
+            border: 1px solid var(--atlas-color-border);
+            border-radius: var(--atlas-radius-md);
+            cursor: pointer;
+            transition: border-color var(--atlas-duration-fast) var(--atlas-ease-standard);
+        }
+        .wizard-option:hover { border-color: var(--atlas-color-primary); }
+        .wizard-option--selected {
+            border-color: var(--atlas-color-primary);
+            background-color: var(--atlas-color-primary-subtle);
+        }
+        .wizard-option-title { font-size: var(--atlas-text-sm); font-weight: var(--atlas-font-weight-medium); color: var(--atlas-color-fg); }
+        .wizard-option-desc  { font-size: var(--atlas-text-xs); color: var(--atlas-color-fg-muted); margin-top: 2px; }
+        /* Checkbox option */
+        .wizard-checkbox-option {
+            padding: var(--atlas-space-4);
+            border: 1px solid var(--atlas-color-border);
+            border-radius: var(--atlas-radius-md);
+        }
+        .wizard-checkbox-option--selected {
+            border-color: var(--atlas-color-primary);
+            background-color: var(--atlas-color-primary-subtle);
+        }
+        .wizard-tip {
+            background-color: var(--atlas-color-elevated);
+            border-radius: var(--atlas-radius-md);
+            padding: var(--atlas-space-3);
+            font-size: var(--atlas-text-xs);
+            color: var(--atlas-color-fg-muted);
+        }
+        /* Form field label */
+        .wizard-label {
+            display: block;
+            font-size: var(--atlas-text-xs);
+            font-weight: var(--atlas-font-weight-semibold);
+            color: var(--atlas-color-fg-muted);
+            text-transform: uppercase;
+            letter-spacing: var(--atlas-tracking-wider);
+            margin-bottom: var(--atlas-space-1);
+        }
+        .wizard-hint { font-size: var(--atlas-text-xs); color: var(--atlas-color-fg-muted); margin-top: var(--atlas-space-1); }
+    </style>
+    <script>
+        (function() {
+            var t = localStorage.getItem('atlasTheme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
     </script>
 </head>
-<body class="font-body text-charcoal bg-[#F5F5F5] min-h-screen flex flex-col items-center justify-center py-12 px-4">
+<body>
 
-    <!-- Card -->
-    <div class="w-full max-w-xl">
+    <div class="wizard-wrap">
 
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="font-heading text-3xl text-petrol">Spec2Sphere</h1>
-            <p class="text-sm text-gray-500 mt-1">powered by Horv&aacute;th</p>
+        <!-- Brand header -->
+        <div class="wizard-brand">
+            <p class="wizard-brand-name">Spec2Sphere</p>
+            <p class="wizard-brand-sub">powered by Horv&aacute;th</p>
         </div>
 
-        <!-- Progress bar -->
-        <div class="mb-6">
-            <div class="flex justify-between text-xs text-gray-400 mb-1">
+        <!-- Progress -->
+        <div class="wizard-progress">
+            <div class="wizard-progress-meta">
                 <span>Step {{ step_number }} of {{ total_steps }}</span>
                 <span>{{ step_labels[step] }}</span>
             </div>
-            <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div class="h-full bg-accent rounded-full transition-all duration-300"
+            <div class="wizard-progress-track">
+                <div class="wizard-progress-bar"
                      style="width: {{ ((step_number / total_steps) * 100)|int }}%"></div>
             </div>
-            <!-- Step dots -->
-            <div class="flex justify-between mt-2">
+            <div class="wizard-progress-dots">
                 {% for s in steps %}
-                <div class="w-2 h-2 rounded-full {% if loop.index0 < step_number %}bg-accent{% elif loop.index0 == step_index %}bg-petrol{% else %}bg-gray-300{% endif %}"></div>
+                <div class="wizard-progress-dot
+                    {% if loop.index0 < step_number %}wizard-progress-dot--done
+                    {% elif loop.index0 == step_index %}wizard-progress-dot--active
+                    {% endif %}"></div>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Main content card -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <!-- Content card -->
+        <div class="wizard-card">
             {% block content %}{% endblock %}
         </div>
 
-        <!-- Footer links -->
-        <div class="mt-4 text-center text-xs text-gray-400">
+        <!-- Footer -->
+        <div class="wizard-footer">
             Spec2Sphere &mdash; Horv&aacute;th Analytics Delivery Factory
         </div>
+
     </div>
 
 </body>
