@@ -4,48 +4,60 @@
 
 {% block content %}
 <!-- Scanner cards -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-    <div class="card">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-heading text-sm text-[#1a2332]">DSP — CDP Scanner</h3>
-            <span class="dot dot-green"></span>
+<div class="atlas-grid-3" style="margin-bottom:var(--atlas-space-6);">
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <div class="atlas-split">
+                <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">DSP — CDP Scanner</h3>
+                <span class="atlas-dot atlas-dot--success"></span>
+            </div>
         </div>
-        <p class="text-sm text-gray-500 mb-3">Browser-based scanning via Chrome DevTools Protocol</p>
-        <button class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark"
-                hx-post="/api/scanner/start"
-                hx-vals='{"scanner": "cdp"}'
-                hx-swap="none"
-                hx-on::after-request="showToast('CDP scan started', 'success')">
-            Start Scan
-        </button>
+        <div class="atlas-card-content">
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-bottom:var(--atlas-space-3);">Browser-based scanning via Chrome DevTools Protocol</p>
+            <button class="atlas-btn atlas-btn--primary atlas-btn--sm"
+                    hx-post="/api/scanner/start"
+                    hx-vals='{"scanner": "cdp"}'
+                    hx-swap="none"
+                    hx-on::after-request="showToast('CDP scan started', 'success')">
+                Start Scan
+            </button>
+        </div>
     </div>
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-heading text-sm text-[#1a2332]">DSP — REST API</h3>
-            <span class="dot dot-amber"></span>
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <div class="atlas-split">
+                <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">DSP — REST API</h3>
+                <span class="atlas-dot atlas-dot--warning"></span>
+            </div>
         </div>
-        <p class="text-sm text-gray-500 mb-3">OAuth-based REST API scanner (requires BTP service key)</p>
-        <button class="px-3 py-1.5 border border-gray-300 text-gray-400 rounded text-xs font-medium cursor-not-allowed" disabled>
-            Not Configured
-        </button>
+        <div class="atlas-card-content">
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-bottom:var(--atlas-space-3);">OAuth-based REST API scanner (requires BTP service key)</p>
+            <button class="atlas-btn atlas-btn--secondary atlas-btn--sm" disabled>Not Configured</button>
+        </div>
     </div>
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-heading text-sm text-[#1a2332]">BW/4HANA — ABAP</h3>
-            <span class="dot dot-amber"></span>
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <div class="atlas-split">
+                <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">BW/4HANA — ABAP</h3>
+                <span class="atlas-dot atlas-dot--warning"></span>
+            </div>
         </div>
-        <p class="text-sm text-gray-500 mb-3">ABAP program scanning (requires SAP GUI installation)</p>
-        <button class="px-3 py-1.5 border border-gray-300 text-gray-400 rounded text-xs font-medium cursor-not-allowed" disabled>
-            Not Installed
-        </button>
+        <div class="atlas-card-content">
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-bottom:var(--atlas-space-3);">ABAP program scanning (requires SAP GUI installation)</p>
+            <button class="atlas-btn atlas-btn--secondary atlas-btn--sm" disabled>Not Installed</button>
+        </div>
     </div>
 </div>
 
 <!-- Scan log area -->
-<div class="card">
-    <h3 class="font-heading text-sm text-[#1a2332] mb-3">Scan Output</h3>
-    <pre id="scan-log" class="bg-gray-900 text-gray-200 p-4 rounded text-xs font-mono h-64 overflow-y-auto">Waiting for scan to start...</pre>
+<div class="atlas-card">
+    <div class="atlas-card-header">
+        <h3 class="atlas-section-title" style="margin:0;">Scan Output</h3>
+    </div>
+    <div class="atlas-card-content">
+        <pre id="scan-log" class="atlas-pre" style="height:256px;">Waiting for scan to start...</pre>
+    </div>
 </div>
 {% endblock %}

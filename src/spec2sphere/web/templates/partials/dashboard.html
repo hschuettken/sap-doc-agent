@@ -5,198 +5,230 @@
 {% block content %}
 {% if object_count == 0 and not has_scans %}
 <!-- ===== Getting Started (empty state) ===== -->
-<div class="max-w-3xl mx-auto">
-  <div class="card mb-6 border-l-4 border-petrol">
-    <h2 class="font-heading text-xl text-[#1a2332] mb-2">Welcome to Spec2Sphere</h2>
-    <p class="text-sm text-gray-500 mb-4">AI-powered documentation, quality assessment, and migration planning for SAP BW and Datasphere systems. Follow these steps to get started.</p>
+<div class="atlas-center-page--md">
+  <div class="atlas-card atlas-border-primary mb-6">
+    <div class="atlas-card-content">
+      <h2 class="atlas-section-title" style="font-size:var(--atlas-text-xl);">Welcome to Spec2Sphere</h2>
+      <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-top:var(--atlas-space-1);">AI-powered documentation, quality assessment, and migration planning for SAP BW and Datasphere systems. Follow these steps to get started.</p>
+    </div>
   </div>
 
-  <div class="space-y-4">
+  <div class="atlas-stack">
+
     <!-- Step 1: Configure LLM -->
-    <div class="card flex items-start gap-4">
-      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-        {% if llm_configured %}bg-green-100 text-green-700{% else %}bg-petrol text-white{% endif %}">
-        {% if llm_configured %}&#10003;{% else %}1{% endif %}
-      </div>
-      <div class="flex-1">
-        <h3 class="text-sm font-semibold text-[#1a2332]">Configure an LLM Provider</h3>
-        <p class="text-sm text-gray-500 mt-1">
-          {% if llm_configured %}
-          <span class="text-green-600 font-medium">{{ llm_provider | capitalize }}</span> is configured.
-          Chain interpretation, migration classification, and doc QA are available.
-          {% else %}
-          Set up an AI model for document analysis. The scanner and object browser work without an LLM, but chain interpretation and migration features require one.
+    <div class="atlas-card">
+      <div class="atlas-card-content" style="display:flex; align-items:flex-start; gap:var(--atlas-space-4);">
+        <div class="atlas-step-circle {{ 'atlas-step-circle--done' if llm_configured else '' }}">
+          {% if llm_configured %}&#10003;{% else %}1{% endif %}
+        </div>
+        <div style="flex:1;">
+          <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">Configure an LLM Provider</h3>
+          <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-top:var(--atlas-space-1);">
+            {% if llm_configured %}
+            <span style="color:var(--atlas-color-success); font-weight:var(--atlas-font-weight-medium);">{{ llm_provider | capitalize }}</span> is configured.
+            Chain interpretation, migration classification, and doc QA are available.
+            {% else %}
+            Set up an AI model for document analysis. The scanner and object browser work without an LLM, but chain interpretation and migration features require one.
+            {% endif %}
+          </p>
+          {% if not llm_configured %}
+          <a href="/ui/settings" class="atlas-btn atlas-btn--primary atlas-btn--sm" style="margin-top:var(--atlas-space-2);">Configure LLM</a>
           {% endif %}
-        </p>
-        {% if not llm_configured %}
-        <a href="/ui/settings" class="inline-block mt-2 px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark">Configure LLM</a>
-        {% endif %}
+        </div>
       </div>
     </div>
 
     <!-- Step 2: Run a scan -->
-    <div class="card flex items-start gap-4">
-      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-        {% if object_count > 0 %}bg-green-100 text-green-700{% elif llm_configured %}bg-petrol text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
-        {% if object_count > 0 %}&#10003;{% else %}2{% endif %}
-      </div>
-      <div class="flex-1">
-        <h3 class="text-sm font-semibold text-[#1a2332]">Scan Your SAP System</h3>
-        <p class="text-sm text-gray-500 mt-1">
-          {% if object_count > 0 %}
-          <span class="text-green-600 font-medium">{{ object_count }} objects</span> discovered with {{ edge_count }} dependencies.
-          {% else %}
-          Connect to your Datasphere tenant (REST API or CDP browser automation) or BW/4HANA system to discover objects, transformations, and dependency chains.
+    <div class="atlas-card">
+      <div class="atlas-card-content" style="display:flex; align-items:flex-start; gap:var(--atlas-space-4);">
+        <div class="atlas-step-circle {{ 'atlas-step-circle--done' if object_count > 0 else '' if llm_configured else 'atlas-step-circle--muted' }}">
+          {% if object_count > 0 %}&#10003;{% else %}2{% endif %}
+        </div>
+        <div style="flex:1;">
+          <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">Scan Your SAP System</h3>
+          <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-top:var(--atlas-space-1);">
+            {% if object_count > 0 %}
+            <span style="color:var(--atlas-color-success); font-weight:var(--atlas-font-weight-medium);">{{ object_count }} objects</span> discovered with {{ edge_count }} dependencies.
+            {% else %}
+            Connect to your Datasphere tenant (REST API or CDP browser automation) or BW/4HANA system to discover objects, transformations, and dependency chains.
+            {% endif %}
+          </p>
+          {% if object_count == 0 %}
+          <a href="/ui/scanner" class="atlas-btn atlas-btn--secondary atlas-btn--sm" style="margin-top:var(--atlas-space-2);">Go to Scanner</a>
           {% endif %}
-        </p>
-        {% if object_count == 0 %}
-        <a href="/ui/scanner" class="inline-block mt-2 px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Go to Scanner</a>
-        {% endif %}
+        </div>
       </div>
     </div>
 
     <!-- Step 3: Review objects -->
-    <div class="card flex items-start gap-4">
-      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">3</div>
-      <div class="flex-1">
-        <h3 class="text-sm font-semibold text-[#1a2332]">Explore & Audit Documentation</h3>
-        <p class="text-sm text-gray-500 mt-1">Browse discovered objects, view dependency graphs, and run documentation quality audits against Horvath standards.</p>
+    <div class="atlas-card">
+      <div class="atlas-card-content" style="display:flex; align-items:flex-start; gap:var(--atlas-space-4);">
+        <div class="atlas-step-circle atlas-step-circle--muted">3</div>
+        <div style="flex:1;">
+          <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">Explore &amp; Audit Documentation</h3>
+          <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-top:var(--atlas-space-1);">Browse discovered objects, view dependency graphs, and run documentation quality audits against Horvath standards.</p>
+        </div>
       </div>
     </div>
 
     <!-- Step 4: Migration -->
-    <div class="card flex items-start gap-4">
-      <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gray-200 text-gray-400">4</div>
-      <div class="flex-1">
-        <h3 class="text-sm font-semibold text-[#1a2332]">Plan a BW-to-DSP Migration</h3>
-        <p class="text-sm text-gray-500 mt-1">Create a migration project to classify chains (migrate / simplify / replace / drop), design target DSP architecture, generate SQL, and produce assessment reports.</p>
-        <a href="/ui/migration/projects" class="inline-block mt-2 px-3 py-1.5 border border-gray-300 text-gray-500 rounded text-xs font-medium hover:border-petrol hover:text-petrol">Migration Projects</a>
+    <div class="atlas-card">
+      <div class="atlas-card-content" style="display:flex; align-items:flex-start; gap:var(--atlas-space-4);">
+        <div class="atlas-step-circle atlas-step-circle--muted">4</div>
+        <div style="flex:1;">
+          <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">Plan a BW-to-DSP Migration</h3>
+          <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-top:var(--atlas-space-1);">Create a migration project to classify chains (migrate / simplify / replace / drop), design target DSP architecture, generate SQL, and produce assessment reports.</p>
+          <a href="/ui/migration/projects" class="atlas-btn atlas-btn--ghost atlas-btn--sm" style="margin-top:var(--atlas-space-2);">Migration Projects</a>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Quick info cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-    <div class="card text-center">
-      <p class="text-2xl font-bold text-petrol">6</p>
-      <p class="text-xs text-gray-500 mt-1">LLM Providers Supported</p>
-      <p class="text-xs text-gray-400">Azure, OpenAI, Anthropic, Ollama, vLLM, Router</p>
+  <div class="atlas-grid-3" style="margin-top:var(--atlas-space-6);">
+    <div class="atlas-card" style="text-align:center;">
+      <div class="atlas-card-content">
+        <p class="atlas-kpi-value" style="color:var(--atlas-color-primary);">6</p>
+        <p class="atlas-kpi-label" style="margin-top:var(--atlas-space-1);">LLM Providers Supported</p>
+        <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">Azure, OpenAI, Anthropic, Ollama, vLLM, Router</p>
+      </div>
     </div>
-    <div class="card text-center">
-      <p class="text-2xl font-bold text-petrol">3</p>
-      <p class="text-xs text-gray-500 mt-1">Doc Platforms</p>
-      <p class="text-xs text-gray-400">BookStack, Outline, Confluence</p>
+    <div class="atlas-card" style="text-align:center;">
+      <div class="atlas-card-content">
+        <p class="atlas-kpi-value" style="color:var(--atlas-color-primary);">3</p>
+        <p class="atlas-kpi-label" style="margin-top:var(--atlas-space-1);">Doc Platforms</p>
+        <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">BookStack, Outline, Confluence</p>
+      </div>
     </div>
-    <div class="card text-center">
-      <p class="text-2xl font-bold text-petrol">5</p>
-      <p class="text-xs text-gray-500 mt-1">Migration Classifications</p>
-      <p class="text-xs text-gray-400">Migrate, Simplify, Replace, Drop, Clarify</p>
+    <div class="atlas-card" style="text-align:center;">
+      <div class="atlas-card-content">
+        <p class="atlas-kpi-value" style="color:var(--atlas-color-primary);">5</p>
+        <p class="atlas-kpi-label" style="margin-top:var(--atlas-space-1);">Migration Classifications</p>
+        <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">Migrate, Simplify, Replace, Drop, Clarify</p>
+      </div>
     </div>
   </div>
 </div>
 
 {% else %}
 <!-- ===== Normal Dashboard ===== -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+
+<!-- KPI row -->
+<div class="atlas-grid-4" style="margin-bottom:var(--atlas-space-6);">
+
     <!-- Object Count -->
-    <div class="card">
-        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Objects Scanned</p>
-        <p class="text-3xl font-bold text-[#1a2332]">{{ object_count }}</p>
-        <div class="mt-3 flex flex-wrap gap-1">
-            {% for t, count in type_counts.items() %}
-            <span class="badge badge-{{ t if t in ['view','adso','transformation','table'] else 'other' }}">{{ t }} {{ count }}</span>
-            {% endfor %}
+    <div class="atlas-card">
+        <div class="atlas-kpi">
+            <p class="atlas-kpi-label">Objects Scanned</p>
+            <p class="atlas-kpi-value">{{ object_count }}</p>
+            <div style="display:flex; flex-wrap:wrap; gap:var(--atlas-space-1); margin-top:var(--atlas-space-3);">
+                {% for t, count in type_counts.items() %}
+                <span class="atlas-badge atlas-badge--{{ 'info' if t == 'view' else 'success' if t == 'adso' else 'warning' if t == 'transformation' else 'primary' if t == 'table' else 'neutral' }}">{{ t }} {{ count }}</span>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
     <!-- Quality Score -->
-    <div class="card">
-        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Quality Score</p>
-        <div class="flex items-center gap-3">
-            <svg width="64" height="64" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="28" class="gauge-ring" stroke="#E5E5E5"/>
-                <circle cx="32" cy="32" r="28" class="gauge-ring"
-                    stroke="{% if quality_score is defined and quality_score > 70 %}#16A34A{% elif quality_score is defined and quality_score > 40 %}#D97706{% else %}#DC2626{% endif %}"
-                    stroke-dasharray="{{ ((quality_score|default(0)) / 100 * 175.9)|round(1) }} 175.9"
-                    transform="rotate(-90 32 32)"/>
-                <text x="32" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#353434">{{ quality_score|default("—") }}{% if quality_score is defined %}%{% endif %}</text>
-            </svg>
-            <div class="text-sm text-gray-500">
-                {% if quality_score is not defined %}
-                <p>No QA report yet</p>
-                <a href="/ui/audit" class="text-petrol text-xs hover:underline">Run audit</a>
-                {% endif %}
+    <div class="atlas-card">
+        <div class="atlas-kpi">
+            <p class="atlas-kpi-label">Quality Score</p>
+            <div style="display:flex; align-items:center; gap:var(--atlas-space-3);">
+                <svg width="64" height="64" viewBox="0 0 64 64">
+                    <circle cx="32" cy="32" r="28" class="gauge-ring" stroke="var(--atlas-color-border)"/>
+                    <circle cx="32" cy="32" r="28" class="gauge-ring"
+                        stroke="{% if quality_score is defined and quality_score > 70 %}var(--atlas-color-success){% elif quality_score is defined and quality_score > 40 %}var(--atlas-color-warning){% else %}var(--atlas-color-destructive){% endif %}"
+                        stroke-dasharray="{{ ((quality_score|default(0)) / 100 * 175.9)|round(1) }} 175.9"
+                        transform="rotate(-90 32 32)"/>
+                    <text x="32" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">{{ quality_score|default("—") }}{% if quality_score is defined %}%{% endif %}</text>
+                </svg>
+                <div style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">
+                    {% if quality_score is not defined %}
+                    <p>No QA report yet</p>
+                    <a href="/ui/audit" style="color:var(--atlas-color-primary); font-size:var(--atlas-text-xs);">Run audit</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Last Scan -->
-    <div class="card">
-        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Last Scan</p>
-        {% if last_scan is defined and last_scan %}
-        <p class="text-lg font-semibold text-[#1a2332]">{{ last_scan }}</p>
-        {% else %}
-        <p class="text-lg text-gray-400">No scans yet</p>
-        <a href="/ui/scanner" class="text-petrol text-xs hover:underline">Run scan</a>
-        {% endif %}
+    <div class="atlas-card">
+        <div class="atlas-kpi">
+            <p class="atlas-kpi-label">Last Scan</p>
+            {% if last_scan is defined and last_scan %}
+            <p class="atlas-kpi-value" style="font-size:var(--atlas-text-lg);">{{ last_scan }}</p>
+            {% else %}
+            <p style="font-size:var(--atlas-text-lg); color:var(--atlas-color-fg-subtle);">No scans yet</p>
+            <a href="/ui/scanner" style="color:var(--atlas-color-primary); font-size:var(--atlas-text-xs);">Run scan</a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Dependencies -->
-    <div class="card">
-        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dependencies</p>
-        <p class="text-3xl font-bold text-[#1a2332]">{{ edge_count }}</p>
-        <p class="text-sm text-gray-500 mt-1">relationships mapped</p>
+    <div class="atlas-card">
+        <div class="atlas-kpi">
+            <p class="atlas-kpi-label">Dependencies</p>
+            <p class="atlas-kpi-value">{{ edge_count }}</p>
+            <p class="atlas-kpi-sub">relationships mapped</p>
+        </div>
     </div>
 </div>
 
 <!-- Quick Actions -->
-<div class="card mb-6">
-    <h3 class="font-heading text-base text-[#1a2332] mb-3">Quick Actions</h3>
-    <div class="flex flex-wrap gap-3">
-        <button class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark"
-                hx-post="/api/scan/start"
-                hx-vals='{"scanner_type": "dsp_api"}'
-                hx-swap="none"
-                hx-on::after-request="showToast('Scan started', 'success')">
-            Run Full Scan
-        </button>
-        <a href="/ui/audit" class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">
-            Run Audit
-        </a>
-        <a href="/ui/migration/projects" class="px-4 py-2 border border-accent text-accent rounded text-sm font-medium hover:bg-accent hover:text-white">
-            Migration Projects
-        </a>
+<div class="atlas-card" style="margin-bottom:var(--atlas-space-6);">
+    <div class="atlas-card-header">
+        <h3 class="atlas-section-title" style="margin:0;">Quick Actions</h3>
+    </div>
+    <div class="atlas-card-content">
+        <div class="atlas-cluster">
+            <button class="atlas-btn atlas-btn--primary"
+                    hx-post="/api/scan/start"
+                    hx-vals='{"scanner_type": "dsp_api"}'
+                    hx-swap="none"
+                    hx-on::after-request="showToast('Scan started', 'success')">
+                Run Full Scan
+            </button>
+            <a href="/ui/audit" class="atlas-btn atlas-btn--secondary">Run Audit</a>
+            <a href="/ui/migration/projects" class="atlas-btn atlas-btn--secondary">Migration Projects</a>
+        </div>
     </div>
 </div>
 
 <!-- System Overview -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+<div class="atlas-grid-2">
     <!-- Critical Issues -->
-    <div class="card">
-        <h3 class="font-heading text-base text-[#1a2332] mb-3">Critical Issues</h3>
-        {% if critical_issues is defined and critical_issues %}
-        <ul class="divide-y divide-gray-100">
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <h3 class="atlas-section-title" style="margin:0;">Critical Issues</h3>
+        </div>
+        <div class="atlas-card-content atlas-list-divided">
+            {% if critical_issues is defined and critical_issues %}
             {% for issue in critical_issues[:5] %}
-            <li class="py-2 flex items-start gap-2">
-                <span class="badge badge-critical mt-0.5">{{ issue.severity }}</span>
+            <div style="padding:var(--atlas-space-2) 0; display:flex; align-items:flex-start; gap:var(--atlas-space-2);">
+                <span class="atlas-badge atlas-badge--destructive" style="flex-shrink:0; margin-top:2px;">{{ issue.severity }}</span>
                 <div>
-                    <a href="/ui/objects/{{ issue.object_id }}" class="text-sm font-medium text-petrol hover:underline">{{ issue.object_id }}</a>
-                    <p class="text-sm text-gray-500">{{ issue.message }}</p>
+                    <a href="/ui/objects/{{ issue.object_id }}" style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium); color:var(--atlas-color-primary);">{{ issue.object_id }}</a>
+                    <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">{{ issue.message }}</p>
                 </div>
-            </li>
+            </div>
             {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-sm text-gray-400">No critical issues found.</p>
-        {% endif %}
+            {% else %}
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-subtle);">No critical issues found.</p>
+            {% endif %}
+        </div>
     </div>
 
     <!-- System Status -->
-    <div class="card">
-        <h3 class="font-heading text-base text-[#1a2332] mb-3">System Status</h3>
-        <div id="system-status" class="space-y-2"
-             hx-get="/ui/partials/system-status" hx-trigger="load, every 60s" hx-swap="innerHTML">
-            <p class="text-sm text-gray-400">Loading...</p>
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <h3 class="atlas-section-title" style="margin:0;">System Status</h3>
+        </div>
+        <div class="atlas-card-content">
+            <div id="system-status"
+                 hx-get="/ui/partials/system-status" hx-trigger="load, every 60s" hx-swap="innerHTML">
+                <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-subtle);">Loading&hellip;</p>
+            </div>
         </div>
     </div>
 </div>
