@@ -379,6 +379,25 @@ a:hover { color: var(--atlas-color-primary-hover); }
   aspect-ratio: 1;
 }
 
+.atlas-btn--link {
+  background-color: transparent;
+  color: var(--atlas-color-primary);
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  text-decoration: underline;
+}
+.atlas-btn--link:hover:not(:disabled) { color: var(--atlas-color-primary-hover); }
+
+/* Muted text variant — for low-emphasis actions like Logout */
+.atlas-header-logout {
+  font-size: var(--atlas-text-xs);
+  color: var(--atlas-color-fg-muted);
+}
+.atlas-header-logout:hover {
+  color: var(--atlas-color-fg);
+}
+
 /* ============================================================
    CARD
    ============================================================ */

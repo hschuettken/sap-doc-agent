@@ -54,8 +54,8 @@
                     ("reports", "Reports",
                      "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"),
                 ] %}
-                <div class="atlas-sidebar-group">
-                    <div class="atlas-sidebar-group-items" style="display:flex;">
+                <div class="atlas-sidebar-group atlas-sidebar-group--expanded">
+                    <div class="atlas-sidebar-group-items">
                         {% for key, label, icon_path in top_items %}
                         <a href="/ui/{{ key }}"
                            class="atlas-sidebar-nav-item {{ 'atlas-sidebar-nav-item--active' if active_page == key else '' }}"
@@ -129,8 +129,8 @@
                 {% endfor %}
 
                 {# ── Standalone items ── #}
-                <div class="atlas-sidebar-group">
-                    <div class="atlas-sidebar-group-items" style="display:flex;">
+                <div class="atlas-sidebar-group atlas-sidebar-group--expanded">
+                    <div class="atlas-sidebar-group-items">
                         <a href="/ai-studio/"
                            class="atlas-sidebar-nav-item {{ 'atlas-sidebar-nav-item--active' if active_page == 'ai-studio' else '' }}">
                             <span class="atlas-sidebar-nav-item-icon" aria-hidden="true">
@@ -193,9 +193,21 @@
                      hx-get="/ui/notifications/badge"
                      hx-trigger="load, every 30s"
                      hx-swap="innerHTML"></div>
+                <!-- Theme toggle: cycles dark ↔ light -->
+                <button class="atlas-btn atlas-btn--ghost atlas-btn--icon-only"
+                        id="theme-toggle"
+                        type="button"
+                        aria-label="Toggle colour theme"
+                        title="Toggle theme">
+                    <svg id="theme-icon-dark" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0112 21.75 9.75 9.75 0 1118.002 3a7.5 7.5 0 003.75 12.002z"/>
+                    </svg>
+                    <svg id="theme-icon-light" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true" style="display:none;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1.5M12 19.5V21M4.219 4.219l1.06 1.06M18.72 18.72l1.06 1.06M3 12h1.5M19.5 12H21M4.219 19.781l1.06-1.06M18.72 5.28l1.06-1.06M12 8.25a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z"/>
+                    </svg>
+                </button>
                 <a href="/ui/login?logout=1"
-                   class="atlas-btn atlas-btn--ghost atlas-btn--sm"
-                   style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+                   class="atlas-btn atlas-btn--ghost atlas-btn--sm atlas-header-logout">
                     Logout
                 </a>
             </div>
@@ -303,6 +315,28 @@ function showToast(message, type) {
 document.body.addEventListener('showToast', function(evt) {
     showToast(evt.detail.message, evt.detail.type || 'info');
 });
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+
+(function() {
+    var stored = localStorage.getItem('atlasTheme') || 'dark';
+    applyTheme(stored);
+
+    var btn = document.getElementById('theme-toggle');
+    if (btn) btn.addEventListener('click', function() {
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('atlasTheme', theme);
+        var iconDark  = document.getElementById('theme-icon-dark');
+        var iconLight = document.getElementById('theme-icon-light');
+        if (iconDark)  iconDark.style.display  = theme === 'dark'  ? '' : 'none';
+        if (iconLight) iconLight.style.display = theme === 'light' ? '' : 'none';
+    }
+})();
 </script>
 
 </body>

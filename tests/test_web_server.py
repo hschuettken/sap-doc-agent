@@ -171,3 +171,42 @@ def test_api_validate_settings_invalid(client):
     resp = client.post("/api/settings/validate", json={"yaml_content": "invalid: {not: valid"})
     data = resp.json()
     assert data["valid"] is False
+
+
+# ── Atlas nav-manifest ────────────────────────────────────────────────────────
+
+def test_atlas_nav_manifest_shape(client):
+    resp = client.get("/_atlas/nav-manifest")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["serviceId"] == "spec2sphere"
+    assert data["serviceName"] == "Spec2Sphere"
+    assert data["serviceUrl"] == "http://localhost:8260"
+    assert "version" in data
+
+    # routes must be a non-empty list with required AtlasRoute fields
+    routes = data["routes"]
+    assert isinstance(routes, list) and len(routes) > 0
+    for route in routes:
+        assert "id" in route
+        assert "label" in route
+        assert "path" in route
+        # category replaces legacy "group" key
+        assert "category" in route
+        assert "group" not in route
+
+    # shortcuts list must be present (may be empty)
+    shortcuts = data["shortcuts"]
+    assert isinstance(shortcuts, list)
+    for sc in shortcuts:
+        assert "key" in sc
+        assert "description" in sc
+        assert "action" in sc
+
+
+def test_atlas_nav_manifest_all_paths_rooted(client):
+    resp = client.get("/_atlas/nav-manifest")
+    data = resp.json()
+    for route in data["routes"]:
+        assert route["path"].startswith("/"), f"Route {route['id']} path must be absolute"
