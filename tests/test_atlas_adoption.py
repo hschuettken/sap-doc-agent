@@ -411,3 +411,107 @@ def test_light_theme_tokens_present_in_css(client):
     """Light theme override block must be present in tokens CSS."""
     resp = client.get("/static/atlas-tokens.css")
     assert '[data-theme="light"]' in resp.text
+
+
+# ── Nav manifest (/_atlas/nav-manifest) ──────────────────────────────────────
+
+
+def test_nav_manifest_accessible(client):
+    """/_atlas/nav-manifest must be accessible without authentication."""
+    resp = client.get("/_atlas/nav-manifest")
+    assert resp.status_code == 200
+
+
+def test_nav_manifest_service_id(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert data["serviceId"] == "spec2sphere"
+
+
+def test_nav_manifest_service_name(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert "Spec2Sphere" in data["serviceName"]
+
+
+def test_nav_manifest_service_url(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert "8260" in data["serviceUrl"]
+
+
+def test_nav_manifest_has_routes(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert isinstance(data["routes"], list)
+    assert len(data["routes"]) >= 10
+
+
+def test_nav_manifest_route_schema(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    for route in data["routes"]:
+        assert "id" in route, f"Route missing 'id': {route}"
+        assert "label" in route, f"Route missing 'label': {route}"
+        assert "path" in route, f"Route missing 'path': {route}"
+
+
+def test_nav_manifest_has_core_routes(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    ids = {r["id"] for r in data["routes"]}
+    for required in ("dashboard", "pipeline", "factory", "reports", "scanner"):
+        assert required in ids, f"Missing core route: {required}"
+
+
+def test_nav_manifest_has_shortcuts(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert isinstance(data["shortcuts"], list)
+    assert len(data["shortcuts"]) > 0
+
+
+def test_nav_manifest_shortcut_schema(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    for sc in data["shortcuts"]:
+        assert "key" in sc, f"Shortcut missing 'key': {sc}"
+        assert "description" in sc, f"Shortcut missing 'description': {sc}"
+
+
+def test_nav_manifest_has_version(client):
+    data = client.get("/_atlas/nav-manifest").json()
+    assert "version" in data and data["version"]
+
+
+# ── Command palette HTML structure ────────────────────────────────────────────
+
+
+def test_base_has_command_palette_markup(client):
+    """Base template must render the atlas command palette container."""
+    resp = client.get("/ui/dashboard")
+    html = resp.text
+    assert 'id="atlas-palette"' in html
+
+
+def test_base_palette_has_overlay(client):
+    html = client.get("/ui/dashboard").text
+    assert "atlas-palette-overlay" in html
+
+
+def test_base_palette_has_input(client):
+    html = client.get("/ui/dashboard").text
+    assert 'id="palette-input"' in html
+
+
+def test_base_palette_trigger_button_present(client):
+    html = client.get("/ui/dashboard").text
+    assert "atlasOpenPalette" in html
+
+
+def test_atlas_ui_css_has_palette_classes(client):
+    css = client.get("/static/atlas-ui.css").text
+    assert ".atlas-palette-overlay" in css
+    assert ".atlas-palette-dialog" in css
+    assert ".atlas-palette-input" in css
+    assert ".atlas-palette-item" in css
+    assert ".atlas-palette-footer" in css
+
+
+def test_palette_ctrl_k_handler_present(client):
+    """The Ctrl+K keyboard handler must be inlined in the base template."""
+    html = client.get("/ui/dashboard").text
+    assert "atlasOpenPalette" in html
+    assert "atlasClosePalette" in html

@@ -194,6 +194,19 @@
                      hx-get="/ui/notifications/badge"
                      hx-trigger="load, every 30s"
                      hx-swap="innerHTML"></div>
+
+                <!-- Command palette trigger -->
+                <button class="atlas-btn atlas-btn--ghost atlas-btn--icon-only"
+                        id="palette-trigger"
+                        type="button"
+                        aria-label="Open command palette (Ctrl+K)"
+                        title="Command palette (Ctrl+K)"
+                        onclick="atlasOpenPalette()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </button>
+
                 <!-- Theme toggle: cycles dark ↔ light -->
                 <button class="atlas-btn atlas-btn--ghost atlas-btn--icon-only"
                         id="theme-toggle"
@@ -227,7 +240,195 @@
 <!-- Toast container -->
 <div class="atlas-toast-viewport" id="toast-container" aria-live="polite" aria-label="Notifications"></div>
 
+<!-- ── Command Palette ───────────────────────────────────────────────────── -->
+<div id="atlas-palette" aria-modal="true" role="dialog" aria-label="Command palette" style="display:none;">
+    <div class="atlas-palette-overlay" onclick="atlasClosePalette()" id="palette-overlay"></div>
+    <div class="atlas-palette-dialog">
+        <div class="atlas-palette-search">
+            <svg class="atlas-palette-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input class="atlas-palette-input"
+                   id="palette-input"
+                   type="text"
+                   placeholder="Search pages and actions…"
+                   autocomplete="off"
+                   spellcheck="false"
+                   aria-autocomplete="list"
+                   aria-controls="palette-list">
+            <span class="atlas-palette-hint"><kbd>Esc</kbd></span>
+        </div>
+        <div class="atlas-palette-list" id="palette-list" role="listbox"></div>
+        <div class="atlas-palette-footer" aria-hidden="true">
+            <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+            <span><kbd>↵</kbd> open</span>
+            <span><kbd>Esc</kbd> close</span>
+        </div>
+    </div>
+</div>
+
 <script>
+// ── Command Palette ───────────────────────────────────────────────────────────
+
+(function() {
+    // Routes sourced from the nav manifest (embedded at page-render time via JS
+    // fetch so we don't need Jinja plumbing; cached for the session).
+    var _routes = null;
+
+    function getRoutes(cb) {
+        if (_routes) { cb(_routes); return; }
+        fetch('/_atlas/nav-manifest')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                _routes = (d.routes || []).map(function(r) {
+                    return {
+                        id: r.id,
+                        label: r.label,
+                        path: r.path,
+                        group: r.group || '',
+                        keywords: (r.keywords || []).join(' '),
+                    };
+                });
+                cb(_routes);
+            })
+            .catch(function() { cb([]); });
+    }
+
+    var _activeIdx = -1;
+    var _filtered  = [];
+
+    window.atlasOpenPalette = function() {
+        var el = document.getElementById('atlas-palette');
+        el.style.display = '';
+        var inp = document.getElementById('palette-input');
+        inp.value = '';
+        _activeIdx = -1;
+        getRoutes(function(routes) {
+            _filtered = routes;
+            renderList('');
+            inp.focus();
+        });
+    };
+
+    window.atlasClosePalette = function() {
+        document.getElementById('atlas-palette').style.display = 'none';
+        _activeIdx = -1;
+    };
+
+    function score(route, q) {
+        if (!q) return 1;
+        var hay = (route.label + ' ' + route.keywords + ' ' + route.group).toLowerCase();
+        return hay.indexOf(q) >= 0 ? 1 : 0;
+    }
+
+    function renderList(q) {
+        q = (q || '').toLowerCase().trim();
+        var list = document.getElementById('palette-list');
+        var routes = _routes || [];
+        _filtered = q ? routes.filter(function(r) { return score(r, q) > 0; }) : routes;
+
+        if (!_filtered.length) {
+            list.innerHTML = '<div class="atlas-palette-empty">No results for "' + q + '"</div>';
+            return;
+        }
+
+        // Group items
+        var groups = {};
+        _filtered.forEach(function(r) {
+            var g = r.group || 'Pages';
+            if (!groups[g]) groups[g] = [];
+            groups[g].push(r);
+        });
+
+        var html = '';
+        Object.keys(groups).forEach(function(g) {
+            html += '<div class="atlas-palette-group" role="group" aria-label="' + g + '">';
+            html += '<div class="atlas-palette-group-label">' + g + '</div>';
+            groups[g].forEach(function(r) {
+                var idx = _filtered.indexOf(r);
+                var active = idx === _activeIdx ? ' atlas-palette-item--active' : '';
+                html += '<div class="atlas-palette-item' + active + '"'
+                      + ' role="option" tabindex="-1"'
+                      + ' data-idx="' + idx + '"'
+                      + ' data-path="' + r.path + '"'
+                      + ' onclick="atlasPaletteNavigate(this)"'
+                      + '>'
+                      + '<div class="atlas-palette-item-label">' + r.label + '</div>'
+                      + '<span class="atlas-palette-item-group">' + (r.group || '') + '</span>'
+                      + '</div>';
+            });
+            html += '</div>';
+        });
+        list.innerHTML = html;
+
+        // Scroll active item into view
+        if (_activeIdx >= 0) {
+            var active = list.querySelector('.atlas-palette-item--active');
+            if (active) active.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function moveActive(delta) {
+        var max = _filtered.length - 1;
+        _activeIdx = Math.max(0, Math.min(max, _activeIdx + delta));
+        renderList(document.getElementById('palette-input').value);
+    }
+
+    window.atlasPaletteNavigate = function(el) {
+        var path = el.getAttribute('data-path');
+        if (!path) return;
+        atlasClosePalette();
+        // Use HTMX for in-app navigation, fall back to full page load
+        if (path.startsWith('/ui/') && typeof htmx !== 'undefined') {
+            htmx.ajax('GET', path, {
+                target: '#content',
+                swap: 'innerHTML',
+                pushURL: path,
+                select: '#content-inner',
+            });
+        } else {
+            window.location.href = path;
+        }
+    };
+
+    // Keyboard handling
+    document.addEventListener('keydown', function(e) {
+        var open = document.getElementById('atlas-palette').style.display !== 'none';
+
+        // Cmd+K / Ctrl+K — open/close
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            open ? atlasClosePalette() : atlasOpenPalette();
+            return;
+        }
+
+        if (!open) return;
+
+        if (e.key === 'Escape') {
+            atlasClosePalette();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            moveActive(1);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            moveActive(-1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (_activeIdx >= 0 && _filtered[_activeIdx]) {
+                var item = document.querySelector('.atlas-palette-item--active');
+                if (item) atlasPaletteNavigate(item);
+            }
+        }
+    });
+
+    // Filter on input
+    document.addEventListener('input', function(e) {
+        if (e.target.id !== 'palette-input') return;
+        _activeIdx = -1;
+        renderList(e.target.value);
+    });
+})();
+
 // ── Sidebar toggle helpers ──────────────────────────────────────────────────
 
 function openDrawer() {
