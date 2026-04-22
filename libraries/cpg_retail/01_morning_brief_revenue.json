@@ -1,0 +1,38 @@
+{
+  "name": "CPG Morning Brief — Revenue",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT date_trunc('day', posting_date) AS d, plant, material_group, SUM(net_value) AS revenue FROM /BIC/VSALES WHERE posting_date >= ADD_DAYS(CURRENT_DATE, -7) GROUP BY 1, 2, 3 ORDER BY 1 DESC LIMIT 60",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject)-[:DOMAIN_OF]->(d:Domain {name: 'Sales'}) RETURN o.id AS id, d.name AS domain LIMIT 20",
+      "parameters": {}
+    },
+    "external": {
+      "searxng_query": "CPG consumer goods revenue sales news",
+      "categories": ["news"],
+      "max_results": 3
+    }
+  },
+  "adaptive_rules": {
+    "per_user": true,
+    "per_time": true,
+    "per_delta": true,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "You are a CPG business analyst writing a morning briefing for {{ user_id }}.\nTime: {{ user_state.get('time_bucket', 'morning') }}.\n\nLast 7 days revenue by plant / material group:\n{% for row in dsp_data %}- {{ row.d }}: {{ row.plant }} / {{ row.material_group }} => {{ row.revenue }}\n{% endfor %}\n\nMarket context:\n{% for n in external_info %}- {{ n.title }}\n{% endfor %}\n\nReturn JSON with keys: narrative_text (markdown, max 120 words), key_points (2-4 bullets), suggested_actions (0-3 imperative sentences).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "key_points", "suggested_actions"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "key_points": {"type": "array", "items": {"type": "string"}},
+      "suggested_actions": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "brief",
+  "ttl_seconds": 3600
+}

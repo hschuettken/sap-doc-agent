@@ -1,0 +1,44 @@
+{
+  "name": "CPG Category Heatmap KPIs",
+  "kind": "ranking",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT matkl AS material_group, COUNT(DISTINCT matnr) AS sku_count, SUM(dmbtr) AS cogs, SUM(netwr) AS revenue, (SUM(netwr) - SUM(dmbtr)) / NULLIFZERO(SUM(netwr)) * 100 AS gross_margin_pct FROM VBAP WHERE erdat >= ADD_MONTHS(CURRENT_DATE, -3) GROUP BY 1 ORDER BY gross_margin_pct DESC LIMIT 30",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (c:DspObject {kind: 'material_group'}) RETURN c.id AS id, c.name AS name LIMIT 30",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 604800
+  },
+  "prompt_template": "You are a category manager. Rank product categories by strategic importance using the KPI data below.\n\nCategory KPIs (last quarter):\n{% for row in dsp_data %}- {{ row.material_group }}: SKUs {{ row.sku_count }}, revenue {{ row.revenue }}, COGS {{ row.cogs }}, GM% {{ row.gross_margin_pct | round(1) }}\n{% endfor %}\n\nReturn JSON: items (array of {material_group, score 0-100, gm_pct, revenue, insight string}), ordered by score descending.",
+  "output_schema": {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["material_group", "score", "gm_pct", "revenue", "insight"],
+          "properties": {
+            "material_group": {"type": "string"},
+            "score": {"type": "number"},
+            "gm_pct": {"type": "number"},
+            "revenue": {"type": "number"},
+            "insight": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "ranked_list",
+  "ttl_seconds": 21600
+}

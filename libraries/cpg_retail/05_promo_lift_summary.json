@@ -1,0 +1,34 @@
+{
+  "name": "CPG Promo Lift Summary",
+  "kind": "narrative",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT c.kunnr AS customer, c.vbeln AS promo_order, c.knumv AS cond_doc, p.kbetr AS discount_pct, p.kwert AS discount_value, SUM(i.netwr) AS net_revenue FROM VBKD c JOIN VBAP i ON c.vbeln = i.vbeln JOIN KONV p ON c.knumv = p.knumv WHERE c.bstnk LIKE 'PROMO%' AND i.erdat >= ADD_DAYS(CURRENT_DATE, -30) GROUP BY 1, 2, 3, 4, 5 ORDER BY 5 DESC LIMIT 50",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject {kind: 'customer'})-[:PARTICIPATED_IN]->(pr:DspObject {kind: 'promotion'}) RETURN o.id AS id, pr.name AS promo LIMIT 30",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 2592000
+  },
+  "prompt_template": "You are a trade marketing analyst. Summarise the promotional lift for the last 30 days.\n\nPromo orders:\n{% for row in dsp_data %}- {{ row.customer }}: promo {{ row.promo_order }}, discount {{ row.discount_pct }}%, net rev {{ row.net_revenue }}\n{% endfor %}\n\nReturn JSON: narrative_text (markdown, max 140 words), lift_pct (estimated % uplift vs baseline), top_promotions (array of {name, lift_pct, revenue}), risks (array of strings).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "lift_pct", "top_promotions", "risks"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "lift_pct": {"type": "number"},
+      "top_promotions": {"type": "array", "items": {"type": "object"}},
+      "risks": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "narrative_text",
+  "ttl_seconds": 14400
+}

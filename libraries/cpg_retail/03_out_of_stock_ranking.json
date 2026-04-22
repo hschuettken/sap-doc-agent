@@ -1,0 +1,43 @@
+{
+  "name": "CPG Out-of-Stock Ranking",
+  "kind": "ranking",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT m.matnr AS material_id, m.maktx AS description, s.lgpbe AS storage_bin, s.labst AS unrestricted_stock, s.eisbe AS safety_stock FROM MARA m JOIN MARD s ON m.matnr = s.matnr WHERE s.labst <= s.eisbe ORDER BY (s.labst / NULLIFZERO(s.eisbe)) ASC LIMIT 50",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject {kind: 'material'})-[:LINKED_TO]->(d:DspObject {kind: 'plant'}) RETURN o.id AS id, d.name AS plant LIMIT 50",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 3600
+  },
+  "prompt_template": "You are a supply chain analyst. Rank the following SKUs by out-of-stock urgency.\n\nSKUs at or below safety stock:\n{% for row in dsp_data %}- {{ row.material_id }} ({{ row.description }}): stock {{ row.unrestricted_stock }}, safety {{ row.safety_stock }}\n{% endfor %}\n\nReturn JSON: items (array of {material_id, description, urgency_score 0-100, reason}), ordered by urgency_score descending.",
+  "output_schema": {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["material_id", "description", "urgency_score", "reason"],
+          "properties": {
+            "material_id": {"type": "string"},
+            "description": {"type": "string"},
+            "urgency_score": {"type": "number"},
+            "reason": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "ranked_list",
+  "ttl_seconds": 3600
+}

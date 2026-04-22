@@ -1,0 +1,34 @@
+{
+  "name": "CPG Weekly Sell-Through",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT WEEKOFYEAR(billing_date) AS wk, material, distribution_channel, SUM(billed_quantity) AS qty_sold, SUM(net_value) AS revenue FROM VBAP WHERE billing_date >= ADD_MONTHS(CURRENT_DATE, -3) GROUP BY 1, 2, 3 ORDER BY 1 DESC LIMIT 100",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject {kind: 'material'}) RETURN o.id AS id, o.name AS name LIMIT 30",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 604800
+  },
+  "prompt_template": "You are a CPG supply chain analyst. Write a weekly sell-through narrative.\n\nSell-through data (last 13 weeks by SKU and channel):\n{% for row in dsp_data %}- Wk {{ row.wk }}: {{ row.material }} via {{ row.distribution_channel }} — qty {{ row.qty_sold }}, rev {{ row.revenue }}\n{% endfor %}\n\nHighlight: top 3 performing SKUs, 2 at-risk SKUs, channel mix shift vs prior period.\nReturn JSON: narrative_text (markdown, max 150 words), key_points (3-5 bullets), suggested_actions (1-3 sentences).",
+  "output_schema": {
+    "type": "object",
+    "required": ["narrative_text", "key_points", "suggested_actions"],
+    "properties": {
+      "narrative_text": {"type": "string"},
+      "key_points": {"type": "array", "items": {"type": "string"}},
+      "suggested_actions": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "brief",
+  "schedule": "0 6 * * 1",
+  "ttl_seconds": 86400
+}

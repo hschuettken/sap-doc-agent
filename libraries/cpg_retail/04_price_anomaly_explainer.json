@@ -1,0 +1,36 @@
+{
+  "name": "CPG Price Anomaly Explainer",
+  "kind": "action",
+  "mode": "live",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT matnr AS material_id, maktx AS description, kbetr AS price, konwa AS currency, datab AS valid_from, datbi AS valid_to FROM A004 WHERE datab <= CURRENT_DATE AND datbi >= CURRENT_DATE AND kbetr NOT BETWEEN :price_min AND :price_max LIMIT 20",
+      "parameters": {
+        "price_min": 0,
+        "price_max": 9999999
+      }
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject)-[:HAS_PRICE]->(p) WHERE o.id IN $ids RETURN o.id AS id, p.value AS hist_price LIMIT 20",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "A user clicked on a price anomaly card. Explain what is unusual and why it matters.\n\nMaterial: {{ context_hints.get('material_id', 'unknown') }}\nCurrent price: {{ dsp_data[0].price if dsp_data else 'N/A' }} {{ dsp_data[0].currency if dsp_data else '' }}\nHistorical price (Brain): {{ brain_data[0].hist_price if brain_data else 'no history' }}\n\nReturn JSON: explanation (max 80 words, plain language), severity (low|medium|high), next_steps (array of 1-2 strings).",
+  "output_schema": {
+    "type": "object",
+    "required": ["explanation", "severity", "next_steps"],
+    "properties": {
+      "explanation": {"type": "string"},
+      "severity": {"type": "string", "enum": ["low", "medium", "high"]},
+      "next_steps": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "render_hint": "callout",
+  "ttl_seconds": 600
+}

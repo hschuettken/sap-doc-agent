@@ -1,0 +1,508 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-04-22T18:00:18.633131Z",
+  "enhancements": [
+    {
+      "name": "CPG Morning Brief \u2014 Revenue",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Morning Brief \u2014 Revenue",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT date_trunc('day', posting_date) AS d, plant, material_group, SUM(net_value) AS revenue FROM /BIC/VSALES WHERE posting_date >= ADD_DAYS(CURRENT_DATE, -7) GROUP BY 1, 2, 3 ORDER BY 1 DESC LIMIT 60",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject)-[:DOMAIN_OF]->(d:Domain {name: 'Sales'}) RETURN o.id AS id, d.name AS domain LIMIT 20",
+            "parameters": {}
+          },
+          "external": {
+            "searxng_query": "CPG consumer goods revenue sales news",
+            "categories": [
+              "news"
+            ],
+            "max_results": 3
+          }
+        },
+        "adaptive_rules": {
+          "per_user": true,
+          "per_time": true,
+          "per_delta": true,
+          "delta_lookback_seconds": 86400
+        },
+        "prompt_template": "You are a CPG business analyst writing a morning briefing for {{ user_id }}.\nTime: {{ user_state.get('time_bucket', 'morning') }}.\n\nLast 7 days revenue by plant / material group:\n{% for row in dsp_data %}- {{ row.d }}: {{ row.plant }} / {{ row.material_group }} => {{ row.revenue }}\n{% endfor %}\n\nMarket context:\n{% for n in external_info %}- {{ n.title }}\n{% endfor %}\n\nReturn JSON with keys: narrative_text (markdown, max 120 words), key_points (2-4 bullets), suggested_actions (0-3 imperative sentences).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text",
+            "key_points",
+            "suggested_actions"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            },
+            "key_points": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "suggested_actions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "brief",
+        "ttl_seconds": 3600
+      }
+    },
+    {
+      "name": "CPG Weekly Sell-Through",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Weekly Sell-Through",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT WEEKOFYEAR(billing_date) AS wk, material, distribution_channel, SUM(billed_quantity) AS qty_sold, SUM(net_value) AS revenue FROM VBAP WHERE billing_date >= ADD_MONTHS(CURRENT_DATE, -3) GROUP BY 1, 2, 3 ORDER BY 1 DESC LIMIT 100",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject {kind: 'material'}) RETURN o.id AS id, o.name AS name LIMIT 30",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": true,
+          "delta_lookback_seconds": 604800
+        },
+        "prompt_template": "You are a CPG supply chain analyst. Write a weekly sell-through narrative.\n\nSell-through data (last 13 weeks by SKU and channel):\n{% for row in dsp_data %}- Wk {{ row.wk }}: {{ row.material }} via {{ row.distribution_channel }} \u2014 qty {{ row.qty_sold }}, rev {{ row.revenue }}\n{% endfor %}\n\nHighlight: top 3 performing SKUs, 2 at-risk SKUs, channel mix shift vs prior period.\nReturn JSON: narrative_text (markdown, max 150 words), key_points (3-5 bullets), suggested_actions (1-3 sentences).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text",
+            "key_points",
+            "suggested_actions"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            },
+            "key_points": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "suggested_actions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "brief",
+        "schedule": "0 6 * * 1",
+        "ttl_seconds": 86400
+      }
+    },
+    {
+      "name": "CPG Out-of-Stock Ranking",
+      "kind": "ranking",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Out-of-Stock Ranking",
+        "kind": "ranking",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT m.matnr AS material_id, m.maktx AS description, s.lgpbe AS storage_bin, s.labst AS unrestricted_stock, s.eisbe AS safety_stock FROM MARA m JOIN MARD s ON m.matnr = s.matnr WHERE s.labst <= s.eisbe ORDER BY (s.labst / NULLIFZERO(s.eisbe)) ASC LIMIT 50",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject {kind: 'material'})-[:LINKED_TO]->(d:DspObject {kind: 'plant'}) RETURN o.id AS id, d.name AS plant LIMIT 50",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": true,
+          "delta_lookback_seconds": 3600
+        },
+        "prompt_template": "You are a supply chain analyst. Rank the following SKUs by out-of-stock urgency.\n\nSKUs at or below safety stock:\n{% for row in dsp_data %}- {{ row.material_id }} ({{ row.description }}): stock {{ row.unrestricted_stock }}, safety {{ row.safety_stock }}\n{% endfor %}\n\nReturn JSON: items (array of {material_id, description, urgency_score 0-100, reason}), ordered by urgency_score descending.",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "material_id",
+                  "description",
+                  "urgency_score",
+                  "reason"
+                ],
+                "properties": {
+                  "material_id": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "urgency_score": {
+                    "type": "number"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "render_hint": "ranked_list",
+        "ttl_seconds": 3600
+      }
+    },
+    {
+      "name": "CPG Price Anomaly Explainer",
+      "kind": "action",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Price Anomaly Explainer",
+        "kind": "action",
+        "mode": "live",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT matnr AS material_id, maktx AS description, kbetr AS price, konwa AS currency, datab AS valid_from, datbi AS valid_to FROM A004 WHERE datab <= CURRENT_DATE AND datbi >= CURRENT_DATE AND kbetr NOT BETWEEN :price_min AND :price_max LIMIT 20",
+            "parameters": {
+              "price_min": 0,
+              "price_max": 9999999
+            }
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject)-[:HAS_PRICE]->(p) WHERE o.id IN $ids RETURN o.id AS id, p.value AS hist_price LIMIT 20",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 86400
+        },
+        "prompt_template": "A user clicked on a price anomaly card. Explain what is unusual and why it matters.\n\nMaterial: {{ context_hints.get('material_id', 'unknown') }}\nCurrent price: {{ dsp_data[0].price if dsp_data else 'N/A' }} {{ dsp_data[0].currency if dsp_data else '' }}\nHistorical price (Brain): {{ brain_data[0].hist_price if brain_data else 'no history' }}\n\nReturn JSON: explanation (max 80 words, plain language), severity (low|medium|high), next_steps (array of 1-2 strings).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "explanation",
+            "severity",
+            "next_steps"
+          ],
+          "properties": {
+            "explanation": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "next_steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "callout",
+        "ttl_seconds": 600
+      }
+    },
+    {
+      "name": "CPG Promo Lift Summary",
+      "kind": "narrative",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Promo Lift Summary",
+        "kind": "narrative",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT c.kunnr AS customer, c.vbeln AS promo_order, c.knumv AS cond_doc, p.kbetr AS discount_pct, p.kwert AS discount_value, SUM(i.netwr) AS net_revenue FROM VBKD c JOIN VBAP i ON c.vbeln = i.vbeln JOIN KONV p ON c.knumv = p.knumv WHERE c.bstnk LIKE 'PROMO%' AND i.erdat >= ADD_DAYS(CURRENT_DATE, -30) GROUP BY 1, 2, 3, 4, 5 ORDER BY 5 DESC LIMIT 50",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject {kind: 'customer'})-[:PARTICIPATED_IN]->(pr:DspObject {kind: 'promotion'}) RETURN o.id AS id, pr.name AS promo LIMIT 30",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": true,
+          "delta_lookback_seconds": 2592000
+        },
+        "prompt_template": "You are a trade marketing analyst. Summarise the promotional lift for the last 30 days.\n\nPromo orders:\n{% for row in dsp_data %}- {{ row.customer }}: promo {{ row.promo_order }}, discount {{ row.discount_pct }}%, net rev {{ row.net_revenue }}\n{% endfor %}\n\nReturn JSON: narrative_text (markdown, max 140 words), lift_pct (estimated % uplift vs baseline), top_promotions (array of {name, lift_pct, revenue}), risks (array of strings).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "narrative_text",
+            "lift_pct",
+            "top_promotions",
+            "risks"
+          ],
+          "properties": {
+            "narrative_text": {
+              "type": "string"
+            },
+            "lift_pct": {
+              "type": "number"
+            },
+            "top_promotions": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "risks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "render_hint": "narrative_text",
+        "ttl_seconds": 14400
+      }
+    },
+    {
+      "name": "CPG Category Heatmap KPIs",
+      "kind": "ranking",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Category Heatmap KPIs",
+        "kind": "ranking",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT matkl AS material_group, COUNT(DISTINCT matnr) AS sku_count, SUM(dmbtr) AS cogs, SUM(netwr) AS revenue, (SUM(netwr) - SUM(dmbtr)) / NULLIFZERO(SUM(netwr)) * 100 AS gross_margin_pct FROM VBAP WHERE erdat >= ADD_MONTHS(CURRENT_DATE, -3) GROUP BY 1 ORDER BY gross_margin_pct DESC LIMIT 30",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (c:DspObject {kind: 'material_group'}) RETURN c.id AS id, c.name AS name LIMIT 30",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": true,
+          "delta_lookback_seconds": 604800
+        },
+        "prompt_template": "You are a category manager. Rank product categories by strategic importance using the KPI data below.\n\nCategory KPIs (last quarter):\n{% for row in dsp_data %}- {{ row.material_group }}: SKUs {{ row.sku_count }}, revenue {{ row.revenue }}, COGS {{ row.cogs }}, GM% {{ row.gross_margin_pct | round(1) }}\n{% endfor %}\n\nReturn JSON: items (array of {material_group, score 0-100, gm_pct, revenue, insight string}), ordered by score descending.",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "material_group",
+                  "score",
+                  "gm_pct",
+                  "revenue",
+                  "insight"
+                ],
+                "properties": {
+                  "material_group": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "gm_pct": {
+                    "type": "number"
+                  },
+                  "revenue": {
+                    "type": "number"
+                  },
+                  "insight": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "render_hint": "ranked_list",
+        "ttl_seconds": 21600
+      }
+    },
+    {
+      "name": "CPG Supplier Scorecard",
+      "kind": "briefing",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG Supplier Scorecard",
+        "kind": "briefing",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT l.lifnr AS supplier_id, l.name1 AS supplier_name, COUNT(e.ebeln) AS po_count, AVG(DATEDIFF(DAY, e.bedat, w.budat)) AS avg_lead_days, SUM(CASE WHEN w.budat > e.eindt THEN 1 ELSE 0 END) AS late_deliveries, SUM(q.brgew) AS total_weight_kg FROM LFA1 l JOIN EKKO e ON l.lifnr = e.lifnr JOIN EKPO p ON e.ebeln = p.ebeln LEFT JOIN MSEG w ON w.ebeln = e.ebeln LEFT JOIN MARA q ON p.matnr = q.matnr WHERE e.bedat >= ADD_MONTHS(CURRENT_DATE, -6) GROUP BY 1, 2 ORDER BY late_deliveries DESC LIMIT 25",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (s:DspObject {kind: 'supplier'})-[:SUPPLIES]->(m:DspObject {kind: 'material'}) RETURN s.id AS id, count(m) AS material_count LIMIT 25",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": true,
+          "delta_lookback_seconds": 2592000
+        },
+        "prompt_template": "You are a procurement analyst. Produce a supplier quality scorecard.\n\nSupplier performance (last 6 months):\n{% for row in dsp_data %}- {{ row.supplier_name }} ({{ row.supplier_id }}): {{ row.po_count }} POs, avg lead {{ row.avg_lead_days | round(1) }} days, {{ row.late_deliveries }} late\n{% endfor %}\n\nReturn JSON: suppliers (array of {supplier_id, name, score 0-100, on_time_rate_pct, risk_level low|medium|high, recommendation string}), ordered by score descending.",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "suppliers"
+          ],
+          "properties": {
+            "suppliers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "supplier_id",
+                  "name",
+                  "score",
+                  "on_time_rate_pct",
+                  "risk_level",
+                  "recommendation"
+                ],
+                "properties": {
+                  "supplier_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "on_time_rate_pct": {
+                    "type": "number"
+                  },
+                  "risk_level": {
+                    "type": "string"
+                  },
+                  "recommendation": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "render_hint": "brief",
+        "schedule": "0 7 * * 1",
+        "ttl_seconds": 86400
+      }
+    },
+    {
+      "name": "CPG SKU Description Refiner",
+      "kind": "item_enrich",
+      "version": 1,
+      "status": "draft",
+      "config": {
+        "name": "CPG SKU Description Refiner",
+        "kind": "item_enrich",
+        "mode": "batch",
+        "bindings": {
+          "data": {
+            "dsp_query": "SELECT matnr AS material_id, maktx AS short_description, maktg AS long_description, mtart AS material_type, matkl AS material_group, meins AS base_uom FROM MARA m JOIN MAKT t ON m.matnr = t.matnr WHERE t.spras = 'EN' AND (LENGTH(TRIM(maktg)) < 20 OR maktg IS NULL) LIMIT 100",
+            "parameters": {}
+          },
+          "semantic": {
+            "cypher": "MATCH (o:DspObject {kind: 'material'}) WHERE o.description IS NULL OR size(o.description) < 20 RETURN o.id AS id, o.name AS name LIMIT 100",
+            "parameters": {}
+          }
+        },
+        "adaptive_rules": {
+          "per_user": false,
+          "per_time": false,
+          "per_delta": false,
+          "delta_lookback_seconds": 86400
+        },
+        "prompt_template": "You are a master data quality expert. Enrich the following SAP material descriptions to be clear, complete, and searchable.\n\nMaterial record:\n- ID: {{ item.material_id }}\n- Short desc: {{ item.short_description }}\n- Long desc: {{ item.long_description or 'EMPTY' }}\n- Type: {{ item.material_type }}, Group: {{ item.material_group }}\n- Unit: {{ item.base_uom }}\n\nReturn JSON: refined_short (max 40 chars, title case), refined_long (max 200 chars, descriptive sentence), seo_keywords (array of 3-5 terms), confidence (0.0-1.0), change_reason (one sentence).",
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "refined_short",
+            "refined_long",
+            "seo_keywords",
+            "confidence",
+            "change_reason"
+          ],
+          "properties": {
+            "refined_short": {
+              "type": "string"
+            },
+            "refined_long": {
+              "type": "string"
+            },
+            "seo_keywords": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "change_reason": {
+              "type": "string"
+            }
+          }
+        },
+        "render_hint": "narrative_text",
+        "ttl_seconds": 86400
+      }
+    }
+  ]
+}

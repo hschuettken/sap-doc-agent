@@ -1,0 +1,46 @@
+{
+  "name": "CPG Supplier Scorecard",
+  "kind": "briefing",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT l.lifnr AS supplier_id, l.name1 AS supplier_name, COUNT(e.ebeln) AS po_count, AVG(DATEDIFF(DAY, e.bedat, w.budat)) AS avg_lead_days, SUM(CASE WHEN w.budat > e.eindt THEN 1 ELSE 0 END) AS late_deliveries, SUM(q.brgew) AS total_weight_kg FROM LFA1 l JOIN EKKO e ON l.lifnr = e.lifnr JOIN EKPO p ON e.ebeln = p.ebeln LEFT JOIN MSEG w ON w.ebeln = e.ebeln LEFT JOIN MARA q ON p.matnr = q.matnr WHERE e.bedat >= ADD_MONTHS(CURRENT_DATE, -6) GROUP BY 1, 2 ORDER BY late_deliveries DESC LIMIT 25",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (s:DspObject {kind: 'supplier'})-[:SUPPLIES]->(m:DspObject {kind: 'material'}) RETURN s.id AS id, count(m) AS material_count LIMIT 25",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": true,
+    "delta_lookback_seconds": 2592000
+  },
+  "prompt_template": "You are a procurement analyst. Produce a supplier quality scorecard.\n\nSupplier performance (last 6 months):\n{% for row in dsp_data %}- {{ row.supplier_name }} ({{ row.supplier_id }}): {{ row.po_count }} POs, avg lead {{ row.avg_lead_days | round(1) }} days, {{ row.late_deliveries }} late\n{% endfor %}\n\nReturn JSON: suppliers (array of {supplier_id, name, score 0-100, on_time_rate_pct, risk_level low|medium|high, recommendation string}), ordered by score descending.",
+  "output_schema": {
+    "type": "object",
+    "required": ["suppliers"],
+    "properties": {
+      "suppliers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["supplier_id", "name", "score", "on_time_rate_pct", "risk_level", "recommendation"],
+          "properties": {
+            "supplier_id": {"type": "string"},
+            "name": {"type": "string"},
+            "score": {"type": "number"},
+            "on_time_rate_pct": {"type": "number"},
+            "risk_level": {"type": "string"},
+            "recommendation": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "render_hint": "brief",
+  "schedule": "0 7 * * 1",
+  "ttl_seconds": 86400
+}

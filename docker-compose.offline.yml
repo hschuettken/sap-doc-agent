@@ -1,0 +1,44 @@
+# Offline/air-gapped overlay — adds an Ollama sidecar and routes LLM traffic to it.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile offline up -d
+#
+# The first start pulls the model specified by OLLAMA_MODEL (default: qwen2.5:14b).
+# Subsequent starts reuse the cached model from the ollama-data volume.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sap-doc-agent-ollama
+    profiles: ["offline"]
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./ops/ollama-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b}
+      OLLAMA_HOST: 0.0.0.0
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+  # Override dsp-ai to point at the local Ollama instead of a cloud endpoint.
+  dsp-ai:
+    profiles: ["offline", ""]
+    depends_on:
+      ollama:
+        condition: service_healthy
+        required: false
+    environment:
+      LLM_ENDPOINT: http://ollama:11434/v1
+      # Quality router: all tiers → local model; no cloud calls in offline mode.
+      DSPAI_LLM_PROFILE: all-local
+
+volumes:
+  ollama-data:

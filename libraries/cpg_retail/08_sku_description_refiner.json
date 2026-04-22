@@ -1,0 +1,35 @@
+{
+  "name": "CPG SKU Description Refiner",
+  "kind": "item_enrich",
+  "mode": "batch",
+  "bindings": {
+    "data": {
+      "dsp_query": "SELECT matnr AS material_id, maktx AS short_description, maktg AS long_description, mtart AS material_type, matkl AS material_group, meins AS base_uom FROM MARA m JOIN MAKT t ON m.matnr = t.matnr WHERE t.spras = 'EN' AND (LENGTH(TRIM(maktg)) < 20 OR maktg IS NULL) LIMIT 100",
+      "parameters": {}
+    },
+    "semantic": {
+      "cypher": "MATCH (o:DspObject {kind: 'material'}) WHERE o.description IS NULL OR size(o.description) < 20 RETURN o.id AS id, o.name AS name LIMIT 100",
+      "parameters": {}
+    }
+  },
+  "adaptive_rules": {
+    "per_user": false,
+    "per_time": false,
+    "per_delta": false,
+    "delta_lookback_seconds": 86400
+  },
+  "prompt_template": "You are a master data quality expert. Enrich the following SAP material descriptions to be clear, complete, and searchable.\n\nMaterial record:\n- ID: {{ item.material_id }}\n- Short desc: {{ item.short_description }}\n- Long desc: {{ item.long_description or 'EMPTY' }}\n- Type: {{ item.material_type }}, Group: {{ item.material_group }}\n- Unit: {{ item.base_uom }}\n\nReturn JSON: refined_short (max 40 chars, title case), refined_long (max 200 chars, descriptive sentence), seo_keywords (array of 3-5 terms), confidence (0.0-1.0), change_reason (one sentence).",
+  "output_schema": {
+    "type": "object",
+    "required": ["refined_short", "refined_long", "seo_keywords", "confidence", "change_reason"],
+    "properties": {
+      "refined_short": {"type": "string"},
+      "refined_long": {"type": "string"},
+      "seo_keywords": {"type": "array", "items": {"type": "string"}},
+      "confidence": {"type": "number"},
+      "change_reason": {"type": "string"}
+    }
+  },
+  "render_hint": "narrative_text",
+  "ttl_seconds": 86400
+}
