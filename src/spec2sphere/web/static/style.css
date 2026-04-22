@@ -1,107 +1,67 @@
-/* SAP Doc Agent — Custom styles (Tailwind handles most styling) */
+/* Spec2Sphere — supplemental styles
+   Design tokens:   /static/atlas-tokens.css  (dark + light)
+   UI primitives:   /static/atlas-ui.css      (AppShell, Sidebar, Card, …)
+   This file bridges legacy template class-names to atlas token vars
+   and adds spec2sphere-specific rules not covered by the atlas primitives. */
 
-:root {
-    --color-primary: #05415A;
-    --color-primary-light: #0a6b8f;
-    --color-primary-dark: #032d3e;
-    --color-text: #353434;
-    --color-heading: #1a2332;
-    --color-bg: #FFFFFF;
-    --color-bg-alt: #F5F5F5;
-    --color-accent: #C8963E;
-    --color-border: #E5E5E5;
-    --color-green: #16A34A;
-    --color-amber: #D97706;
-    --color-red: #DC2626;
+/* ── Legacy aliases (used in 50+ partials — keep until templates are fully
+   migrated to atlas-* class names) ───────────────────────────────────────── */
+
+.card {
+  background-color: var(--atlas-color-surface);
+  border: 1px solid var(--atlas-color-border);
+  border-radius: var(--atlas-radius-lg);
+  box-shadow: var(--atlas-shadow-1);
+  padding: var(--atlas-space-6);
 }
 
-.sidebar {
-    background: var(--color-primary);
-    color: #fff;
-    width: 240px;
-    height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 40;
-    transition: transform 0.2s;
-    overflow-y: auto;
+/* Object-type badges */
+.badge { display: inline-flex; align-items: center; padding: 3px var(--atlas-space-2); border-radius: var(--atlas-radius-full); font-size: var(--atlas-text-xs); font-weight: var(--atlas-font-weight-medium); white-space: nowrap; }
+.badge-view           { background-color: var(--atlas-color-info-subtle);        color: var(--atlas-color-info); }
+.badge-adso           { background-color: var(--atlas-color-success-subtle);     color: var(--atlas-color-success); }
+.badge-transformation { background-color: var(--atlas-color-warning-subtle);     color: var(--atlas-color-warning); }
+.badge-table          { background-color: var(--atlas-color-primary-subtle);     color: var(--atlas-color-primary); }
+.badge-other          { background-color: var(--atlas-color-elevated);           color: var(--atlas-color-fg-muted); }
+.badge-critical       { background-color: var(--atlas-color-destructive-subtle); color: var(--atlas-color-destructive); }
+.badge-important      { background-color: var(--atlas-color-warning-subtle);     color: var(--atlas-color-warning); }
+.badge-minor          { background-color: var(--atlas-color-success-subtle);     color: var(--atlas-color-success); }
+
+/* Status dots */
+.dot        { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot-green  { background-color: var(--atlas-color-success); }
+.dot-amber  { background-color: var(--atlas-color-warning); }
+.dot-red    { background-color: var(--atlas-color-destructive); }
+
+/* Data tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: var(--atlas-text-sm); }
+.data-table th { background-color: var(--atlas-color-elevated); font-weight: var(--atlas-font-weight-semibold); font-size: var(--atlas-text-xs); color: var(--atlas-color-fg-muted); text-transform: uppercase; letter-spacing: var(--atlas-tracking-wider); padding: var(--atlas-space-3) var(--atlas-space-4); border-bottom: 1px solid var(--atlas-color-border); text-align: left; }
+.data-table td { padding: var(--atlas-space-3) var(--atlas-space-4); border-bottom: 1px solid var(--atlas-color-border-subtle); color: var(--atlas-color-fg); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background-color: var(--atlas-color-elevated); }
+
+/* Legacy toast (JS-appended) */
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--atlas-space-3);
+  background-color: var(--atlas-color-elevated);
+  border: 1px solid var(--atlas-color-border);
+  border-radius: var(--atlas-radius-lg);
+  box-shadow: var(--atlas-shadow-3);
+  padding: var(--atlas-space-4);
+  font-family: var(--atlas-font-sans);
+  font-size: var(--atlas-text-sm);
+  color: var(--atlas-color-fg);
+  animation: toast-slide-in var(--atlas-duration-normal) var(--atlas-ease-decelerated) both;
+}
+.toast.info        { border-left: 4px solid var(--atlas-color-info); }
+.toast.success     { border-left: 4px solid var(--atlas-color-success); }
+.toast.error       { border-left: 4px solid var(--atlas-color-destructive); }
+
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.sidebar .nav-link { color: rgba(255,255,255,0.7); transition: color 0.15s, background 0.15s; }
-.sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
-.sidebar .nav-link.active { border-left: 3px solid var(--color-accent); }
-
-/* Collapsible nav groups */
-.nav-group .nav-group-items { display: none; }
-.nav-group.expanded .nav-group-items { display: block; }
-.nav-group.expanded .chevron { transform: rotate(90deg); }
-.nav-group-toggle:hover { background: rgba(255,255,255,0.05); }
-
-.main-content { margin-left: 240px; min-height: 100vh; background: var(--color-bg-alt); }
-
-.card { background: var(--color-bg); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1.25rem; }
-
-.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
-.badge-view { background: #dbeafe; color: #1e40af; }
-.badge-adso { background: #dcfce7; color: #166534; }
-.badge-transformation { background: #ffedd5; color: #9a3412; }
-.badge-table { background: #f3e8ff; color: #6b21a8; }
-.badge-other { background: #f1f5f9; color: #475569; }
-.badge-critical { background: #fef2f2; color: var(--color-red); }
-.badge-important { background: #fffbeb; color: var(--color-amber); }
-.badge-minor { background: #f0fdf4; color: var(--color-green); }
-
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot-green { background: var(--color-green); }
-.dot-amber { background: var(--color-amber); }
-.dot-red { background: var(--color-red); }
-
+/* ── SVG gauge ──────────────────────────────────────────────────────────── */
 .gauge-ring { fill: none; stroke-width: 8; stroke-linecap: round; }
-
-.data-table th { background: #F9FAFB; font-weight: 600; font-size: 0.8125rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
-.data-table tr:nth-child(even) { background: #F9FAFB; }
-.data-table tr:hover { background: #F0F0F0; }
-
-.toast { position: fixed; top: 1rem; right: 1rem; z-index: 100; padding: 0.75rem 1.25rem; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease-out; }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-@media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .main-content { margin-left: 0; }
-}
-
-.htmx-indicator { display: none; }
-.htmx-request .htmx-indicator { display: inline-block; }
-.htmx-request.htmx-indicator { display: inline-block; }
-
-/* Accessibility: restore visible focus for keyboard users on all interactive
-   elements. Tailwind's focus:outline-none convention is too aggressive — we
-   add a clear ring on :focus-visible (mouse clicks are not affected). */
-:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
-    border-radius: 2px;
-}
-button:focus-visible,
-a:focus-visible,
-[role="button"]:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
-}
-/* Screen-reader only */
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}

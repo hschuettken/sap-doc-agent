@@ -500,6 +500,45 @@ def create_app(
 
         return await get_pool().health_check()
 
+    # --- Atlas nav-manifest (cross-service navigation registry) ---
+
+    @app.get("/_atlas/nav-manifest", tags=["atlas"])
+    async def atlas_nav_manifest():
+        """Atlas navigation manifest — consumed by the CommandPalette registry."""
+        return {
+            "serviceId": "spec2sphere",
+            "serviceName": "Spec2Sphere",
+            "serviceUrl": "http://localhost:8260",
+            "version": "2.0.0",
+            "routes": [
+                {"id": "dashboard",        "label": "Dashboard",        "path": "/ui/dashboard",          "group": "Main",     "keywords": ["overview", "status"]},
+                {"id": "pipeline",         "label": "Pipeline",         "path": "/ui/pipeline",           "group": "Main",     "keywords": ["delivery", "stages", "approvals"]},
+                {"id": "factory",          "label": "Factory",          "path": "/ui/factory",            "group": "Main",     "keywords": ["deploy", "dsp", "sac"]},
+                {"id": "reports",          "label": "Reports",          "path": "/ui/reports",            "group": "Main",     "keywords": ["documentation", "browser"]},
+                {"id": "landscape",        "label": "Landscape",        "path": "/ui/landscape",          "group": "Discover", "keywords": ["sap", "systems", "graph"]},
+                {"id": "scanner",          "label": "Scanner",          "path": "/ui/scanner",            "group": "Discover", "keywords": ["scan", "crawl", "discovery"]},
+                {"id": "objects",          "label": "Objects",          "path": "/ui/objects",            "group": "Discover", "keywords": ["cdp", "dsp", "artifacts"]},
+                {"id": "graph",            "label": "Dependencies",     "path": "/ui/graph",              "group": "Discover", "keywords": ["dependencies", "relations"]},
+                {"id": "knowledge",        "label": "Knowledge",        "path": "/ui/knowledge",          "group": "Discover", "keywords": ["knowledge base", "standards"]},
+                {"id": "quality",          "label": "Quality",          "path": "/ui/quality",            "group": "Quality",  "keywords": ["rules", "assessment"]},
+                {"id": "reconciliation",   "label": "Reconciliation",   "path": "/ui/reconciliation",     "group": "Quality",  "keywords": ["validate", "data"]},
+                {"id": "visual-qa",        "label": "Visual QA",        "path": "/ui/visual-qa",          "group": "Quality",  "keywords": ["screenshot", "visual testing"]},
+                {"id": "audit",            "label": "Audit",            "path": "/ui/audit",              "group": "Quality",  "keywords": ["audit", "review"]},
+                {"id": "audit-log",        "label": "Audit Log",        "path": "/ui/audit-log",          "group": "Quality",  "keywords": ["log", "history"]},
+                {"id": "lab",              "label": "Lab",              "path": "/ui/lab",                "group": "Learning", "keywords": ["learning", "templates"]},
+                {"id": "lab-fitness",      "label": "Route Fitness",    "path": "/ui/lab/fitness",        "group": "Learning", "keywords": ["fitness", "metrics"]},
+                {"id": "design-tokens",    "label": "Design Tokens",    "path": "/ui/design-tokens",      "group": "Learning", "keywords": ["design", "tokens"]},
+                {"id": "agent-terminal",   "label": "Agent Terminal",   "path": "/ui/agent-terminal",     "group": "System",   "keywords": ["terminal", "tmux", "sessions"]},
+                {"id": "migration",        "label": "Migration",        "path": "/ui/migration/projects", "group": "System",   "keywords": ["legacy", "migration", "projects"]},
+                {"id": "llm-routing",      "label": "LLM Routing",      "path": "/ui/llm-routing",        "group": "System",   "keywords": ["llm", "provider", "routing"]},
+                {"id": "notifications",    "label": "Notifications",    "path": "/ui/notifications",      "group": "System",   "keywords": ["alerts", "notifications"]},
+                {"id": "settings",         "label": "Settings",         "path": "/ui/settings",           "group": "System",   "keywords": ["config", "settings"]},
+                {"id": "admin",            "label": "Admin",            "path": "/ui/admin",              "group": "System",   "keywords": ["admin", "management"]},
+                {"id": "ai-studio",        "label": "AI Studio",        "path": "/ai-studio/",            "group": "Tools",    "keywords": ["ai", "prompts", "authoring"]},
+                {"id": "copilot",          "label": "Copilot Hub",      "path": "/copilot",               "group": "Tools",    "keywords": ["copilot", "knowledge", "m365"]},
+            ],
+        }
+
     # --- HTML documentation serving ---
 
     @app.get("/", include_in_schema=False)
