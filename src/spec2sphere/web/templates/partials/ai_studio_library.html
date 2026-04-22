@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}AI Studio — Library — Spec2Sphere{% endblock %}
+{% block page_title %}AI Studio{% endblock %}
+{% block content %}
+<nav class="flex gap-1 text-sm border-b pb-2 mb-4">
+  {% set tabs = [
+    ('enhancements', '/ai-studio/', 'Enhancements'),
+    ('templates',    '/ai-studio/templates/', 'Templates'),
+    ('log',          '/ai-studio/log/', 'Generation Log'),
+    ('brain',        '/ai-studio/brain/', 'Brain Explorer'),
+    ('library',      '/ai-studio/library/', 'Library'),
+  ] %}
+  {% for slug, url, label in tabs %}
+  <a href="{{ url }}"
+     class="px-3 py-1.5 rounded-md {{ 'bg-purple-600 text-white' if (sub_nav|default('enhancements')) == slug else 'text-gray-600 hover:bg-gray-100' }}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="space-y-6 max-w-2xl">
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-1">Export Library</h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Download all enhancements as a portable JSON bundle. Import it on another
+      Spec2Sphere instance to replicate your enhancement library.
+    </p>
+    <a href="/ai-studio/library/export"
+       class="inline-block bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded text-sm font-medium">
+      ⬇ Export library
+    </a>
+  </div>
+
+  {% if is_author %}
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-1">Import Library</h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Upload a previously exported library bundle. Choose an import mode:
+    </p>
+    <ul class="text-sm text-gray-600 mb-4 list-disc ml-5 space-y-1">
+      <li><strong>merge</strong> — upsert by name + version; existing enhancements are updated.</li>
+      <li><strong>replace</strong> — delete all existing enhancements first, then insert fresh.</li>
+      <li><strong>import as drafts</strong> — import everything as draft regardless of source status.</li>
+    </ul>
+    <form method="post" action="/ai-studio/library/import" enctype="multipart/form-data"
+          class="flex flex-col gap-3"
+          hx-post="/ai-studio/library/import"
+          hx-encoding="multipart/form-data"
+          hx-target="#import-result"
+          hx-swap="innerHTML">
+      <div class="flex gap-3 items-center">
+        <input type="file" name="file" accept="application/json,.json" required
+               class="text-sm border rounded px-3 py-2 flex-1"/>
+        <select name="mode" class="border rounded px-3 py-2 text-sm">
+          <option value="merge">merge</option>
+          <option value="replace">replace</option>
+          <option value="draftify">import as drafts</option>
+        </select>
+        <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium whitespace-nowrap">
+          ⬆ Import
+        </button>
+      </div>
+    </form>
+    <div id="import-result" class="mt-3 text-sm text-gray-700"></div>
+  </div>
+  {% else %}
+  <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+    Import is restricted to AI Studio authors. You are signed in as a viewer.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

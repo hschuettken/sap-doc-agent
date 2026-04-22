@@ -13,10 +13,11 @@ import json  # noqa: F401 — used in why() and stream() function bodies
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from .. import cache
+from ..auth import Principal, require, require_author
 from ..config import EnhancementMode
 from ..engine import run_engine
 
@@ -33,7 +34,11 @@ class EnhanceRequest(BaseModel):
 
 
 @router.post("/v1/enhance/{enhancement_id}")
-async def enhance(enhancement_id: str, body: EnhanceRequest = Body(default=None)) -> dict:
+async def enhance(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require),
+) -> dict:
     """Run an enhancement. Preview bypasses cache + skips DSP write-back."""
     body = body or EnhanceRequest()
     key = cache.key_for(enhancement_id, body.user, body.context_hints)
@@ -62,7 +67,11 @@ async def enhance(enhancement_id: str, body: EnhanceRequest = Body(default=None)
 
 
 @router.post("/v1/actions/{enhancement_id}/run")
-async def run_action(enhancement_id: str, body: EnhanceRequest = Body(default=None)) -> dict:
+async def run_action(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require),
+) -> dict:
     """Synchronous click-to-run action. No cache. Full shaped output."""
     body = body or EnhanceRequest()
     try:
@@ -75,6 +84,31 @@ async def run_action(enhancement_id: str, body: EnhanceRequest = Body(default=No
         )
     except LookupError:
         raise HTTPException(status_code=404, detail="enhancement not found")
+
+
+@router.post("/v1/actions/{enhancement_id}/regen")
+async def force_regen(
+    enhancement_id: str,
+    body: EnhanceRequest = Body(default=None),
+    p: Principal = Depends(require_author),
+) -> dict:
+    """Force regeneration even when cache is warm — author role required."""
+    body = body or EnhanceRequest()
+    try:
+        result = await run_engine(
+            enhancement_id,
+            user_id=body.user,
+            context_hints=body.context_hints,
+            context_key=body.context_key,
+            mode_override=EnhancementMode.LIVE,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail="enhancement not found")
+
+    # Invalidate the cache so next /enhance call picks up the fresh result.
+    key = cache.key_for(enhancement_id, body.user, body.context_hints)
+    await cache.set_(key, result, ttl=600)
+    return result
 
 
 @router.get("/v1/stream/{enhancement_id}/{user_id}")

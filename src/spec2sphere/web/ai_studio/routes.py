@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from spec2sphere.dsp_ai.config import EnhancementConfig
 from spec2sphere.dsp_ai.events import emit
+from spec2sphere.dsp_ai.publish_diff import diff as compute_diff
 from spec2sphere.dsp_ai.settings import postgres_dsn
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -51,13 +52,15 @@ def create_ai_studio_router() -> APIRouter:
     from .templates_library import create_templates_router
     from .generation_log import create_log_router
     from .brain_explorer import create_brain_router
+    from .library_routes import create_library_router
 
     router = APIRouter(prefix="/ai-studio", tags=["ai-studio"])
-    # Sub-routers registered first so fixed prefixes (/templates, /log, /brain)
+    # Sub-routers registered first so fixed prefixes (/templates, /log, /brain, /library)
     # are matched before the generic /{enh_id} path-param routes below.
     router.include_router(create_templates_router())
     router.include_router(create_log_router())
     router.include_router(create_brain_router())
+    router.include_router(create_library_router())
 
     @router.get("/", response_class=HTMLResponse)
     @router.get("", response_class=HTMLResponse)
@@ -178,6 +181,38 @@ def create_ai_studio_router() -> APIRouter:
         except Exception:
             payload = {"error": "invalid response from dsp-ai", "status": resp.status_code}
         return JSONResponse(payload, status_code=resp.status_code)
+
+    @router.get("/{enh_id}/publish-preview", response_class=HTMLResponse)
+    async def publish_preview(request: Request, enh_id: str):
+        """Show a diff of changes before committing to publish."""
+        email = _current_email(request)
+        if not _is_author(email):
+            raise HTTPException(403, detail="not an AI Studio author")
+        conn = await asyncpg.connect(postgres_dsn())
+        try:
+            row = await conn.fetchrow(
+                "SELECT id::text AS id, name, version, config FROM dsp_ai.enhancements WHERE id = $1::uuid",
+                enh_id,
+            )
+        finally:
+            await conn.close()
+        if row is None:
+            raise HTTPException(404, detail="enhancement not found")
+        cfg = row["config"]
+        if isinstance(cfg, str):
+            cfg = json.loads(cfg)
+        diff_result = await compute_diff(enh_id, cfg)
+        return _render(
+            request,
+            "partials/ai_studio_diff.html",
+            {
+                "active_page": "ai-studio",
+                "enhancement_id": enh_id,
+                "enhancement_name": row["name"],
+                "enhancement_version": row["version"],
+                "diff": diff_result,
+            },
+        )
 
     @router.post("/{enh_id}/publish")
     async def publish(request: Request, enh_id: str):

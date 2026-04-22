@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import os
 from typing import Any
 
 from .config import Enhancement, EnhancementMode
+from .cost_guard import CostExceeded, check_and_account
 from .stages.adaptive_rules import apply as apply_rules
 from .stages.compose_prompt import compose
 from .stages.dispatch import dispatch
@@ -16,6 +18,10 @@ from .stages.run_llm import run as run_llm
 from .stages.shape_output import shape
 
 logger = logging.getLogger(__name__)
+
+# Rough per-1k-token cost in USD; used for pre-call estimate only.
+# Exact cost is written by ObservedLLMProvider after the call.
+_TOKEN_COST_PER_1K = float(os.environ.get("COST_TOKEN_RATE_PER_1K", "0.003"))
 
 
 def _classify_llm_error(exc: BaseException) -> str:
@@ -44,6 +50,22 @@ async def run_engine(
     ctx = await gather(enh, user_id, context_hints or {})
     ctx = apply_rules(enh, ctx, user_id, dt.datetime.now(dt.timezone.utc))
     prompt = compose(enh, ctx, user_id)
+
+    # Cost guard: estimate tokens from prompt length and check monthly cap.
+    # Skip guard for preview runs (no write-back, not charged to production cap).
+    if not preview:
+        prompt_token_estimate = max(1, len(prompt) // 4)
+        projected = prompt_token_estimate * _TOKEN_COST_PER_1K / 1000
+        try:
+            await check_and_account(enhancement_id, projected)
+        except CostExceeded as exc:
+            logger.warning("cost_guard blocked enhancement=%s: %s", enhancement_id, exc)
+            return {
+                "error_kind": "cost_cap",
+                "content": None,
+                "quality_warnings": ["cost_cap"],
+                "enhancement_id": enhancement_id,
+            }
 
     # Per spec §5: "no single dependency can 500 the engine". LLM outages
     # must degrade to a shaped output with error_kind + quality_warnings,
