@@ -1,5 +1,6 @@
 /* Atlas UI — component styles for spec2sphere (server-rendered subset)
-   Requires atlas-tokens.css to be loaded first. */
+   Requires atlas-tokens.css to be loaded first.
+   Class definitions match @atlas/ui dist/styles.css for visual parity. */
 
 /* ============================================================
    GLOBAL BASE
@@ -41,7 +42,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--atlas-duration-normal) var(--atlas-ease-standard);
 }
 
 .atlas-appshell-header {
@@ -89,7 +90,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
     width: 240px !important;
     z-index: 50;
     transform: translateX(-100%);
-    transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--atlas-duration-normal) var(--atlas-ease-standard);
   }
 
   .atlas-appshell--drawer-open .atlas-appshell-sidebar {
@@ -187,7 +188,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   text-align: left;
-  transition: color 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color var(--atlas-duration-fast) var(--atlas-ease-standard);
 }
 
 .atlas-sidebar-group-toggle:hover {
@@ -197,7 +198,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
 .atlas-sidebar-group-toggle-chevron {
   margin-left: auto;
   flex-shrink: 0;
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--atlas-duration-normal) var(--atlas-ease-standard);
 }
 
 .atlas-sidebar-group--expanded .atlas-sidebar-group-toggle-chevron {
@@ -225,7 +226,8 @@ a:hover { color: var(--atlas-color-primary-hover); }
   color: var(--atlas-color-fg-muted);
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 120ms cubic-bezier(0.4, 0, 0.2, 1), color 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--atlas-duration-fast) var(--atlas-ease-standard),
+              color var(--atlas-duration-fast) var(--atlas-ease-standard);
   white-space: nowrap;
   overflow: hidden;
   position: relative;
@@ -335,7 +337,12 @@ a:hover { color: var(--atlas-color-primary-hover); }
   outline-offset: 2px;
 }
 
-.atlas-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.atlas-btn:disabled,
+.atlas-btn--loading {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .atlas-btn--primary {
   background-color: var(--atlas-color-primary);
@@ -346,13 +353,23 @@ a:hover { color: var(--atlas-color-primary-hover); }
   background-color: var(--atlas-color-primary-hover);
   border-color: var(--atlas-color-primary-hover);
 }
+.atlas-btn--primary:active:not(:disabled) {
+  background-color: var(--atlas-color-primary-active);
+  border-color: var(--atlas-color-primary-active);
+}
 
 .atlas-btn--secondary {
   background-color: var(--atlas-color-surface);
   color: var(--atlas-color-fg);
   border-color: var(--atlas-color-border);
 }
-.atlas-btn--secondary:hover:not(:disabled) { background-color: var(--atlas-color-elevated); }
+.atlas-btn--secondary:hover:not(:disabled) {
+  background-color: var(--atlas-color-elevated);
+  border-color: var(--atlas-color-border);
+}
+.atlas-btn--secondary:active:not(:disabled) {
+  background-color: var(--atlas-color-border);
+}
 
 .atlas-btn--ghost {
   background-color: transparent;
@@ -360,6 +377,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
   border-color: transparent;
 }
 .atlas-btn--ghost:hover:not(:disabled) { background-color: var(--atlas-color-elevated); }
+.atlas-btn--ghost:active:not(:disabled) { background-color: var(--atlas-color-border); }
 
 .atlas-btn--info {
   background-color: var(--atlas-color-info);
@@ -374,11 +392,29 @@ a:hover { color: var(--atlas-color-primary-hover); }
   border-color: var(--atlas-color-destructive);
 }
 .atlas-btn--destructive:hover:not(:disabled) { filter: brightness(1.1); }
+.atlas-btn--destructive:active:not(:disabled) { filter: brightness(0.9); }
+
+.atlas-btn--link {
+  background-color: transparent;
+  color: var(--atlas-color-primary);
+  border-color: transparent;
+  text-decoration: underline;
+  padding-left: 0;
+  padding-right: 0;
+}
+.atlas-btn--link:hover:not(:disabled) { color: var(--atlas-color-primary-hover); }
 
 .atlas-btn--sm {
   font-size: var(--atlas-text-xs);
+  line-height: var(--atlas-text-xs-lh);
   padding: var(--atlas-space-1) var(--atlas-space-3);
   border-radius: var(--atlas-radius-sm);
+}
+
+.atlas-btn--lg {
+  font-size: var(--atlas-text-base);
+  line-height: var(--atlas-text-base-lh);
+  padding: var(--atlas-space-3) var(--atlas-space-6);
 }
 
 .atlas-btn--icon-only {
@@ -386,24 +422,30 @@ a:hover { color: var(--atlas-color-primary-hover); }
   aspect-ratio: 1;
 }
 
-.atlas-btn--link {
-  background-color: transparent;
-  color: var(--atlas-color-primary);
-  border-color: transparent;
-  padding-left: 0;
-  padding-right: 0;
-  text-decoration: underline;
+.atlas-btn--icon-only.atlas-btn--sm { padding: var(--atlas-space-1); }
+.atlas-btn--icon-only.atlas-btn--lg { padding: var(--atlas-space-3); }
+
+.atlas-btn--loading::after {
+  content: "";
+  position: absolute;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: atlas-spin var(--atlas-duration-slow) linear infinite;
 }
-.atlas-btn--link:hover:not(:disabled) { color: var(--atlas-color-primary-hover); }
+
+@keyframes atlas-spin {
+  to { transform: rotate(360deg); }
+}
 
 /* Muted text variant — for low-emphasis actions like Logout */
 .atlas-header-logout {
   font-size: var(--atlas-text-xs);
   color: var(--atlas-color-fg-muted);
 }
-.atlas-header-logout:hover {
-  color: var(--atlas-color-fg);
-}
+.atlas-header-logout:hover { color: var(--atlas-color-fg); }
 
 /* ============================================================
    CARD
@@ -418,7 +460,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
 }
 
 .atlas-card-header {
-  padding: var(--atlas-space-4) var(--atlas-space-6);
+  padding: var(--atlas-space-6);
   border-bottom: 1px solid var(--atlas-color-border-subtle);
 }
 
@@ -434,6 +476,21 @@ a:hover { color: var(--atlas-color-primary-hover); }
   align-items: center;
   justify-content: flex-end;
   gap: var(--atlas-space-2);
+}
+
+.atlas-panel {
+  background-color: var(--atlas-color-elevated);
+  border: 1px solid var(--atlas-color-border);
+  border-radius: var(--atlas-radius-lg);
+  padding: var(--atlas-space-6);
+}
+
+.atlas-section {
+  padding: var(--atlas-space-8) 0;
+}
+
+.atlas-section + .atlas-section {
+  border-top: 1px solid var(--atlas-color-border-subtle);
 }
 
 /* ============================================================
@@ -607,15 +664,16 @@ a:hover { color: var(--atlas-color-primary-hover); }
 .htmx-request.htmx-indicator { display: inline-block; }
 
 /* ============================================================
-   FORM FIELDS
+   FORM FIELDS — global reset applies atlas styling to all native inputs
    ============================================================ */
 
 .atlas-label {
   display: block;
-  font-size: var(--atlas-text-xs);
+  font-size: var(--atlas-text-sm);
   font-weight: var(--atlas-font-weight-medium);
-  color: var(--atlas-color-fg-muted);
+  color: var(--atlas-color-fg);
   margin-bottom: var(--atlas-space-1);
+  line-height: var(--atlas-text-sm-lh);
 }
 
 .atlas-input,
@@ -623,9 +681,9 @@ a:hover { color: var(--atlas-color-primary-hover); }
 .atlas-textarea {
   display: block;
   width: 100%;
-  background-color: var(--atlas-color-elevated);
+  background-color: var(--atlas-color-surface);
   border: 1px solid var(--atlas-color-border);
-  border-radius: var(--atlas-radius-sm);
+  border-radius: var(--atlas-radius-md);
   color: var(--atlas-color-fg);
   font-family: var(--atlas-font-sans);
   font-size: var(--atlas-text-sm);
@@ -633,6 +691,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
   padding: var(--atlas-space-2) var(--atlas-space-3);
   transition: border-color var(--atlas-duration-fast) var(--atlas-ease-standard),
               box-shadow var(--atlas-duration-fast) var(--atlas-ease-standard);
+  outline: none;
 }
 
 .atlas-input::placeholder,
@@ -640,10 +699,15 @@ a:hover { color: var(--atlas-color-primary-hover); }
   color: var(--atlas-color-fg-subtle);
 }
 
+.atlas-input:hover:not(:disabled),
+.atlas-select:hover:not(:disabled),
+.atlas-textarea:hover:not(:disabled) {
+  border-color: var(--atlas-color-fg-muted);
+}
+
 .atlas-input:focus,
 .atlas-select:focus,
 .atlas-textarea:focus {
-  outline: none;
   border-color: var(--atlas-color-primary);
   box-shadow: 0 0 0 2px var(--atlas-color-primary-subtle);
 }
@@ -653,6 +717,27 @@ a:hover { color: var(--atlas-color-primary-hover); }
 .atlas-textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background-color: var(--atlas-color-elevated);
+}
+
+.atlas-input--error,
+.atlas-textarea--error {
+  border-color: var(--atlas-color-destructive);
+}
+.atlas-input--error:focus,
+.atlas-textarea--error:focus {
+  border-color: var(--atlas-color-destructive);
+  box-shadow: 0 0 0 2px var(--atlas-color-destructive-subtle);
+}
+
+.atlas-input--hint {
+  font-size: var(--atlas-text-xs);
+  line-height: var(--atlas-text-xs-lh);
+  color: var(--atlas-color-fg-muted);
+}
+
+.atlas-input--hint.atlas-input--hint-error {
+  color: var(--atlas-color-destructive);
 }
 
 .atlas-select {
@@ -666,13 +751,44 @@ a:hover { color: var(--atlas-color-primary-hover); }
 
 .atlas-textarea {
   resize: vertical;
-  min-height: 96px;
+  min-height: 80px;
 }
 
 .atlas-field {
   display: flex;
   flex-direction: column;
   gap: var(--atlas-space-1);
+}
+
+/* Checkbox (CSS-only, for server-rendered forms) */
+.atlas-checkbox-root {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--atlas-space-2);
+  cursor: pointer;
+}
+
+.atlas-checkbox-label {
+  font-family: var(--atlas-font-sans);
+  font-size: var(--atlas-text-sm);
+  font-weight: var(--atlas-font-weight-medium);
+  color: var(--atlas-color-fg);
+  line-height: var(--atlas-text-sm-lh);
+}
+
+/* Switch (toggle) */
+.atlas-switch-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--atlas-space-2);
+}
+
+.atlas-switch-label {
+  font-family: var(--atlas-font-sans);
+  font-size: var(--atlas-text-sm);
+  font-weight: var(--atlas-font-weight-medium);
+  color: var(--atlas-color-fg);
+  line-height: var(--atlas-text-sm-lh);
 }
 
 /* ============================================================
@@ -717,13 +833,8 @@ a:hover { color: var(--atlas-color-primary-hover); }
   border-bottom-color: var(--atlas-color-primary);
 }
 
-.atlas-tab-panel {
-  display: none;
-}
-
-.atlas-tab-panel--active {
-  display: block;
-}
+.atlas-tab-panel { display: none; }
+.atlas-tab-panel--active { display: block; }
 
 /* ============================================================
    CODE / PRE
@@ -759,7 +870,7 @@ a:hover { color: var(--atlas-color-primary-hover); }
    LAYOUT UTILITIES (atlas-prefixed)
    ============================================================ */
 
-.atlas-stack   { display: flex; flex-direction: column; gap: var(--atlas-space-4); }
+.atlas-stack    { display: flex; flex-direction: column; gap: var(--atlas-space-4); }
 .atlas-stack-sm { display: flex; flex-direction: column; gap: var(--atlas-space-2); }
 .atlas-stack-lg { display: flex; flex-direction: column; gap: var(--atlas-space-6); }
 
@@ -783,14 +894,12 @@ a:hover { color: var(--atlas-color-primary-hover); }
   .atlas-grid-4 { grid-template-columns: 1fr; }
 }
 
-.atlas-center-page { max-width: 896px; margin-left: auto; margin-right: auto; }
+.atlas-center-page     { max-width: 896px; margin-left: auto; margin-right: auto; }
 .atlas-center-page--sm { max-width: 640px; margin-left: auto; margin-right: auto; }
 .atlas-center-page--md { max-width: 768px; margin-left: auto; margin-right: auto; }
 
-/* Stat / KPI card utility */
-.atlas-kpi {
-  padding: var(--atlas-space-4);
-}
+/* KPI / stat card */
+.atlas-kpi { padding: var(--atlas-space-4); }
 .atlas-kpi-label {
   font-size: var(--atlas-text-xs);
   font-weight: var(--atlas-font-weight-medium);
@@ -819,17 +928,15 @@ a:hover { color: var(--atlas-color-primary-hover); }
   margin: 0 0 var(--atlas-space-3) 0;
 }
 
-/* Divider list (replaces divide-y) */
+/* Divider list */
 .atlas-list-divided > * + * {
   border-top: 1px solid var(--atlas-color-border-subtle);
 }
 
 /* Row hover for tables / lists */
-.atlas-row-hover:hover {
-  background-color: var(--atlas-color-elevated);
-}
+.atlas-row-hover:hover { background-color: var(--atlas-color-elevated); }
 
-/* Accent left border (used on stat cards) */
+/* Accent left borders */
 .atlas-border-primary { border-left: 4px solid var(--atlas-color-primary); }
 .atlas-border-info    { border-left: 4px solid var(--atlas-color-info); }
 .atlas-border-warning { border-left: 4px solid var(--atlas-color-warning); }

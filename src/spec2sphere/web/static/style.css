@@ -104,8 +104,8 @@
 .gauge-ring { fill: none; stroke-width: 8; stroke-linecap: round; }
 
 /* ── Terminal panel colours (agent terminal page) ──────────────────────── */
-.terminal-panel   { background-color: #1a1a2e; }
-.terminal-toolbar { background-color: #16213e; }
+.terminal-panel   { background-color: var(--atlas-color-bg); }
+.terminal-toolbar { background-color: var(--atlas-color-surface); }
 
 /* ── Global form field reset (applies atlas styling to all native fields) ── */
 
