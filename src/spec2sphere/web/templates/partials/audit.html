@@ -3,123 +3,128 @@
 {% block page_title %}Documentation Audit{% endblock %}
 
 {% block content %}
-<div class="card max-w-3xl">
-    <form id="audit-form">
+<div id="content-inner" style="max-width:768px;">
+<div class="atlas-card">
+    <div class="atlas-card-content">
+    <form id="audit-form" class="atlas-stack">
         <!-- Step 1: Upload -->
-        <div id="step-upload">
-            <h3 class="font-heading text-base text-gray-900 mb-3">Step 1: Upload Documents</h3>
+        <div id="step-upload" class="atlas-stack">
+            <h3 style="font-size:var(--atlas-text-base);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;">Step 1: Upload Documents</h3>
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Audit Name</label>
-                <input type="text" id="audit-name" placeholder="e.g. Client X Q2 Review"
-                       class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-petrol">
+            <div class="atlas-field">
+                <label class="atlas-label">Audit Name</label>
+                <input type="text" id="audit-name" placeholder="e.g. Client X Q2 Review" class="atlas-input">
             </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Documents (paste content)</label>
-                <div id="doc-entries">
-                    <div class="doc-entry mb-2 p-3 bg-gray-50 rounded">
-                        <input type="text" placeholder="Document title" class="doc-title w-full px-2 py-1 border border-gray-200 rounded text-sm mb-1">
-                        <textarea placeholder="Paste document content here..." class="doc-content w-full px-2 py-1 border border-gray-200 rounded text-sm h-24"></textarea>
+            <div class="atlas-field">
+                <label class="atlas-label">Documents (paste content)</label>
+                <div id="doc-entries" class="atlas-stack-sm">
+                    <div class="doc-entry atlas-panel">
+                        <input type="text" placeholder="Document title" class="doc-title atlas-input" style="margin-bottom:var(--atlas-space-2);">
+                        <textarea placeholder="Paste document content here..." class="doc-content atlas-textarea" style="height:96px;"></textarea>
                     </div>
                 </div>
-                <button type="button" onclick="addDoc()" class="text-sm text-petrol hover:underline">+ Add another document</button>
+                <button type="button" onclick="addDoc()" class="atlas-btn atlas-btn--link atlas-btn--sm">+ Add another document</button>
             </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Client Standard (optional)</label>
-                <textarea id="client-standard" placeholder="Paste client documentation standard..."
-                          class="w-full px-3 py-2 border border-gray-200 rounded text-sm h-20"></textarea>
+            <div class="atlas-field">
+                <label class="atlas-label">Client Standard <span style="color:var(--atlas-color-fg-subtle);font-weight:normal;">(optional)</span></label>
+                <textarea id="client-standard" placeholder="Paste client documentation standard..." class="atlas-textarea" style="height:80px;"></textarea>
             </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Scope</label>
-                <select id="audit-scope" class="px-3 py-2 border border-gray-200 rounded text-sm">
+            <div class="atlas-field">
+                <label class="atlas-label">Scope</label>
+                <select id="audit-scope" class="atlas-select" style="width:auto;">
                     <option value="application">Application Level</option>
                     <option value="system">System Level</option>
                 </select>
             </div>
 
-            <button type="button" onclick="runAudit()" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">
-                Run Audit
-            </button>
+            <div>
+                <button type="button" onclick="runAudit()" class="atlas-btn atlas-btn--primary">
+                    Run Audit
+                </button>
+            </div>
         </div>
 
         <!-- Results -->
-        <div id="audit-results" style="display:none">
-            <h3 class="font-heading text-base text-gray-900 mb-3">Audit Results</h3>
+        <div id="audit-results" style="display:none;" class="atlas-stack">
+            <h3 style="font-size:var(--atlas-text-base);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;">Audit Results</h3>
             <div id="results-content"></div>
-            <button type="button" onclick="resetAudit()" class="mt-4 px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium">
-                New Audit
-            </button>
+            <div>
+                <button type="button" onclick="resetAudit()" class="atlas-btn atlas-btn--secondary">
+                    New Audit
+                </button>
+            </div>
         </div>
 
         <!-- Loading -->
-        <div id="audit-loading" style="display:none" class="text-center py-8">
-            <div class="inline-block w-8 h-8 border-2 border-petrol border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-sm text-gray-400 mt-2">Running audit...</p>
+        <div id="audit-loading" style="display:none;" class="atlas-empty">
+            <div style="width:32px;height:32px;border:2px solid var(--atlas-color-primary);border-top-color:transparent;border-radius:50%;animation:atlas-spin var(--atlas-duration-slow) linear infinite;"></div>
+            <p class="atlas-empty-body" style="margin-top:var(--atlas-space-2);">Running audit…</p>
         </div>
     </form>
+    </div>
+</div>
 </div>
 
 <script>
 function addDoc() {
-    const entry = document.createElement('div');
-    entry.className = 'doc-entry mb-2 p-3 bg-gray-50 rounded';
-    entry.innerHTML = `
-        <input type="text" placeholder="Document title" class="doc-title w-full px-2 py-1 border border-gray-200 rounded text-sm mb-1">
-        <textarea placeholder="Paste document content..." class="doc-content w-full px-2 py-1 border border-gray-200 rounded text-sm h-24"></textarea>
-        <button type="button" onclick="this.parentElement.remove()" class="text-xs text-red-500 hover:underline mt-1">Remove</button>
-    `;
+    var entry = document.createElement('div');
+    entry.className = 'doc-entry atlas-panel';
+    entry.innerHTML =
+        '<input type="text" placeholder="Document title" class="doc-title atlas-input" style="margin-bottom:var(--atlas-space-2);">'
+        + '<textarea placeholder="Paste document content..." class="doc-content atlas-textarea" style="height:96px;"></textarea>'
+        + '<button type="button" onclick="this.parentElement.remove()" class="atlas-btn atlas-btn--link atlas-btn--sm" style="color:var(--atlas-color-destructive);margin-top:var(--atlas-space-1);">Remove</button>';
     document.getElementById('doc-entries').appendChild(entry);
 }
 
 async function runAudit() {
-    const docs = [];
-    document.querySelectorAll('.doc-entry').forEach(entry => {
-        const title = entry.querySelector('.doc-title').value;
-        const content = entry.querySelector('.doc-content').value;
-        if (title && content) docs.push({title, content});
+    var docs = [];
+    document.querySelectorAll('.doc-entry').forEach(function(entry) {
+        var title = entry.querySelector('.doc-title').value;
+        var content = entry.querySelector('.doc-content').value;
+        if (title && content) docs.push({title: title, content: content});
     });
     if (docs.length === 0) { showToast('Add at least one document', 'error'); return; }
 
     document.getElementById('step-upload').style.display = 'none';
-    document.getElementById('audit-loading').style.display = 'block';
+    document.getElementById('audit-loading').style.display = 'flex';
 
-    const body = {
+    var body = {
         documents: docs,
         application_name: document.getElementById('audit-name').value || 'Unnamed',
         scope: document.getElementById('audit-scope').value,
     };
-    const clientStd = document.getElementById('client-standard').value;
+    var clientStd = document.getElementById('client-standard').value;
     if (clientStd) body.client_standard = clientStd;
 
     try {
-        const resp = await fetch('/api/audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-        const data = await resp.json();
+        var resp = await fetch('/api/audit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+        var data = await resp.json();
         document.getElementById('audit-loading').style.display = 'none';
         document.getElementById('audit-results').style.display = 'block';
 
-        let html = '';
+        var html = '';
         if (data.score !== undefined) {
-            html += `<div class="mb-3"><span class="text-2xl font-bold">${data.score.toFixed(1)}%</span> <span class="text-gray-400">overall score</span></div>`;
-            html += `<p class="text-sm text-gray-500 mb-2">${data.sections_found}/${data.sections_total} sections found</p>`;
+            html += '<div style="margin-bottom:var(--atlas-space-3);"><span style="font-size:var(--atlas-text-2xl);font-weight:var(--atlas-font-weight-bold);color:var(--atlas-color-fg);">' + data.score.toFixed(1) + '%</span> <span style="color:var(--atlas-color-fg-muted);">overall score</span></div>';
+            html += '<p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);margin-bottom:var(--atlas-space-2);">' + data.sections_found + '/' + data.sections_total + ' sections found</p>';
         }
         if (data.horvath_score !== undefined) {
-            html += `<div class="grid grid-cols-2 gap-4 mb-3">`;
-            html += `<div><span class="text-xl font-bold">${data.horvath_score.toFixed(1)}%</span><br><span class="text-xs text-gray-400">Horváth Standard</span></div>`;
-            html += `<div><span class="text-xl font-bold">${data.client_score.toFixed(1)}%</span><br><span class="text-xs text-gray-400">Client Standard</span></div>`;
-            html += `</div>`;
+            html += '<div class="atlas-grid-2" style="margin-bottom:var(--atlas-space-3);">';
+            html += '<div class="atlas-kpi"><div class="atlas-kpi-value">' + data.horvath_score.toFixed(1) + '%</div><div class="atlas-kpi-label">Horváth Standard</div></div>';
+            html += '<div class="atlas-kpi"><div class="atlas-kpi-value">' + data.client_score.toFixed(1) + '%</div><div class="atlas-kpi-label">Client Standard</div></div>';
+            html += '</div>';
         }
         if (data.issues) {
-            html += `<h4 class="font-medium text-sm mt-3 mb-1">Issues</h4><ul class="text-sm text-gray-600 space-y-1">`;
-            data.issues.forEach(i => html += `<li class="flex gap-2"><span class="badge badge-important">!</span>${i}</li>`);
-            html += `</ul>`;
+            html += '<h4 style="font-size:var(--atlas-text-sm);font-weight:var(--atlas-font-weight-medium);margin:var(--atlas-space-3) 0 var(--atlas-space-1);">Issues</h4><ul style="display:flex;flex-direction:column;gap:var(--atlas-space-1);">';
+            data.issues.forEach(function(i) { html += '<li style="display:flex;gap:var(--atlas-space-2);font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);"><span class="atlas-badge atlas-badge--warning">!</span>' + i + '</li>'; });
+            html += '</ul>';
         }
         if (data.suggestions) {
-            html += `<h4 class="font-medium text-sm mt-3 mb-1">Suggestions</h4><ul class="text-sm text-gray-500 space-y-1">`;
-            data.suggestions.forEach(s => html += `<li>${s}</li>`);
-            html += `</ul>`;
+            html += '<h4 style="font-size:var(--atlas-text-sm);font-weight:var(--atlas-font-weight-medium);margin:var(--atlas-space-3) 0 var(--atlas-space-1);">Suggestions</h4><ul style="display:flex;flex-direction:column;gap:var(--atlas-space-1);">';
+            data.suggestions.forEach(function(s) { html += '<li style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);">' + s + '</li>'; });
+            html += '</ul>';
         }
         document.getElementById('results-content').innerHTML = html;
     } catch (err) {

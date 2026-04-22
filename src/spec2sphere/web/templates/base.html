@@ -518,6 +518,31 @@ document.body.addEventListener('showToast', function(evt) {
     showToast(evt.detail.message, evt.detail.type || 'info');
 });
 
+// ── Atlas SSO receiver (cross-service jump params) ────────────────────────────
+// Reads ?_theme= and ?_at= forwarded by atlas CommandPalette cross-service nav.
+
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var ssoTheme = params.get('_theme');
+    var ssoToken = params.get('_at');
+    var ssoFrom  = params.get('_from');
+    if (ssoTheme && (ssoTheme === 'dark' || ssoTheme === 'light')) {
+        localStorage.setItem('atlasTheme', ssoTheme);
+    }
+    if (ssoToken) {
+        localStorage.setItem('atlas.bifrost_token', ssoToken);
+    }
+    // Strip SSO params from URL without reload
+    if (ssoTheme || ssoToken || ssoFrom) {
+        params.delete('_theme');
+        params.delete('_at');
+        params.delete('_from');
+        var newSearch = params.toString();
+        var newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+        history.replaceState(null, '', newUrl);
+    }
+})();
+
 // ── Theme toggle ──────────────────────────────────────────────────────────────
 
 (function() {

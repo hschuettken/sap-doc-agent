@@ -3,15 +3,18 @@
 {% block page_title %}Reports{% endblock %}
 
 {% block content %}
+<div id="content-inner">
 {% if reports %}
 <div class="atlas-grid-3">
     {% for report in reports %}
-    <div class="atlas-card p-6">
-        <div class="flex items-start justify-between mb-2">
-            <h3 class="font-semibold text-sm">{{ report.name }}</h3>
-            <span class="text-xs text-gray-400">{{ (report.size / 1024)|round(1) }} KB</span>
+    <div class="atlas-card">
+        <div class="atlas-card-header">
+            <div class="atlas-split">
+                <h3 style="font-size:var(--atlas-text-sm);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;">{{ report.name }}</h3>
+                <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);">{{ (report.size / 1024)|round(1) }} KB</span>
+            </div>
         </div>
-        <div class="flex gap-2 mt-3">
+        <div class="atlas-card-footer">
             <a href="{{ report.url }}" class="atlas-btn atlas-btn--primary atlas-btn--sm">View</a>
             <a href="{{ report.url }}" download class="atlas-btn atlas-btn--secondary atlas-btn--sm">Download</a>
         </div>
@@ -19,9 +22,14 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="atlas-card p-6 text-center">
-    <p class="text-gray-400 mb-2">No reports generated yet.</p>
-    <p class="text-sm text-gray-400">Run <code class="font-mono bg-gray-100 px-1 rounded">sap-doc-agent platform --report</code> to generate reports.</p>
+<div class="atlas-empty" style="padding:var(--atlas-space-12) var(--atlas-space-6);">
+    <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <p class="atlas-empty-title">No reports generated yet</p>
+    <p class="atlas-empty-body">Run <code class="atlas-code">sap-doc-agent platform --report</code> to generate reports.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}

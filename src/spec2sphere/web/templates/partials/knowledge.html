@@ -3,111 +3,109 @@
 {% block page_title %}Knowledge Browser{% endblock %}
 
 {% block content %}
-<div id="content-inner" class="p-6 space-y-6">
+<div id="content-inner" style="padding:var(--atlas-space-6);display:flex;flex-direction:column;gap:var(--atlas-space-6);">
 
   <!-- Search + filter bar -->
-  <div class="bg-white rounded-lg shadow-sm p-4">
+  <div class="atlas-card">
+    <div class="atlas-card-content">
     <form hx-get="/ui/knowledge"
           hx-target="#knowledge-results"
           hx-select="#knowledge-results"
           hx-push-url="true"
-          class="flex flex-wrap gap-3 items-end">
-      <div class="flex-1 min-w-48">
-        <label class="block text-xs font-medium text-gray-500 mb-1">Search (semantic)</label>
+          class="atlas-cluster">
+      <div class="atlas-field" style="flex:1;min-width:192px;">
+        <label class="atlas-label">Search (semantic)</label>
         <input type="text" name="q" value="{{ q }}"
                placeholder="Search knowledge base..."
-               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol focus:border-petrol">
+               class="atlas-input">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
-        <select name="category" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+      <div class="atlas-field">
+        <label class="atlas-label">Category</label>
+        <select name="category" class="atlas-select" style="width:auto;">
           <option value="">All Categories</option>
           {% for cat in categories %}
           <option value="{{ cat }}" {{ 'selected' if category == cat }}>{{ cat | title }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Layer</label>
-        <select name="layer" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+      <div class="atlas-field">
+        <label class="atlas-label">Layer</label>
+        <select name="layer" class="atlas-select" style="width:auto;">
           <option value="">All Layers</option>
           <option value="global"   {{ 'selected' if layer == 'global' }}>Global</option>
           <option value="customer" {{ 'selected' if layer == 'customer' }}>Customer</option>
           <option value="project"  {{ 'selected' if layer == 'project' }}>Project</option>
         </select>
       </div>
-      <button type="submit"
-              class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
-        Search
-      </button>
+      <div style="padding-top:22px;">
+        <button type="submit" class="atlas-btn atlas-btn--primary">Search</button>
+      </div>
     </form>
+    </div>
   </div>
 
   <!-- Upload area -->
-  <div class="bg-white rounded-lg shadow-sm p-4">
-    <h3 class="text-sm font-semibold text-gray-700 mb-2">Upload Standards Document</h3>
-    <form id="upload-form" hx-post="/ui/knowledge/upload" hx-target="#upload-result" hx-encoding="multipart/form-data" class="space-y-3">
+  <div class="atlas-card">
+    <div class="atlas-card-header">
+      <h3 style="font-size:var(--atlas-text-sm);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;">Upload Standards Document</h3>
+    </div>
+    <div class="atlas-card-content">
+    <form id="upload-form" hx-post="/ui/knowledge/upload" hx-target="#upload-result" hx-encoding="multipart/form-data" class="atlas-stack">
       <div id="drop-zone"
-           class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-petrol hover:bg-petrol/5 transition-colors"
-           ondragover="event.preventDefault(); this.classList.add('border-petrol','bg-petrol/5')"
-           ondragleave="this.classList.remove('border-petrol','bg-petrol/5')"
-           ondrop="event.preventDefault(); this.classList.remove('border-petrol','bg-petrol/5'); document.getElementById('file-input').files = event.dataTransfer.files; document.getElementById('file-name').textContent = event.dataTransfer.files[0].name; document.getElementById('drop-text').classList.add('hidden'); document.getElementById('file-info').classList.remove('hidden');">
+           style="border:2px dashed var(--atlas-color-border);border-radius:var(--atlas-radius-lg);padding:var(--atlas-space-6);text-align:center;cursor:pointer;transition:var(--atlas-transition-colors);"
+           ondragover="event.preventDefault(); this.style.borderColor='var(--atlas-color-primary)'; this.style.backgroundColor='var(--atlas-color-primary-subtle)';"
+           ondragleave="this.style.borderColor=''; this.style.backgroundColor='';"
+           ondrop="event.preventDefault(); this.style.borderColor=''; this.style.backgroundColor=''; document.getElementById('file-input').files = event.dataTransfer.files; document.getElementById('file-name').textContent = event.dataTransfer.files[0].name; document.getElementById('drop-text').classList.add('hidden'); document.getElementById('file-info').classList.remove('hidden');">
         <input type="file" id="file-input" name="file" accept=".pdf,.docx,.md,.txt,.yaml" class="hidden"
                onchange="if(this.files[0]){document.getElementById('file-name').textContent=this.files[0].name; document.getElementById('drop-text').classList.add('hidden'); document.getElementById('file-info').classList.remove('hidden')}">
         <div id="drop-text">
-          <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          <p class="text-sm text-gray-500">Drag &amp; drop a file here, or <span class="text-petrol font-medium cursor-pointer" onclick="document.getElementById('file-input').click()">browse</span></p>
-          <p class="text-xs text-gray-400 mt-1">PDF, Word, Markdown, YAML, TXT</p>
+          <svg style="margin:0 auto var(--atlas-space-2);width:40px;height:40px;color:var(--atlas-color-fg-subtle);display:block;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);">Drag &amp; drop a file here, or <span style="color:var(--atlas-color-primary);font-weight:var(--atlas-font-weight-medium);cursor:pointer;" onclick="document.getElementById('file-input').click()">browse</span></p>
+          <p style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);margin-top:var(--atlas-space-1);">PDF, Word, Markdown, YAML, TXT</p>
         </div>
         <div id="file-info" class="hidden">
-          <p class="text-sm text-petrol font-medium"><span id="file-name"></span></p>
-          <p class="text-xs text-gray-400 mt-1">Ready to upload</p>
+          <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-primary);font-weight:var(--atlas-font-weight-medium);"><span id="file-name"></span></p>
+          <p style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);margin-top:var(--atlas-space-1);">Ready to upload</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Layer</label>
-          <select name="layer" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+      <div class="atlas-cluster">
+        <div class="atlas-field">
+          <label class="atlas-label">Layer</label>
+          <select name="layer" class="atlas-select" style="width:auto;">
             <option value="global">Global</option>
             <option value="customer">Customer</option>
             <option value="project">Project</option>
           </select>
         </div>
-        <button type="submit" class="mt-4 bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent/90">Ingest Document</button>
+        <div style="padding-top:22px;">
+          <button type="submit" class="atlas-btn atlas-btn--primary">Ingest Document</button>
+        </div>
       </div>
     </form>
-    <div id="upload-result" class="mt-2 text-sm"></div>
+    <div id="upload-result" style="margin-top:var(--atlas-space-2);font-size:var(--atlas-text-sm);"></div>
+    </div>
   </div>
 
   <!-- Stats bar -->
   {% if stats %}
-  <div class="flex gap-4 flex-wrap">
-    <div class="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3 min-w-32">
-      <div class="w-2 h-8 rounded-full bg-gray-300"></div>
-      <div>
-        <p class="text-xs text-gray-500">Global</p>
-        <p class="text-lg font-semibold text-charcoal">{{ stats.global | default(0) }}</p>
-      </div>
+  <div class="atlas-cluster">
+    <div class="atlas-card atlas-kpi" style="min-width:128px;">
+      <div class="atlas-kpi-label">Global</div>
+      <div class="atlas-kpi-value">{{ stats.global | default(0) }}</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3 min-w-32">
-      <div class="w-2 h-8 rounded-full bg-accent"></div>
-      <div>
-        <p class="text-xs text-gray-500">Customer</p>
-        <p class="text-lg font-semibold text-charcoal">{{ stats.customer | default(0) }}</p>
-      </div>
+    <div class="atlas-card atlas-kpi" style="min-width:128px;">
+      <div class="atlas-kpi-label">Customer</div>
+      <div class="atlas-kpi-value">{{ stats.customer | default(0) }}</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3 min-w-32">
-      <div class="w-2 h-8 rounded-full bg-petrol"></div>
-      <div>
-        <p class="text-xs text-gray-500">Project</p>
-        <p class="text-lg font-semibold text-charcoal">{{ stats.project | default(0) }}</p>
-      </div>
+    <div class="atlas-card atlas-kpi" style="min-width:128px;">
+      <div class="atlas-kpi-label">Project</div>
+      <div class="atlas-kpi-value">{{ stats.project | default(0) }}</div>
     </div>
-    <div class="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3 min-w-32">
-      <div>
-        <p class="text-xs text-gray-500">Total Items</p>
-        <p class="text-lg font-semibold text-charcoal">{{ stats.total | default(0) }}</p>
-      </div>
+    <div class="atlas-card atlas-kpi" style="min-width:128px;">
+      <div class="atlas-kpi-label">Total Items</div>
+      <div class="atlas-kpi-value">{{ stats.total | default(0) }}</div>
     </div>
   </div>
   {% endif %}
@@ -115,78 +113,76 @@
   <!-- Results list -->
   <div id="knowledge-results">
     {% if items %}
-    <div class="space-y-3">
+    <div class="atlas-stack-sm">
       {% for item in items %}
-      <div class="bg-white rounded-lg shadow-sm p-4 border-l-4
-        {%- if item.source_layer == 'project' or (item.project_id is not none and item.project_id) %} border-petrol
-        {%- elif item.source_layer == 'customer' or (item.customer_id is not none and item.customer_id) %} border-accent
-        {%- else %} border-gray-200{% endif %}">
-        <div class="flex justify-between items-start gap-4">
-          <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-sm text-gray-900 truncate">{{ item.title }}</h3>
-            <div class="flex flex-wrap items-center gap-2 mt-1">
-              {% set item_layer = item.source_layer if item.source_layer is defined else ('project' if item.project_id else ('customer' if item.customer_id else 'global')) %}
-              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium
-                {%- if item_layer == 'project' %} bg-petrol/10 text-petrol
-                {%- elif item_layer == 'customer' %} bg-accent/10 text-accent
-                {%- else %} bg-gray-100 text-gray-500{% endif %}">
+      {% set item_layer = item.source_layer if item.source_layer is defined else ('project' if item.project_id else ('customer' if item.customer_id else 'global')) %}
+      <div class="atlas-card"
+           style="border-left:4px solid {% if item_layer == 'project' %}var(--atlas-color-primary){% elif item_layer == 'customer' %}var(--atlas-color-info){% else %}var(--atlas-color-border){% endif %};">
+        <div class="atlas-card-content">
+        <div class="atlas-split" style="gap:var(--atlas-space-4);align-items:flex-start;">
+          <div style="flex:1;min-width:0;">
+            <h3 style="font-size:var(--atlas-text-sm);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</h3>
+            <div class="atlas-cluster-sm" style="margin-top:var(--atlas-space-1);flex-wrap:wrap;">
+              <span class="atlas-badge {% if item_layer == 'project' %}atlas-badge--primary{% elif item_layer == 'customer' %}atlas-badge--info{% else %}atlas-badge--neutral{% endif %}">
                 {{ item_layer }}
               </span>
               {% if item.category %}
-              <span class="text-xs text-gray-500">{{ item.category }}</span>
+              <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">{{ item.category }}</span>
               {% endif %}
               {% if item.source %}
-              <span class="text-xs text-gray-400">from: {{ item.source }}</span>
+              <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);">from: {{ item.source }}</span>
               {% endif %}
               {% if item.score is defined %}
-              <span class="text-xs text-gray-400">score: {{ "%.2f" | format(item.score) }}</span>
+              <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);">score: {{ "%.2f" | format(item.score) }}</span>
               {% endif %}
               {% if item.confidence is defined %}
-              <span class="text-xs text-gray-400">conf: {{ "%.0f" | format(item.confidence * 100) }}%</span>
+              <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);">conf: {{ "%.0f" | format(item.confidence * 100) }}%</span>
               {% endif %}
             </div>
           </div>
-          <div class="flex-shrink-0 flex items-center gap-2">
+          <div style="flex-shrink:0;display:flex;align-items:center;gap:var(--atlas-space-2);">
             <button hx-get="/ui/knowledge/{{ item.id }}/edit"
-                    hx-target="closest div.bg-white"
+                    hx-target="closest .atlas-card"
                     hx-swap="outerHTML"
-                    class="text-xs text-petrol hover:text-petrol-light transition-colors">Edit</button>
+                    class="atlas-btn atlas-btn--ghost atlas-btn--sm">Edit</button>
             <button hx-delete="/ui/knowledge/{{ item.id }}"
-                    hx-target="closest div.bg-white"
+                    hx-target="closest .atlas-card"
                     hx-swap="outerHTML"
                     hx-confirm="Delete this knowledge item?"
-                    class="text-xs text-red-400 hover:text-red-600 transition-colors">
+                    class="atlas-btn atlas-btn--ghost atlas-btn--sm" style="color:var(--atlas-color-destructive);">
               Delete
             </button>
           </div>
         </div>
-        <p class="text-sm text-gray-600 mt-2 leading-relaxed">
+        <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);margin-top:var(--atlas-space-2);line-height:1.6;">
           {{ item.content[:300] }}{% if item.content | length > 300 %}…{% endif %}
         </p>
         {% if item.created_at %}
-        <p class="text-xs text-gray-400 mt-2">{{ item.created_at }}</p>
+        <p style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);margin-top:var(--atlas-space-2);">{{ item.created_at }}</p>
         {% endif %}
+        </div>
       </div>
       {% endfor %}
     </div>
-    {% elif q or category or layer %}
-    <div class="bg-white rounded-lg shadow-sm p-8 text-center text-gray-400">
-      <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    {% else %}
+    {% if q or category or layer %}
+    <div class="atlas-empty" style="padding:var(--atlas-space-8) var(--atlas-space-6);">
+      <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
       </svg>
-      <p class="text-sm font-medium">No results found</p>
-      <p class="text-xs mt-1">Try different search terms or remove filters</p>
+      <p class="atlas-empty-title">No results found</p>
+      <p class="atlas-empty-body">Try different search terms or remove filters</p>
     </div>
     {% else %}
-    <div class="bg-white rounded-lg shadow-sm p-8 text-center text-gray-400">
-      <svg class="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="atlas-empty" style="padding:var(--atlas-space-8) var(--atlas-space-6);">
+      <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
               d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
       </svg>
-      <p class="text-sm font-medium">Knowledge base is empty</p>
-      <p class="text-xs mt-1">Upload a standards document to get started</p>
+      <p class="atlas-empty-title">Knowledge base is empty</p>
+      <p class="atlas-empty-body">Upload a standards document to get started</p>
     </div>
+    {% endif %}
     {% endif %}
   </div>
 

@@ -3,39 +3,55 @@
 {% block page_title %}Quality Assessment{% endblock %}
 
 {% block content %}
-{% if summary %}
-<div class="card mb-5">
-    <div class="prose prose-sm max-w-none text-charcoal">{{ summary | safe }}</div>
-</div>
-{% endif %}
+<div id="content-inner" class="atlas-stack">
 
-<!-- Tabs -->
-<div class="card">
-    <div class="flex border-b border-gray-200 mb-4">
-        <button class="px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol" onclick="showTab(event, 'doc-qa')">Doc QA</button>
-        <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal" onclick="showTab(event, 'code-quality')">Code Quality</button>
-        <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal" onclick="showTab(event, 'brs')">BRS Traceability</button>
+  {% if summary %}
+  <div class="atlas-card">
+    <div class="atlas-card-content" style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg);line-height:1.6;">{{ summary | safe }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Tabs -->
+  <div class="atlas-card">
+    <div class="atlas-card-header" style="padding-bottom:0;border-bottom:none;">
+      <div class="atlas-tab-list" id="quality-tab-list">
+        <button class="atlas-tab atlas-tab--active" data-tab="doc-qa" onclick="showQualityTab(event,'doc-qa')">Doc QA</button>
+        <button class="atlas-tab" data-tab="code-quality" onclick="showQualityTab(event,'code-quality')">Code Quality</button>
+        <button class="atlas-tab" data-tab="brs" onclick="showQualityTab(event,'brs')">BRS Traceability</button>
+      </div>
     </div>
 
-    <div id="tab-doc-qa">
-        <p class="text-sm text-gray-400">Run the platform pipeline with <code class="text-xs bg-gray-100 px-1 rounded">--qa</code> to generate quality reports.</p>
+    <div class="atlas-card-content">
+      <div id="tab-doc-qa" class="atlas-tab-panel atlas-tab-panel--active">
+        <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);">
+          Run the platform pipeline with <code class="atlas-code">--qa</code> to generate quality reports.
+        </p>
+      </div>
+      <div id="tab-code-quality" class="atlas-tab-panel">
+        <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);">
+          Code quality analysis available after running the full pipeline.
+        </p>
+      </div>
+      <div id="tab-brs" class="atlas-tab-panel">
+        <p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);">
+          BRS traceability requires business requirements to be loaded.
+        </p>
+      </div>
     </div>
-    <div id="tab-code-quality" style="display:none">
-        <p class="text-sm text-gray-400">Code quality analysis available after running the full pipeline.</p>
-    </div>
-    <div id="tab-brs" style="display:none">
-        <p class="text-sm text-gray-400">BRS traceability requires business requirements to be loaded.</p>
-    </div>
+  </div>
+
 </div>
 
 <script>
-function showTab(evt, name) {
-    document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
-    document.getElementById('tab-' + name).style.display = 'block';
-    evt.target.parentElement.querySelectorAll('button').forEach(b => {
-        b.className = 'px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal';
+function showQualityTab(evt, name) {
+    document.querySelectorAll('#quality-tab-list .atlas-tab').forEach(function(b) {
+        b.classList.remove('atlas-tab--active');
     });
-    evt.target.className = 'px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol';
+    document.querySelectorAll('[id^="tab-"]').forEach(function(el) {
+        el.classList.remove('atlas-tab-panel--active');
+    });
+    evt.target.classList.add('atlas-tab--active');
+    document.getElementById('tab-' + name).classList.add('atlas-tab-panel--active');
 }
 </script>
 {% endblock %}

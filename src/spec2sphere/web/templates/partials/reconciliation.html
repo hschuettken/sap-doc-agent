@@ -3,142 +3,143 @@
 {% block page_title %}Reconciliation Results{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div id="content-inner" class="atlas-stack">
 
   {% if error %}
-  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+  <div class="atlas-banner atlas-banner--destructive">
     <strong>Error loading results:</strong> {{ error }}
   </div>
   {% endif %}
 
   {% if summary and summary.total > 0 %}
-  <div class="bg-white rounded-lg shadow-sm p-4">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-xs font-medium text-gray-600">Aggregate Summary — {{ summary.total }} test cases</span>
-    </div>
-    <div class="flex h-4 rounded-full overflow-hidden w-full">
-      {% if summary.pass_pct > 0 %}
-      <div class="bg-green-400 h-full" style="width: {{ summary.pass_pct }}%" title="Pass {{ summary.pass_pct }}%"></div>
-      {% endif %}
-      {% if summary.tolerance_pct > 0 %}
-      <div class="bg-yellow-400 h-full" style="width: {{ summary.tolerance_pct }}%" title="Tolerance {{ summary.tolerance_pct }}%"></div>
-      {% endif %}
-      {% if summary.expected_pct > 0 %}
-      <div class="bg-blue-400 h-full" style="width: {{ summary.expected_pct }}%" title="Expected {{ summary.expected_pct }}%"></div>
-      {% endif %}
-      {% if summary.defect_pct > 0 %}
-      <div class="bg-red-400 h-full" style="width: {{ summary.defect_pct }}%" title="Defect {{ summary.defect_pct }}%"></div>
-      {% endif %}
-      {% if summary.review_pct > 0 %}
-      <div class="bg-gray-300 h-full" style="width: {{ summary.review_pct }}%" title="Review {{ summary.review_pct }}%"></div>
-      {% endif %}
-    </div>
-    <div class="flex gap-4 mt-2 text-xs text-gray-500">
-      <span class="text-green-600">Pass {{ summary.pass_pct }}%</span>
-      <span class="text-yellow-600">Tolerance {{ summary.tolerance_pct }}%</span>
-      <span class="text-blue-600">Expected {{ summary.expected_pct }}%</span>
-      <span class="text-red-600">Defect {{ summary.defect_pct }}%</span>
-      <span class="text-gray-500">Review {{ summary.review_pct }}%</span>
+  <div class="atlas-card">
+    <div class="atlas-card-content">
+      <span style="font-size:var(--atlas-text-xs);font-weight:var(--atlas-font-weight-medium);color:var(--atlas-color-fg-muted);">Aggregate Summary — {{ summary.total }} test cases</span>
+      <!-- Progress bar -->
+      <div style="display:flex;height:16px;border-radius:var(--atlas-radius-full);overflow:hidden;width:100%;margin-top:var(--atlas-space-2);">
+        {% if summary.pass_pct > 0 %}
+        <div style="background-color:var(--atlas-color-success);height:100%;width:{{ summary.pass_pct }}%;" title="Pass {{ summary.pass_pct }}%"></div>
+        {% endif %}
+        {% if summary.tolerance_pct > 0 %}
+        <div style="background-color:var(--atlas-color-warning);height:100%;width:{{ summary.tolerance_pct }}%;" title="Tolerance {{ summary.tolerance_pct }}%"></div>
+        {% endif %}
+        {% if summary.expected_pct > 0 %}
+        <div style="background-color:var(--atlas-color-info);height:100%;width:{{ summary.expected_pct }}%;" title="Expected {{ summary.expected_pct }}%"></div>
+        {% endif %}
+        {% if summary.defect_pct > 0 %}
+        <div style="background-color:var(--atlas-color-destructive);height:100%;width:{{ summary.defect_pct }}%;" title="Defect {{ summary.defect_pct }}%"></div>
+        {% endif %}
+        {% if summary.review_pct > 0 %}
+        <div style="background-color:var(--atlas-color-border);height:100%;width:{{ summary.review_pct }}%;" title="Review {{ summary.review_pct }}%"></div>
+        {% endif %}
+      </div>
+      <div class="atlas-cluster-sm" style="margin-top:var(--atlas-space-2);">
+        <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-success);">Pass {{ summary.pass_pct }}%</span>
+        <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-warning);">Tolerance {{ summary.tolerance_pct }}%</span>
+        <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-info);">Expected {{ summary.expected_pct }}%</span>
+        <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-destructive);">Defect {{ summary.defect_pct }}%</span>
+        <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">Review {{ summary.review_pct }}%</span>
+      </div>
     </div>
   </div>
   {% endif %}
 
-  <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h2 class="font-heading text-base text-charcoal">Reconciliation Results</h2>
-      <div class="flex items-center gap-4 text-xs text-gray-400">
-        <span class="flex items-center gap-1">
-          <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400"></span> pass
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400"></span> tolerance
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-400"></span> expected
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span> defect
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="inline-block w-2.5 h-2.5 rounded-full bg-gray-300"></span> review
-        </span>
+  <div class="atlas-card" style="overflow:hidden;">
+    <div class="atlas-card-header">
+      <div class="atlas-split">
+        <h2 style="font-size:var(--atlas-text-base);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg);margin:0;">Reconciliation Results</h2>
+        <div class="atlas-cluster-sm">
+          <span class="atlas-cluster-sm" style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+            <span class="atlas-dot atlas-dot--success"></span> pass
+          </span>
+          <span class="atlas-cluster-sm" style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+            <span class="atlas-dot atlas-dot--warning"></span> tolerance
+          </span>
+          <span class="atlas-cluster-sm" style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+            <span class="atlas-dot" style="background-color:var(--atlas-color-info);"></span> expected
+          </span>
+          <span class="atlas-cluster-sm" style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+            <span class="atlas-dot atlas-dot--destructive"></span> defect
+          </span>
+          <span class="atlas-cluster-sm" style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
+            <span class="atlas-dot atlas-dot--muted"></span> review
+          </span>
+        </div>
       </div>
     </div>
 
     {% if results %}
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+    <div class="atlas-table-wrapper" style="border:none;border-radius:0;">
+      <table class="atlas-table">
         <thead>
-          <tr class="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-            <th class="px-4 py-3">Test Case</th>
-            <th class="px-4 py-3">Project / Spec</th>
-            <th class="px-4 py-3">Baseline</th>
-            <th class="px-4 py-3">Candidate</th>
-            <th class="px-4 py-3">Delta</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Approved By</th>
-            <th class="px-4 py-3">Actions</th>
+          <tr>
+            <th>Test Case</th>
+            <th>Project / Spec</th>
+            <th>Baseline</th>
+            <th>Candidate</th>
+            <th>Delta</th>
+            <th>Status</th>
+            <th>Approved By</th>
+            <th>Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50">
+        <tbody>
           {% for r in results %}
-          <tr class="hover:bg-gray-50 transition cursor-pointer" id="recon-row-{{ r.id }}"
+          <tr id="recon-row-{{ r.id }}"
+              style="cursor:pointer;"
               hx-get="/api/reconciliation/results/{{ r.id }}"
               hx-target="#detail-{{ r.id }}"
               hx-trigger="click once"
               hx-swap="innerHTML">
-            <td class="px-4 py-3 font-medium text-charcoal font-mono text-xs">
+            <td style="font-family:var(--atlas-font-mono);font-size:var(--atlas-text-xs);font-weight:var(--atlas-font-weight-medium);">
               {{ r.test_case_key or '—' }}
             </td>
-            <td class="px-4 py-3 text-gray-500 text-xs">
+            <td style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
               <div>{{ r.project_name or '—' }}</div>
               {% if r.test_spec_name %}
-              <div class="text-gray-400">{{ r.test_spec_name }}</div>
+              <div style="color:var(--atlas-color-fg-subtle);">{{ r.test_spec_name }}</div>
               {% endif %}
             </td>
-            <td class="px-4 py-3 text-gray-600 text-xs font-mono max-w-[8rem] truncate"
+            <td style="font-size:var(--atlas-text-xs);font-family:var(--atlas-font-mono);color:var(--atlas-color-fg-muted);max-width:8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                 title="{{ r.baseline_value }}">
               {{ r.baseline_value or '—' }}
             </td>
-            <td class="px-4 py-3 text-gray-600 text-xs font-mono max-w-[8rem] truncate"
+            <td style="font-size:var(--atlas-text-xs);font-family:var(--atlas-font-mono);color:var(--atlas-color-fg-muted);max-width:8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                 title="{{ r.candidate_value }}">
               {{ r.candidate_value or '—' }}
             </td>
-            <td class="px-4 py-3 text-xs font-mono
-              {% if r.delta and r.delta != 0 %}text-red-600{% else %}text-gray-400{% endif %}">
+            <td style="font-size:var(--atlas-text-xs);font-family:var(--atlas-font-mono);color:{% if r.delta and r.delta != 0 %}var(--atlas-color-destructive){% else %}var(--atlas-color-fg-subtle){% endif %};">
               {{ r.delta if r.delta is not none else '—' }}
             </td>
-            <td class="px-4 py-3">
-              {% set cls = status_classes.get(r.status, 'bg-gray-100 text-gray-500') %}
-              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {{ cls }}">
-                {{ r.status or 'unknown' }}
-              </span>
+            <td>
+              {% set cls = status_classes.get(r.status, 'atlas-badge--neutral') %}
+              <span class="atlas-badge {{ cls }}">{{ r.status or 'unknown' }}</span>
             </td>
-            <td class="px-4 py-3 text-xs text-gray-500">
+            <td style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
               {{ r.approved_by or '—' }}
             </td>
-            <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <td onclick="event.stopPropagation();">
               {% if r.status in ('probable_defect', 'needs_review') and not r.approved_by %}
-              <div class="flex flex-col gap-1">
+              <div class="atlas-stack-sm">
                 <input type="text" id="comment-{{ r.id }}" placeholder="Comment (optional)"
-                       class="text-xs border border-gray-200 rounded px-2 py-0.5 w-32">
+                       class="atlas-input" style="width:128px;font-size:var(--atlas-text-xs);padding:2px var(--atlas-space-2);">
                 <button
                   hx-post="/api/reconciliation/approve/{{ r.id }}"
                   hx-include="#comment-{{ r.id }}"
                   hx-vals='{"user_id": "admin"}'
                   hx-target="#recon-row-{{ r.id }}"
                   hx-swap="outerHTML"
-                  class="px-2 py-1 text-xs bg-petrol text-white rounded hover:bg-petrol-dark transition font-medium">
+                  class="atlas-btn atlas-btn--primary atlas-btn--sm">
                   Approve
                 </button>
               </div>
               {% else %}
-              <span class="text-xs text-gray-300">—</span>
+              <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-subtle);">—</span>
               {% endif %}
             </td>
           </tr>
           <tr id="detail-{{ r.id }}" class="hidden">
-            <td colspan="8" class="px-6 py-3 bg-gray-50 text-xs text-gray-500">
+            <td colspan="8" style="padding:var(--atlas-space-3) var(--atlas-space-6);background-color:var(--atlas-color-elevated);font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">
               <!-- Drill-through detail loaded on row click -->
             </td>
           </tr>
@@ -148,14 +149,13 @@
     </div>
 
     {% else %}
-    <!-- Empty state -->
-    <div class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
-      <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="atlas-empty" style="padding:var(--atlas-space-12) var(--atlas-space-6);">
+      <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
       </svg>
-      <p class="text-sm font-medium">No reconciliation results yet</p>
-      <p class="text-xs mt-1">Run a reconciliation pass to see results here.</p>
+      <p class="atlas-empty-title">No reconciliation results yet</p>
+      <p class="atlas-empty-body">Run a reconciliation pass to see results here.</p>
     </div>
     {% endif %}
   </div>

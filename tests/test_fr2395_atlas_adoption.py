@@ -341,3 +341,231 @@ class TestNavManifestAdoption:
         assert "version" in data
         # Should be semver-like
         assert re.match(r"\d+\.\d+", data["version"]), f"Invalid version: {data['version']}"
+
+
+# ── Template migration: atlas-* class usage ───────────────────────────────────
+
+class TestTemplateMigration:
+    """Key templates must use atlas-* classes directly (not legacy Tailwind-like names)."""
+
+    _html = None
+
+    @classmethod
+    def _get_template(cls, name: str) -> str:
+        return (TEMPLATES_DIR / "partials" / name).read_text()
+
+    # notifications.html
+    def test_notifications_uses_atlas_banner(self):
+        html = self._get_template("notifications.html")
+        assert "atlas-banner" in html, "notifications.html must use atlas-banner for errors"
+
+    def test_notifications_uses_atlas_card(self):
+        html = self._get_template("notifications.html")
+        assert "atlas-card" in html
+
+    def test_notifications_uses_atlas_badge(self):
+        html = self._get_template("notifications.html")
+        assert "atlas-badge" in html, "notification type must be shown as atlas-badge"
+
+    def test_notifications_uses_atlas_btn(self):
+        html = self._get_template("notifications.html")
+        assert "atlas-btn" in html
+
+    def test_notifications_no_bg_white(self):
+        html = self._get_template("notifications.html")
+        assert 'class="bg-white' not in html, "notifications.html must not use raw bg-white class"
+
+    def test_notifications_uses_atlas_empty(self):
+        html = self._get_template("notifications.html")
+        assert "atlas-empty" in html
+
+    # quality.html
+    def test_quality_uses_atlas_card(self):
+        html = self._get_template("quality.html")
+        assert "atlas-card" in html
+
+    def test_quality_uses_atlas_tab_list(self):
+        html = self._get_template("quality.html")
+        assert "atlas-tab-list" in html
+
+    def test_quality_uses_atlas_tab(self):
+        html = self._get_template("quality.html")
+        assert "atlas-tab " in html or "atlas-tab\"" in html
+
+    def test_quality_uses_atlas_tab_panel(self):
+        html = self._get_template("quality.html")
+        assert "atlas-tab-panel" in html
+
+    def test_quality_no_raw_tailwind_tabs(self):
+        html = self._get_template("quality.html")
+        assert "border-b-2 border-petrol" not in html, (
+            "quality.html must not use raw legacy tab classes"
+        )
+
+    # audit.html
+    def test_audit_uses_atlas_card(self):
+        html = self._get_template("audit.html")
+        assert "atlas-card" in html
+
+    def test_audit_uses_atlas_input(self):
+        html = self._get_template("audit.html")
+        assert "atlas-input" in html
+
+    def test_audit_uses_atlas_textarea(self):
+        html = self._get_template("audit.html")
+        assert "atlas-textarea" in html
+
+    def test_audit_uses_atlas_btn_primary(self):
+        html = self._get_template("audit.html")
+        assert "atlas-btn--primary" in html
+
+    def test_audit_no_bg_petrol(self):
+        html = self._get_template("audit.html")
+        assert 'class="px-4 py-2 bg-petrol' not in html
+
+    # reports.html
+    def test_reports_uses_atlas_card(self):
+        html = self._get_template("reports.html")
+        assert "atlas-card" in html
+
+    def test_reports_uses_atlas_btn(self):
+        html = self._get_template("reports.html")
+        assert "atlas-btn" in html
+
+    def test_reports_uses_atlas_empty(self):
+        html = self._get_template("reports.html")
+        assert "atlas-empty" in html
+
+    def test_reports_uses_atlas_code(self):
+        html = self._get_template("reports.html")
+        assert "atlas-code" in html
+
+    # requirements.html
+    def test_requirements_uses_atlas_card(self):
+        html = self._get_template("requirements.html")
+        assert "atlas-card" in html
+
+    def test_requirements_uses_atlas_banner(self):
+        html = self._get_template("requirements.html")
+        assert "atlas-banner" in html
+
+    def test_requirements_uses_atlas_badge_status(self):
+        html = self._get_template("requirements.html")
+        assert "atlas-badge--success" in html or "atlas-badge--warning" in html
+
+    def test_requirements_uses_atlas_select(self):
+        html = self._get_template("requirements.html")
+        assert "atlas-select" in html, "requirements.html must use atlas-select for filter"
+
+    def test_requirements_uses_atlas_empty(self):
+        html = self._get_template("requirements.html")
+        assert "atlas-empty" in html
+
+    def test_requirements_no_raw_bg_white(self):
+        html = self._get_template("requirements.html")
+        assert 'class="bg-white' not in html
+
+    # reconciliation.html
+    def test_reconciliation_uses_atlas_card(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-card" in html
+
+    def test_reconciliation_uses_atlas_table(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-table" in html
+
+    def test_reconciliation_uses_atlas_dot(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-dot" in html
+
+    def test_reconciliation_uses_atlas_badge(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-badge" in html
+
+    def test_reconciliation_uses_atlas_empty(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-empty" in html
+
+    def test_reconciliation_uses_atlas_btn(self):
+        html = self._get_template("reconciliation.html")
+        assert "atlas-btn" in html
+
+    # knowledge.html
+    def test_knowledge_uses_atlas_card(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-card" in html
+
+    def test_knowledge_uses_atlas_input(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-input" in html
+
+    def test_knowledge_uses_atlas_select(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-select" in html
+
+    def test_knowledge_uses_atlas_btn_primary(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-btn--primary" in html
+
+    def test_knowledge_uses_atlas_badge(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-badge" in html
+
+    def test_knowledge_uses_atlas_kpi(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-kpi" in html
+
+    def test_knowledge_uses_atlas_empty(self):
+        html = self._get_template("knowledge.html")
+        assert "atlas-empty" in html
+
+
+# ── atlas-ui.css dot variants ─────────────────────────────────────────────────
+
+class TestDotVariants:
+    """atlas-ui.css must include all intent dot variants used in templates."""
+
+    _css = (STATIC_DIR / "atlas-ui.css").read_text()
+
+    def test_dot_primary_exists(self):
+        assert ".atlas-dot--primary" in self._css
+
+    def test_dot_info_exists(self):
+        assert ".atlas-dot--info" in self._css
+
+    def test_dot_success_exists(self):
+        assert ".atlas-dot--success" in self._css
+
+    def test_dot_warning_exists(self):
+        assert ".atlas-dot--warning" in self._css
+
+    def test_dot_destructive_exists(self):
+        assert ".atlas-dot--destructive" in self._css
+
+    def test_dot_muted_exists(self):
+        assert ".atlas-dot--muted" in self._css
+
+
+# ── SSO theme receiver in base.html ──────────────────────────────────────────
+
+class TestSsoReceiver:
+    """base.html must include atlas SSO param receiver for cross-service jumps."""
+
+    _html = (TEMPLATES_DIR / "base.html").read_text()
+
+    def test_sso_reads_theme_param(self):
+        assert "_theme" in self._html, "base.html must read _theme URL param for SSO"
+
+    def test_sso_reads_at_param(self):
+        assert "_at" in self._html, "base.html must read _at URL param for token SSO"
+
+    def test_sso_stores_bifrost_token(self):
+        assert "atlas.bifrost_token" in self._html
+
+    def test_sso_strips_params_from_url(self):
+        assert "replaceState" in self._html, (
+            "base.html must strip SSO params from URL after reading them"
+        )
+
+    def test_sso_stores_atlas_theme(self):
+        assert "atlasTheme" in self._html

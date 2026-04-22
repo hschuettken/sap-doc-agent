@@ -650,9 +650,11 @@ a:hover { color: var(--atlas-color-primary-hover); }
   flex-shrink: 0;
 }
 
+.atlas-dot--primary     { background-color: var(--atlas-color-primary); }
 .atlas-dot--success     { background-color: var(--atlas-color-success); }
 .atlas-dot--warning     { background-color: var(--atlas-color-warning); }
 .atlas-dot--destructive { background-color: var(--atlas-color-destructive); }
+.atlas-dot--info        { background-color: var(--atlas-color-info); }
 .atlas-dot--muted       { background-color: var(--atlas-color-fg-subtle); }
 
 /* ============================================================
