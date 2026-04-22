@@ -5,18 +5,16 @@
 {% block content %}
 
 {% if error %}
-<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-    {{ error }}
-</div>
+<div class="atlas-banner atlas-banner--destructive mb-4">{{ error }}</div>
 {% endif %}
 
 <!-- Generate Section -->
-<div class="card mb-6">
-    <h2 class="font-heading text-base text-petrol mb-4">Generate Documentation</h2>
+<div class="atlas-card p-6 mb-6">
+    <h2 class="font-semibold text-base text-primary mb-4">Generate Documentation</h2>
     <div class="flex flex-wrap items-end gap-4">
         <div class="flex-1 min-w-[200px]">
             <label class="block text-xs text-gray-500 mb-1">Project</label>
-            <select id="project-select" class="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            <select id="project-select" class="w-full">
                 <option value="">— Select project —</option>
                 {% for proj in projects %}
                 <option value="{{ proj.id }}">{{ proj.name }}</option>
@@ -24,24 +22,20 @@
             </select>
         </div>
         <div class="flex gap-2 flex-wrap">
-            <button onclick="generateReport('html')"
-                    class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark transition-colors">
+            <button onclick="generateReport('html')" class="atlas-btn atlas-btn--primary">
                 HTML Report
             </button>
-            <button onclick="generateReport('markdown')"
-                    class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark transition-colors">
+            <button onclick="generateReport('markdown')" class="atlas-btn atlas-btn--primary">
                 Markdown
             </button>
-            <button onclick="generateReport('pdf')"
-                    class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark transition-colors">
+            <button onclick="generateReport('pdf')" class="atlas-btn atlas-btn--primary">
                 PDF
             </button>
-            <button onclick="assembleRelease()"
-                    class="px-4 py-2 bg-accent text-white rounded text-sm font-medium hover:opacity-90 transition-colors">
+            <button onclick="assembleRelease()" class="atlas-btn atlas-btn--info">
                 Assemble Release ZIP
             </button>
             <button onclick="runDemo()"
-                    class="px-4 py-2 border-2 border-accent text-accent rounded text-sm font-medium hover:bg-accent hover:text-white transition-colors"
+                    class="atlas-btn atlas-btn--secondary"
                     title="Seed Horvath Demo data + generate all reports in one click">
                 One-Click Demo
             </button>
@@ -51,20 +45,20 @@
 </div>
 
 <!-- Release Packages -->
-<h2 class="font-heading text-sm uppercase tracking-wider text-gray-500 mb-3">Release Packages</h2>
+<h2 class="font-semibold text-xs uppercase tracking-wider text-gray-500 mb-3">Release Packages</h2>
 {% if release_packages %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+<div class="atlas-grid-3 mb-8">
     {% for pkg in release_packages %}
-    <div class="card">
+    <div class="atlas-card p-6">
         <div class="flex items-start justify-between mb-2">
             <div>
-                <h3 class="font-heading text-sm text-[#1a2332]">{{ pkg.project_name or 'Unknown Project' }}</h3>
+                <h3 class="font-semibold text-sm">{{ pkg.project_name or 'Unknown Project' }}</h3>
                 <p class="text-xs text-gray-400 mt-0.5">v{{ pkg.version }}</p>
             </div>
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                {% if pkg.status == 'ready' %}bg-green-100 text-green-700
-                {% elif pkg.status == 'assembling' %}bg-blue-100 text-blue-700
-                {% else %}bg-gray-100 text-gray-500{% endif %}">
+            <span class="atlas-badge
+                {% if pkg.status == 'ready' %}atlas-badge--success
+                {% elif pkg.status == 'assembling' %}atlas-badge--info
+                {% else %}atlas-badge--neutral{% endif %}">
                 {{ pkg.status }}
             </span>
         </div>
@@ -72,7 +66,7 @@
         <p class="text-xs text-gray-400 mb-3">{{ pkg.created_at|string|truncate(16, True, '') }}</p>
         {% endif %}
         <a href="/api/governance/release/{{ pkg.id }}/download"
-           class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white transition-colors">
+           class="atlas-btn atlas-btn--secondary atlas-btn--sm">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -83,28 +77,26 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="card text-center py-8 mb-8">
+<div class="atlas-card p-6 text-center mb-8">
     <p class="text-gray-400 text-sm">No release packages assembled yet.</p>
 </div>
 {% endif %}
 
 <!-- Static Reports -->
-<h2 class="font-heading text-sm uppercase tracking-wider text-gray-500 mb-3">Static Reports</h2>
+<h2 class="font-semibold text-xs uppercase tracking-wider text-gray-500 mb-3">Static Reports</h2>
 {% if reports %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<div class="atlas-grid-3">
     {% for report in reports %}
-    <div class="card">
+    <div class="atlas-card p-6">
         <div class="flex items-start justify-between mb-3">
-            <h3 class="font-heading text-sm text-[#1a2332] break-all">{{ report.name }}</h3>
+            <h3 class="font-semibold text-sm break-all">{{ report.name }}</h3>
             <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ (report.size / 1024)|round(1) }} KB</span>
         </div>
         <div class="flex gap-2">
-            <a href="{{ report.url }}" target="_blank"
-               class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark transition-colors">
+            <a href="{{ report.url }}" target="_blank" class="atlas-btn atlas-btn--primary atlas-btn--sm">
                 View
             </a>
-            <a href="{{ report.url }}" download
-               class="px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white transition-colors">
+            <a href="{{ report.url }}" download class="atlas-btn atlas-btn--secondary atlas-btn--sm">
                 Download
             </a>
         </div>
@@ -112,8 +104,8 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="card text-center py-8">
-    <p class="text-gray-400 text-sm">No static reports found in <code class="bg-gray-100 px-1 rounded">output/reports/</code>.</p>
+<div class="atlas-card p-6 text-center">
+    <p class="text-gray-400 text-sm">No static reports found in <code class="font-mono bg-gray-100 px-1 rounded">output/reports/</code>.</p>
 </div>
 {% endif %}
 

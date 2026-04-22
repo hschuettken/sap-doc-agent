@@ -4,24 +4,24 @@
 
 {% block content %}
 {% if reports %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+<div class="atlas-grid-3">
     {% for report in reports %}
-    <div class="card">
+    <div class="atlas-card p-6">
         <div class="flex items-start justify-between mb-2">
-            <h3 class="font-heading text-sm text-[#1a2332]">{{ report.name }}</h3>
+            <h3 class="font-semibold text-sm">{{ report.name }}</h3>
             <span class="text-xs text-gray-400">{{ (report.size / 1024)|round(1) }} KB</span>
         </div>
         <div class="flex gap-2 mt-3">
-            <a href="{{ report.url }}" class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-dark">View</a>
-            <a href="{{ report.url }}" download class="px-3 py-1.5 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Download</a>
+            <a href="{{ report.url }}" class="atlas-btn atlas-btn--primary atlas-btn--sm">View</a>
+            <a href="{{ report.url }}" download class="atlas-btn atlas-btn--secondary atlas-btn--sm">Download</a>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="card text-center py-12">
+<div class="atlas-card p-6 text-center">
     <p class="text-gray-400 mb-2">No reports generated yet.</p>
-    <p class="text-sm text-gray-400">Run <code class="bg-gray-100 px-1 rounded">sap-doc-agent platform --report</code> to generate reports.</p>
+    <p class="text-sm text-gray-400">Run <code class="font-mono bg-gray-100 px-1 rounded">sap-doc-agent platform --report</code> to generate reports.</p>
 </div>
 {% endif %}
 {% endblock %}

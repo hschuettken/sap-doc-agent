@@ -14,7 +14,7 @@
             <!-- Header -->
             <div class="flex items-start gap-3 mb-4 pb-4 border-b border-gray-100">
                 <div class="flex-1">
-                    <h1 class="font-heading text-xl text-[#1a2332]">{{ metadata.get("business_name", metadata.get("name", object_id)) }}</h1>
+                    <h1 class="font-heading text-xl text-gray-900">{{ metadata.get("business_name", metadata.get("name", object_id)) }}</h1>
                     <p class="text-sm text-gray-400 font-mono mt-1">{{ metadata.get("technical_name", object_id) }}</p>
                 </div>
                 <div class="flex gap-2">
@@ -50,7 +50,7 @@
     <div class="space-y-5">
         <!-- Dependencies -->
         <div class="card">
-            <h3 class="font-heading text-sm text-[#1a2332] mb-2">Dependencies</h3>
+            <h3 class="font-heading text-sm text-gray-900 mb-2">Dependencies</h3>
             {% if upstream %}
             <p class="text-xs text-gray-400 uppercase mb-1">Reads From</p>
             <ul class="space-y-1 mb-3">
@@ -76,7 +76,7 @@
 
         <!-- Actions -->
         <div class="card">
-            <h3 class="font-heading text-sm text-[#1a2332] mb-2">Actions</h3>
+            <h3 class="font-heading text-sm text-gray-900 mb-2">Actions</h3>
             <div class="space-y-2">
                 <a href="/ui/graph?focus={{ object_id }}" class="block text-sm text-petrol hover:underline">View in Graph</a>
                 <a href="/api/objects/{{ object_id }}" target="_blank" class="block text-sm text-petrol hover:underline">View Raw JSON</a>

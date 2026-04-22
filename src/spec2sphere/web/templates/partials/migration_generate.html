@@ -5,7 +5,7 @@
 <div class="max-w-6xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="font-heading text-2xl text-[#1a2332]">Generated SQL</h1>
+      <h1 class="font-heading text-2xl text-gray-900">Generated SQL</h1>
       {% if project_id %}
       <p class="text-sm text-gray-500 mt-1">Project: {{ project_id }}</p>
       {% endif %}
@@ -25,7 +25,7 @@
   <div class="space-y-4">
     {% for result in sql_results %}
     <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-      <div class="px-4 py-3 bg-[#F5F5F5] border-b border-[#E5E5E5] flex justify-between items-center">
+      <div class="px-4 py-3 bg-gray-50 border-b border-[#E5E5E5] flex justify-between items-center">
         <div>
           <span class="font-mono text-petrol font-medium">{{ result.technical_name or result.get('technical_name', '') }}</span>
           <span class="ml-3 px-2 py-1 rounded text-xs font-medium
@@ -45,14 +45,14 @@
         </div>
       </div>
       <div class="p-4">
-        <pre class="bg-[#F5F5F5] border border-[#E5E5E5] rounded p-4 text-sm text-[#1a2332] overflow-x-auto"><code>{{ result.sql or result.get('sql', '-- No SQL generated') }}</code></pre>
+        <pre class="bg-gray-50 border border-[#E5E5E5] rounded p-4 text-sm text-gray-900 overflow-x-auto"><code>{{ result.sql or result.get('sql', '-- No SQL generated') }}</code></pre>
       </div>
     </div>
     {% endfor %}
   </div>
   {% else %}
   <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-8 text-center">
-    <p class="text-[#1a2332]">No SQL generated yet.</p>
+    <p class="text-gray-900">No SQL generated yet.</p>
     <p class="text-sm text-gray-500 mt-2">Design target architecture first, then trigger code generation.</p>
   </div>
   {% endif %}

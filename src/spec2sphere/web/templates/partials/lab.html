@@ -59,7 +59,7 @@
 <div id="exp-detail-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center" onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto p-6">
         <div class="flex justify-between items-start mb-4">
-            <h3 class="font-heading text-lg text-[#1a2332]">Experiment Detail</h3>
+            <h3 class="font-heading text-lg text-gray-900">Experiment Detail</h3>
             <button onclick="document.getElementById('exp-detail-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">&times;</button>
         </div>
         <div id="exp-detail-content"></div>
@@ -85,7 +85,7 @@
                     {% else %}bg-gray-100 text-gray-600{% endif %}">
                     {{ tmpl.platform or 'unknown' }}
                 </span>
-                <h3 class="font-heading text-sm text-[#1a2332] mt-2">{{ tmpl.object_type or 'Unknown Type' }}</h3>
+                <h3 class="font-heading text-sm text-gray-900 mt-2">{{ tmpl.object_type or 'Unknown Type' }}</h3>
             </div>
             <span class="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ml-2
                 {% if tmpl.approved == true %}bg-green-100 text-green-700

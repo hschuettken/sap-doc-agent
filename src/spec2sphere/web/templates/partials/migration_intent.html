@@ -5,7 +5,7 @@
 <div class="max-w-6xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="font-heading text-2xl text-[#1a2332]">Intent Cards</h1>
+      <h1 class="font-heading text-2xl text-gray-900">Intent Cards</h1>
       {% if project_id %}
       <p class="text-sm text-gray-500 mt-1">Project: {{ project_id }}</p>
       {% endif %}
@@ -25,7 +25,7 @@
       <div class="bg-white rounded-xl shadow-sm border border-[#E5E5E5] p-5">
         <div class="flex justify-between items-start">
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-[#1a2332]">
+            <h3 class="text-lg font-semibold text-gray-900">
               {{ card.chain_id or card.get('chain_id', '') }}
             </h3>
             <p class="text-gray-600 mt-1">

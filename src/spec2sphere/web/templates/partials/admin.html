@@ -7,7 +7,7 @@
 
   <!-- Header -->
   <div class="card border-l-4 border-petrol">
-    <h2 class="font-heading text-xl text-[#1a2332] mb-1">Platform Administration</h2>
+    <h2 class="font-heading text-xl text-gray-900 mb-1">Platform Administration</h2>
     <p class="text-sm text-gray-500">Manage tenants, customers, and projects. Changes take effect immediately.</p>
   </div>
 
@@ -28,7 +28,7 @@
   <div id="tab-tenants" class="admin-tab space-y-4">
     <div class="card">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-[#1a2332]">Tenants</h3>
+        <h3 class="font-heading text-base text-gray-900">Tenants</h3>
       </div>
       <table class="w-full text-left">
         <thead>
@@ -49,7 +49,7 @@
 
     <!-- Create Tenant -->
     <div class="card">
-      <h3 class="font-heading text-base text-[#1a2332] mb-4">Create Tenant</h3>
+      <h3 class="font-heading text-base text-gray-900 mb-4">Create Tenant</h3>
       <form class="flex flex-col sm:flex-row gap-3 items-end"
         hx-post="/api/admin/tenants"
         hx-target="#tenants-table-body"
@@ -58,12 +58,12 @@
         <div class="flex-1">
           <label class="block text-xs text-gray-500 mb-1">Name</label>
           <input type="text" name="name" placeholder="Acme Corp" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div class="flex-1">
           <label class="block text-xs text-gray-500 mb-1">Slug</label>
           <input type="text" name="slug" placeholder="acme-corp" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <button type="submit"
           class="px-4 py-2 bg-petrol text-white text-sm font-medium rounded hover:bg-petrol-dark flex-shrink-0">
@@ -77,7 +77,7 @@
   <div id="tab-customers" class="admin-tab space-y-4 hidden">
     <div class="card">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-[#1a2332]">Customers</h3>
+        <h3 class="font-heading text-base text-gray-900">Customers</h3>
       </div>
       <table class="w-full text-left">
         <thead>
@@ -99,7 +99,7 @@
 
     <!-- Create Customer -->
     <div class="card">
-      <h3 class="font-heading text-base text-[#1a2332] mb-4">Create Customer</h3>
+      <h3 class="font-heading text-base text-gray-900 mb-4">Create Customer</h3>
       <form class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
         hx-post="/api/admin/customers"
         hx-target="#customers-table-body"
@@ -108,17 +108,17 @@
         <div>
           <label class="block text-xs text-gray-500 mb-1">Tenant ID</label>
           <input type="text" name="tenant_id" placeholder="UUID of tenant" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Name</label>
           <input type="text" name="name" placeholder="Customer GmbH" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Slug</label>
           <input type="text" name="slug" placeholder="customer-gmbh" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div class="sm:col-span-3 flex justify-end">
           <button type="submit"
@@ -134,7 +134,7 @@
   <div id="tab-projects" class="admin-tab space-y-4 hidden">
     <div class="card">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-[#1a2332]">Projects</h3>
+        <h3 class="font-heading text-base text-gray-900">Projects</h3>
       </div>
       <table class="w-full text-left">
         <thead>
@@ -157,7 +157,7 @@
 
     <!-- Create Project -->
     <div class="card">
-      <h3 class="font-heading text-base text-[#1a2332] mb-4">Create Project</h3>
+      <h3 class="font-heading text-base text-gray-900 mb-4">Create Project</h3>
       <form class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end"
         hx-post="/api/admin/projects"
         hx-target="#projects-table-body"
@@ -166,22 +166,22 @@
         <div>
           <label class="block text-xs text-gray-500 mb-1">Customer ID</label>
           <input type="text" name="customer_id" placeholder="UUID of customer" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Name</label>
           <input type="text" name="name" placeholder="Q1 Migration" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Slug</label>
           <input type="text" name="slug" placeholder="q1-migration" required
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Environment</label>
           <select name="environment"
-            class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
             <option value="sandbox">Sandbox</option>
             <option value="test">Test</option>
             <option value="production">Production</option>

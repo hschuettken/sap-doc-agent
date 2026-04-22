@@ -9,7 +9,7 @@
   <div class="card border-l-4 border-petrol">
     <div class="flex items-start gap-4">
       <div class="flex-1">
-        <h3 class="font-heading text-base text-[#1a2332] mb-1">What is this page?</h3>
+        <h3 class="font-heading text-base text-gray-900 mb-1">What is this page?</h3>
         <p class="text-sm text-gray-600 leading-relaxed">
           Every AI-powered action in Spec2Sphere has a <strong>quality level</strong> (Q1–Q5).
           This page lets you control which model handles each action — balancing cost against capability.
@@ -64,7 +64,7 @@
   <div class="card border-l-4 border-petrol" id="privacy-card">
     <div class="flex items-start justify-between mb-4">
       <div>
-        <h3 class="font-heading text-base text-[#1a2332]">Privacy by Design</h3>
+        <h3 class="font-heading text-base text-gray-900">Privacy by Design</h3>
         <p class="text-sm text-gray-500 mt-1 max-w-2xl">
           Customer data (SQL, ABAP source, field definitions) from connected systems is never sent to cloud LLM providers when privacy mode is enabled.
         </p>
@@ -79,7 +79,7 @@
     {# Toggle: local-only when data in context #}
     <div class="flex items-start gap-4 py-3 border-t border-gray-100">
       <div class="flex-1">
-        <p class="text-sm font-medium text-[#1a2332]">Local models only when data is in context</p>
+        <p class="text-sm font-medium text-gray-900">Local models only when data is in context</p>
         <p class="text-xs text-gray-500 mt-0.5">When ON, any LLM call that processes customer system data (SQL views, ABAP source, field definitions) is routed to local models only.</p>
       </div>
       <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5">
@@ -95,25 +95,25 @@
 
     {# Data-safe profile selector — visible when toggle is ON #}
     <div id="privacy-profile-row" class="flex items-center gap-3 py-3 border-t border-gray-100">
-      <label class="text-sm font-medium text-[#1a2332] whitespace-nowrap">Data-safe profile</label>
+      <label class="text-sm font-medium text-gray-900 whitespace-nowrap">Data-safe profile</label>
       <select id="privacy-data-safe-profile"
-              class="bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-1.5 text-sm text-[#1a2332] focus:outline-none focus:border-petrol">
+              class="bg-gray-50 border border-[#E5E5E5] rounded px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-petrol">
       </select>
       <p class="text-xs text-gray-500">Profile used when customer data is in the LLM context.</p>
     </div>
 
     {# Local models list #}
     <div class="py-3 border-t border-gray-100">
-      <label class="block text-sm font-medium text-[#1a2332] mb-1">Local models</label>
+      <label class="block text-sm font-medium text-gray-900 mb-1">Local models</label>
       <p class="text-xs text-gray-500 mb-2">Comma-separated list of model IDs considered local/on-premises. Only these are used when local-only is enforced.</p>
       <input type="text" id="privacy-local-models"
              placeholder="qwen2.5:7b, qwen2.5:14b, qwen2.5:32b"
-             class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm font-mono text-[#1a2332] focus:outline-none focus:border-petrol">
+             class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm font-mono text-gray-900 focus:outline-none focus:border-petrol">
     </div>
 
     {# Action data classification table #}
     <div class="py-3 border-t border-gray-100">
-      <p class="text-sm font-medium text-[#1a2332] mb-2">Action data classification</p>
+      <p class="text-sm font-medium text-gray-900 mb-2">Action data classification</p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="rounded border border-amber-200 bg-amber-50 px-3 py-2">
           <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Data in context (local-only enforced)</p>
@@ -152,7 +152,7 @@
   <div class="card">
     <div class="flex items-start justify-between mb-4">
       <div>
-        <h3 class="font-heading text-base text-[#1a2332]">Active Profile</h3>
+        <h3 class="font-heading text-base text-gray-900">Active Profile</h3>
         <p class="text-sm text-gray-500 mt-1">Select which quality-to-model mapping is applied to all pipeline actions.</p>
       </div>
       <div id="profile-badge"></div>
@@ -162,7 +162,7 @@
       <div>
         <label class="block text-xs text-gray-500 mb-1">Profile</label>
         <select id="profile-select"
-                class="bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-2 text-sm text-[#1a2332] focus:outline-none focus:border-petrol min-w-[180px]"
+                class="bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-petrol min-w-[180px]"
                 onchange="onProfileChange()">
           {% for name in state.profiles %}
           <option value="{{ name }}" {% if name == state.active_profile %}selected{% endif %}>{{ name }}</option>
@@ -205,7 +205,7 @@
   <div>
     <div class="flex items-end justify-between mb-3">
       <div>
-        <h3 class="font-heading text-base text-[#1a2332]">Actions by Cluster</h3>
+        <h3 class="font-heading text-base text-gray-900">Actions by Cluster</h3>
         <p class="text-xs text-gray-500 mt-0.5">Each action has a default quality level. Use the dropdown to override it for individual actions or whole clusters.</p>
       </div>
       <div class="flex items-center gap-3 text-xs text-gray-500 pb-0.5">
@@ -229,7 +229,7 @@
                  fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
             </svg>
-            <span class="font-medium text-sm text-[#1a2332]">{{ cluster.display_name }}</span>
+            <span class="font-medium text-sm text-gray-900">{{ cluster.display_name }}</span>
             <span class="text-xs text-gray-400">({{ cluster_actions | length }} action{{ 's' if cluster_actions | length != 1 else '' }})</span>
           </div>
           {% if cluster.description %}
@@ -238,7 +238,7 @@
         </div>
         <div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">
           <label class="text-xs text-gray-500 whitespace-nowrap">Cluster override</label>
-          <select class="bg-[#F5F5F5] border border-[#E5E5E5] rounded px-2 py-1 text-xs text-[#1a2332] focus:outline-none focus:border-petrol"
+          <select class="bg-gray-50 border border-[#E5E5E5] rounded px-2 py-1 text-xs text-gray-900 focus:outline-none focus:border-petrol"
                   onchange="setClusterOverride('{{ cluster.cluster_id }}', this.value)">
             <option value="" {% if not cluster.quality_override %}selected{% endif %}>No override</option>
             {% for level_id, level_info in state.quality_levels.items() %}
@@ -258,12 +258,12 @@
           {% set is_action_override = action.override_source == "action" %}
           {% set is_cluster_override = action.override_source == "cluster" %}
           {% set row_indicator = "border-l-2 border-amber-400" if is_action_override else ("border-l-2 border-blue-400" if is_cluster_override else "border-l-2 border-transparent") %}
-          <div class="flex items-center gap-3 px-3 py-2.5 {{ row_indicator }} {{ 'bg-white' if loop.index is odd else 'bg-[#FAFAFA]' }} hover:bg-gray-50"
+          <div class="flex items-center gap-3 px-3 py-2.5 {{ row_indicator }} {{ 'bg-white' if loop.index is odd else 'bg-gray-50' }} hover:bg-gray-50"
                data-action-id="{{ action.action_id }}">
 
             {# Name + description #}
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium text-[#1a2332] truncate">{{ action.display_name }}</div>
+              <div class="text-sm font-medium text-gray-900 truncate">{{ action.display_name }}</div>
               {% if action.description %}
               <div class="text-xs text-gray-500 truncate">{{ action.description }}</div>
               {% else %}
@@ -318,7 +318,7 @@
     <div class="flex items-center justify-between cursor-pointer select-none"
          onclick="toggleProfileEditor()">
       <div>
-        <h3 class="font-heading text-base text-[#1a2332]">Profile Editor</h3>
+        <h3 class="font-heading text-base text-gray-900">Profile Editor</h3>
         <p class="text-sm text-gray-500 mt-0.5">
           A <strong>profile</strong> maps each quality level (Q1–Q5) to a specific model.
           Edit the model names below, then save as a named custom profile to apply those mappings everywhere.
@@ -350,14 +350,14 @@
             <td class="py-2.5 pr-4">
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {{ bg }} {{ fg }}">{{ level_id }}</span>
             </td>
-            <td class="py-2.5 pr-4 text-sm text-[#1a2332] font-medium">{{ level_info.name }}</td>
+            <td class="py-2.5 pr-4 text-sm text-gray-900 font-medium">{{ level_info.name }}</td>
             <td class="py-2.5 pr-4 text-xs text-gray-500">{{ level_info.description }}</td>
             <td class="py-2.5">
               <input type="text"
                      id="editor-model-{{ level_id }}"
                      value="{{ model }}"
                      placeholder="e.g. qwen2.5:7b or claude-haiku-..."
-                     class="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded px-3 py-1.5 text-xs font-mono text-[#1a2332] focus:outline-none focus:border-petrol min-w-[260px]">
+                     class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-1.5 text-xs font-mono text-gray-900 focus:outline-none focus:border-petrol min-w-[260px]">
             </td>
           </tr>
           {% endfor %}

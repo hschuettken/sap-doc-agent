@@ -1,7 +1,11 @@
+import time
 import pytest
 import json
 from fastapi.testclient import TestClient
+from itsdangerous import URLSafeTimedSerializer
 from spec2sphere.web.server import create_app
+
+_TEST_SECRET = "dev-secret-change-me"
 
 
 @pytest.fixture
@@ -36,6 +40,12 @@ def output_dir(tmp_path):
     return tmp_path
 
 
+def _make_session_cookie() -> str:
+    """Generate a valid signed session cookie using the default dev secret."""
+    s = URLSafeTimedSerializer(_TEST_SECRET)
+    return s.dumps({"role": "admin", "t": int(time.time())})
+
+
 @pytest.fixture
 def client(output_dir, monkeypatch):
     # Create a setup marker so the wizard middleware is disabled for these tests.
@@ -44,6 +54,17 @@ def client(output_dir, monkeypatch):
     monkeypatch.setenv("SETUP_MARKER", str(marker))
     app = create_app(output_dir=str(output_dir))
     return TestClient(app)
+
+
+@pytest.fixture
+def authed_client(output_dir, monkeypatch):
+    """TestClient with a valid session cookie — can access /ui/* routes."""
+    marker = output_dir / "setup.complete"
+    marker.touch()
+    monkeypatch.setenv("SETUP_MARKER", str(marker))
+    app = create_app(output_dir=str(output_dir))
+    tc = TestClient(app, cookies={"session": _make_session_cookie()})
+    return tc
 
 
 def test_landing_page(client):
@@ -192,9 +213,8 @@ def test_atlas_nav_manifest_shape(client):
         assert "id" in route
         assert "label" in route
         assert "path" in route
-        # category replaces legacy "group" key
-        assert "category" in route
-        assert "group" not in route
+        # group is the preferred field (category is deprecated)
+        assert "group" in route
 
     # shortcuts list must be present (may be empty)
     shortcuts = data["shortcuts"]
@@ -210,3 +230,66 @@ def test_atlas_nav_manifest_all_paths_rooted(client):
     data = resp.json()
     for route in data["routes"]:
         assert route["path"].startswith("/"), f"Route {route['id']} path must be absolute"
+
+
+# ── Atlas UI adoption ────────────────────────────────────────────────────────
+
+def test_ui_base_template_uses_appshell(authed_client):
+    """Dashboard page must render the atlas AppShell layout."""
+    resp = authed_client.get("/ui/dashboard")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "atlas-appshell" in html
+    assert "atlas-appshell-sidebar" in html
+    assert "atlas-appshell-header" in html
+    assert "atlas-appshell-content" in html
+
+
+def test_ui_base_template_loads_atlas_css(authed_client):
+    """Base template must load atlas-tokens.css and atlas-ui.css."""
+    resp = authed_client.get("/ui/dashboard")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "atlas-tokens.css" in html
+    assert "atlas-ui.css" in html
+
+
+def test_ui_base_template_theme_toggle(authed_client):
+    """Base template must include theme toggle script using atlasTheme key."""
+    resp = authed_client.get("/ui/dashboard")
+    html = resp.text
+    assert "atlasTheme" in html
+    assert "data-theme" in html
+
+
+def test_ui_reports_uses_atlas_primitives(authed_client):
+    """Reports page must use atlas-card and atlas-btn primitives (no raw Tailwind hex)."""
+    resp = authed_client.get("/ui/reports")
+    assert resp.status_code == 200
+    html = resp.text
+    # Must use atlas-card primitive
+    assert "atlas-card" in html
+    # Must use atlas-btn primitive for actions
+    assert "atlas-btn" in html
+    # Must NOT use raw Tailwind hex bracket classes
+    assert "text-[#" not in html
+    assert "bg-[#" not in html
+
+
+def test_static_atlas_tokens_css(client):
+    """atlas-tokens.css must be served and define the primary color token."""
+    resp = client.get("/static/atlas-tokens.css")
+    assert resp.status_code == 200
+    assert "--atlas-color-primary" in resp.text
+    assert "--atlas-color-bg" in resp.text
+    assert "[data-theme=\"light\"]" in resp.text
+
+
+def test_static_atlas_ui_css(client):
+    """atlas-ui.css must be served and define AppShell + Button primitives."""
+    resp = client.get("/static/atlas-ui.css")
+    assert resp.status_code == 200
+    assert ".atlas-appshell" in resp.text
+    assert ".atlas-btn--primary" in resp.text
+    assert ".atlas-btn--info" in resp.text
+    assert ".atlas-card" in resp.text

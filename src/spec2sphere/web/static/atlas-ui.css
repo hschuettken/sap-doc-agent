@@ -361,6 +361,13 @@ a:hover { color: var(--atlas-color-primary-hover); }
 }
 .atlas-btn--ghost:hover:not(:disabled) { background-color: var(--atlas-color-elevated); }
 
+.atlas-btn--info {
+  background-color: var(--atlas-color-info);
+  color: var(--atlas-color-info-fg);
+  border-color: var(--atlas-color-info);
+}
+.atlas-btn--info:hover:not(:disabled) { filter: brightness(1.1); }
+
 .atlas-btn--destructive {
   background-color: var(--atlas-color-destructive);
   color: var(--atlas-color-destructive-fg);
