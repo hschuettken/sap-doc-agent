@@ -7,7 +7,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from spec2sphere.dsp_ai.auth import issue_token
 from spec2sphere.dsp_ai.service import app
+
+
+def _auth_headers(role: str = "viewer") -> dict:
+    """Return Authorization header for a test principal."""
+    tok = issue_token("test@spec2sphere", "default", role)
+    return {"Authorization": f"Bearer {tok}"}
 
 
 @pytest.mark.asyncio
@@ -39,7 +46,11 @@ async def test_enhance_404_on_unknown_id() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.cache.get", AsyncMock(return_value=None)),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/enhance/00000000-0000-0000-0000-000000000000", json={})
+            r = await c.post(
+                "/v1/enhance/00000000-0000-0000-0000-000000000000",
+                json={},
+                headers=_auth_headers(),
+            )
     assert r.status_code == 404
 
 
@@ -58,7 +69,7 @@ async def test_enhance_cache_hit_short_circuits_engine() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/enhance/abc", json={"user": "h"})
+            r = await c.post("/v1/enhance/abc", json={"user": "h"}, headers=_auth_headers())
 
     assert r.status_code == 200
     body = r.json()
@@ -85,7 +96,11 @@ async def test_enhance_preview_bypasses_cache() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/enhance/abc", json={"user": "h", "preview": True})
+            r = await c.post(
+                "/v1/enhance/abc",
+                json={"user": "h", "preview": True},
+                headers=_auth_headers(),
+            )
 
     assert r.status_code == 200
     assert engine_calls["n"] == 1
@@ -107,7 +122,7 @@ async def test_enhance_error_result_not_cached() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine_timeout),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/enhance/abc", json={"user": "h"})
+            r = await c.post("/v1/enhance/abc", json={"user": "h"}, headers=_auth_headers())
 
     assert r.status_code == 200
     body = r.json()
@@ -129,7 +144,7 @@ async def test_enhance_success_result_is_cached() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.run_engine", fake_engine_ok),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/enhance/abc", json={"user": "h"})
+            r = await c.post("/v1/enhance/abc", json={"user": "h"}, headers=_auth_headers())
 
     assert r.status_code == 200
     cache_set.assert_called_once()

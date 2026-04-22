@@ -16,7 +16,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from spec2sphere.dsp_ai.auth import issue_token
 from spec2sphere.dsp_ai.service import app
+
+
+def _auth_headers(role: str = "viewer") -> dict:
+    tok = issue_token("test@spec2sphere", "default", role)
+    return {"Authorization": f"Bearer {tok}"}
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +37,11 @@ async def test_run_action_404_on_unknown_id() -> None:
 
     with patch("spec2sphere.dsp_ai.adapters.live.run_engine", boom):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/actions/no-such-id/run", json={})
+            r = await c.post(
+                "/v1/actions/no-such-id/run",
+                json={},
+                headers=_auth_headers(),
+            )
 
     assert r.status_code == 404
     assert r.json()["detail"] == "enhancement not found"
@@ -43,7 +53,11 @@ async def test_run_action_200_on_existing() -> None:
 
     with patch("spec2sphere.dsp_ai.adapters.live.run_engine", engine):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/v1/actions/enh-1/run", json={"user": "h"})
+            r = await c.post(
+                "/v1/actions/enh-1/run",
+                json={"user": "h"},
+                headers=_auth_headers(),
+            )
 
     assert r.status_code == 200
     body = r.json()
@@ -61,7 +75,7 @@ async def test_run_action_does_not_consult_cache() -> None:
         patch("spec2sphere.dsp_ai.adapters.live.cache.get", cache_get),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            await c.post("/v1/actions/enh-1/run", json={})
+            await c.post("/v1/actions/enh-1/run", json={}, headers=_auth_headers())
 
     cache_get.assert_not_called()
 

@@ -1,4 +1,4 @@
-"""DSP-AI Session A smoke suite — verifies the vertical slice.
+"""DSP-AI smoke suite — verifies Session A, B, and C ship criteria.
 
 Run against a live deployment:
 
@@ -293,3 +293,92 @@ async def test_generations_caller_column_present() -> None:
         await conn.close()
     names = {r["column_name"] for r in cols}
     assert "caller" in names, "migration 011 has not been applied — caller column missing"
+
+
+# ========================= Session C ship criteria =========================
+
+
+# ----- Criterion 11: Library export returns valid schema ---------------
+
+
+@pytest.mark.asyncio
+async def test_library_export_returns_valid_schema() -> None:
+    """GET /ai-studio/library/export on a running instance returns a bundle."""
+    web_url = os.environ.get("SPEC2SPHERE_URL", "http://localhost:8260")
+    if not os.environ.get("SPEC2SPHERE_URL"):
+        pytest.skip("SPEC2SPHERE_URL not set — skipping library export smoke")
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.get(f"{web_url}/ai-studio/library/export")
+    assert r.status_code == 200, r.text
+    blob = r.json()
+    assert blob["version"] == "1.0"
+    assert isinstance(blob["enhancements"], list)
+
+
+# ----- Criterion 12: RBAC blocks viewer from force-regen ---------------
+
+
+@pytest.mark.asyncio
+async def test_rbac_blocks_viewer_force_regen() -> None:
+    """Viewer JWT must get 403 on /v1/actions/{id}/regen."""
+    _require_dspai_reachable()
+    from spec2sphere.dsp_ai.auth import issue_token
+
+    tok = issue_token("v@smoke.test", "default", "viewer")
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.post(
+            f"{DSPAI_URL}/v1/actions/00000000-0000-0000-0000-000000000000/regen",
+            json={},
+            headers={"Authorization": f"Bearer {tok}"},
+        )
+    assert r.status_code == 403, f"expected 403, got {r.status_code}: {r.text}"
+
+
+# ----- Criterion 13: Multi-tenant customer column in schema ------------
+
+
+@pytest.mark.asyncio
+async def test_customer_column_present_after_migration_012() -> None:
+    """Migration 012 adds customer column to dsp_ai.enhancements."""
+    _require_db()
+    conn = await asyncpg.connect(postgres_dsn())
+    try:
+        cols = await conn.fetch(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'dsp_ai' AND table_name = 'enhancements'"
+        )
+    finally:
+        await conn.close()
+    names = {r["column_name"] for r in cols}
+    assert "customer" in names, "migration 012 not applied — customer column missing from dsp_ai.enhancements"
+
+
+# ----- Criterion 14: Cost guard module importable ---------------------
+
+
+def test_cost_guard_importable() -> None:
+    """cost_guard.py must import cleanly."""
+    from spec2sphere.dsp_ai.cost_guard import CostExceeded, check_and_account  # noqa: F401
+
+    assert callable(check_and_account)
+
+
+# ----- Criterion 15: Publish diff module importable -------------------
+
+
+def test_publish_diff_importable() -> None:
+    """publish_diff.py must import cleanly."""
+    from spec2sphere.dsp_ai.publish_diff import diff  # noqa: F401
+
+    assert callable(diff)
+
+
+# ----- Criterion 16: Library module importable ------------------------
+
+
+def test_library_importable() -> None:
+    """library.py must import cleanly."""
+    from spec2sphere.dsp_ai.library import export_library, import_library  # noqa: F401
+
+    assert callable(export_library)
+    assert callable(import_library)
