@@ -3,312 +3,282 @@
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
+<div class="atlas-center-page atlas-stack-lg">
 
   <!-- Tabs -->
-  <div class="flex border-b border-gray-200 overflow-x-auto">
-    <button class="px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap" onclick="showSettingsTab(event, 'llm')">LLM Provider</button>
-    <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap" onclick="showSettingsTab(event, 'connections')">Connections</button>
-    <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap" onclick="showSettingsTab(event, 'auth')">Authentication</button>
-    <button class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap" onclick="showSettingsTab(event, 'advanced')">Advanced YAML</button>
+  <div class="atlas-tab-list" id="settings-tab-list">
+    <button class="atlas-tab atlas-tab--active" onclick="showSettingsTab(event, 'llm')">LLM Provider</button>
+    <button class="atlas-tab" onclick="showSettingsTab(event, 'connections')">Connections</button>
+    <button class="atlas-tab" onclick="showSettingsTab(event, 'auth')">Authentication</button>
+    <button class="atlas-tab" onclick="showSettingsTab(event, 'advanced')">Advanced YAML</button>
   </div>
 
   <!-- ===== LLM Provider Tab ===== -->
-  <div id="tab-llm" class="settings-tab">
-    <div class="bg-blue-50 border border-blue-300 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800">
-      For granular model routing per pipeline action, use the <a href="/ui/llm-routing" class="font-medium underline hover:text-blue-900">LLM Routing</a> page.
+  <div id="tab-llm" class="settings-tab atlas-stack">
+    <div class="atlas-banner atlas-banner--info">
+      For granular model routing per pipeline action, use the <a href="/ui/llm-routing" class="font-medium underline">LLM Routing</a> page.
     </div>
-    <div class="card">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="font-heading text-base text-gray-900">LLM Provider Configuration</h3>
-          <p class="text-sm text-gray-500 mt-1">Choose and configure the AI model provider for document analysis, chain interpretation, and migration classification.</p>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <div class="atlas-split">
+          <div>
+            <h3 class="atlas-section-title" style="margin-bottom:var(--atlas-space-1);">LLM Provider Configuration</h3>
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Choose and configure the AI model provider for document analysis, chain interpretation, and migration classification.</p>
+          </div>
+          <div id="llm-status-badge">
+            <span class="atlas-badge atlas-badge--{{ 'success' if llm_status == 'connected' else 'warning' if llm_status == 'configured' else 'neutral' }}" style="display:inline-flex; align-items:center; gap:var(--atlas-space-1);">
+              <span class="atlas-dot atlas-dot--{{ 'success' if llm_status == 'connected' else 'warning' if llm_status == 'configured' else 'destructive' }}"></span>
+              {{ llm_status_label }}
+            </span>
+          </div>
         </div>
-        <div id="llm-status-badge">
-          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-            {% if llm_status == 'connected' %}bg-green-50 text-green-700{% elif llm_status == 'configured' %}bg-amber-50 text-amber-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-            <span class="dot {% if llm_status == 'connected' %}dot-green{% elif llm_status == 'configured' %}dot-amber{% else %}dot-red{% endif %}"></span>
-            {{ llm_status_label }}
-          </span>
-        </div>
-      </div>
 
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-900 mb-1">Active Provider</label>
-        <select id="llm-provider" onchange="showProviderFields()"
-                class="w-full max-w-md bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-petrol">
-          <option value="none" {% if active_provider == 'none' %}selected{% endif %}>None (LLM disabled)</option>
-          <option value="azure" {% if active_provider == 'azure' %}selected{% endif %}>Azure OpenAI (enterprise)</option>
-          <option value="openai" {% if active_provider == 'openai' %}selected{% endif %}>OpenAI</option>
-          <option value="anthropic" {% if active_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
-          <option value="ollama" {% if active_provider == 'ollama' %}selected{% endif %}>Ollama (local / on-prem)</option>
-          <option value="vllm" {% if active_provider == 'vllm' %}selected{% endif %}>vLLM (on-prem GPU)</option>
-          <option value="gemini" {% if active_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
-          <option value="router" {% if active_provider == 'router' %}selected{% endif %}>LLM Router (homelab)</option>
-        </select>
-      </div>
+        <div class="atlas-field">
+          <label class="atlas-label">Active Provider</label>
+          <select id="llm-provider" onchange="showProviderFields()" class="atlas-select" style="max-width:28rem;">
+            <option value="none" {% if active_provider == 'none' %}selected{% endif %}>None (LLM disabled)</option>
+            <option value="azure" {% if active_provider == 'azure' %}selected{% endif %}>Azure OpenAI (enterprise)</option>
+            <option value="openai" {% if active_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+            <option value="anthropic" {% if active_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+            <option value="ollama" {% if active_provider == 'ollama' %}selected{% endif %}>Ollama (local / on-prem)</option>
+            <option value="vllm" {% if active_provider == 'vllm' %}selected{% endif %}>vLLM (on-prem GPU)</option>
+            <option value="gemini" {% if active_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+            <option value="router" {% if active_provider == 'router' %}selected{% endif %}>LLM Router (homelab)</option>
+          </select>
+        </div>
 
-      <!-- Azure OpenAI fields -->
-      <div id="fields-azure" class="provider-fields space-y-3 {% if active_provider != 'azure' %}hidden{% endif %}">
-        <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
-          Recommended for enterprise deployments. Requires an Azure OpenAI Service resource with a GPT-4o deployment.
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Endpoint URL</label>
-            <input id="azure-endpoint" value="{{ env_vars.get('AZURE_OPENAI_ENDPOINT', '') }}" placeholder="https://your-resource.openai.azure.com"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Deployment Name</label>
-            <input id="azure-deployment" value="{{ env_vars.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o') }}" placeholder="gpt-4o"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-xs text-gray-500 mb-1">API Key</label>
-            <input id="azure-key" type="password" value="{{ '********' if env_vars.get('AZURE_OPENAI_API_KEY') else '' }}" placeholder="Your Azure OpenAI API key"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- Azure OpenAI fields -->
+        <div id="fields-azure" class="provider-fields atlas-stack {% if active_provider != 'azure' %}hidden{% endif %}">
+          <div class="atlas-banner atlas-banner--info">Recommended for enterprise deployments. Requires an Azure OpenAI Service resource with a GPT-4o deployment.</div>
+          <div class="grid-cols-2" style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">Endpoint URL</label>
+              <input id="azure-endpoint" value="{{ env_vars.get('AZURE_OPENAI_ENDPOINT', '') }}" placeholder="https://your-resource.openai.azure.com" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Deployment Name</label>
+              <input id="azure-deployment" value="{{ env_vars.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o') }}" placeholder="gpt-4o" class="atlas-input">
+            </div>
+            <div class="atlas-field" style="grid-column:span 2;">
+              <label class="atlas-label">API Key</label>
+              <input id="azure-key" type="password" value="{{ '********' if env_vars.get('AZURE_OPENAI_API_KEY') else '' }}" placeholder="Your Azure OpenAI API key" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- OpenAI fields -->
-      <div id="fields-openai" class="provider-fields space-y-3 {% if active_provider != 'openai' %}hidden{% endif %}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Key</label>
-            <input id="openai-key" type="password" value="{{ '********' if env_vars.get('OPENAI_API_KEY') else '' }}" placeholder="sk-..."
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="openai-model" value="{{ env_vars.get('OPENAI_MODEL', 'gpt-4o') }}" placeholder="gpt-4o"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- OpenAI fields -->
+        <div id="fields-openai" class="provider-fields atlas-stack {% if active_provider != 'openai' %}hidden{% endif %}">
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">API Key</label>
+              <input id="openai-key" type="password" value="{{ '********' if env_vars.get('OPENAI_API_KEY') else '' }}" placeholder="sk-..." class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="openai-model" value="{{ env_vars.get('OPENAI_MODEL', 'gpt-4o') }}" placeholder="gpt-4o" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Anthropic fields -->
-      <div id="fields-anthropic" class="provider-fields space-y-3 {% if active_provider != 'anthropic' %}hidden{% endif %}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Key</label>
-            <input id="anthropic-key" type="password" value="{{ '********' if env_vars.get('ANTHROPIC_API_KEY') else '' }}" placeholder="sk-ant-..."
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="anthropic-model" value="{{ env_vars.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514') }}" placeholder="claude-sonnet-4-20250514"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- Anthropic fields -->
+        <div id="fields-anthropic" class="provider-fields atlas-stack {% if active_provider != 'anthropic' %}hidden{% endif %}">
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">API Key</label>
+              <input id="anthropic-key" type="password" value="{{ '********' if env_vars.get('ANTHROPIC_API_KEY') else '' }}" placeholder="sk-ant-..." class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="anthropic-model" value="{{ env_vars.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514') }}" placeholder="claude-sonnet-4-20250514" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Gemini fields -->
-      <div id="fields-gemini" class="provider-fields space-y-3 {% if active_provider != 'gemini' %}hidden{% endif %}">
-        <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
-          Uses Google's Gemini models via the OpenAI-compatible API. Get an API key from Google AI Studio.
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Key</label>
-            <input id="gemini-key" type="password" value="{{ '********' if env_vars.get('GEMINI_API_KEY') else '' }}" placeholder="Your Gemini API key"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="gemini-model" value="{{ env_vars.get('GEMINI_MODEL', 'gemini-2.5-flash') }}" placeholder="gemini-2.5-flash"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- Gemini fields -->
+        <div id="fields-gemini" class="provider-fields atlas-stack {% if active_provider != 'gemini' %}hidden{% endif %}">
+          <div class="atlas-banner atlas-banner--info">Uses Google's Gemini models via the OpenAI-compatible API. Get an API key from Google AI Studio.</div>
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">API Key</label>
+              <input id="gemini-key" type="password" value="{{ '********' if env_vars.get('GEMINI_API_KEY') else '' }}" placeholder="Your Gemini API key" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="gemini-model" value="{{ env_vars.get('GEMINI_MODEL', 'gemini-2.5-flash') }}" placeholder="gemini-2.5-flash" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Ollama fields -->
-      <div id="fields-ollama" class="provider-fields space-y-3 {% if active_provider != 'ollama' %}hidden{% endif %}">
-        <div class="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
-          Free, self-hosted. Requires Ollama running on the server or network. Good for air-gapped / data-sovereign deployments.
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Ollama URL</label>
-            <input id="ollama-url" value="{{ env_vars.get('OLLAMA_BASE_URL', 'http://localhost:11434') }}" placeholder="http://localhost:11434"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="ollama-model" value="{{ env_vars.get('OLLAMA_MODEL', 'qwen2.5:14b') }}" placeholder="qwen2.5:14b"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- Ollama fields -->
+        <div id="fields-ollama" class="provider-fields atlas-stack {% if active_provider != 'ollama' %}hidden{% endif %}">
+          <div class="atlas-banner atlas-banner--success">Free, self-hosted. Requires Ollama running on the server or network. Good for air-gapped / data-sovereign deployments.</div>
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">Ollama URL</label>
+              <input id="ollama-url" value="{{ env_vars.get('OLLAMA_BASE_URL', 'http://localhost:11434') }}" placeholder="http://localhost:11434" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="ollama-model" value="{{ env_vars.get('OLLAMA_MODEL', 'qwen2.5:14b') }}" placeholder="qwen2.5:14b" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- vLLM fields -->
-      <div id="fields-vllm" class="provider-fields space-y-3 {% if active_provider != 'vllm' %}hidden{% endif %}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">vLLM Base URL</label>
-            <input id="vllm-url" value="{{ env_vars.get('VLLM_BASE_URL', '') }}" placeholder="http://vllm-server:8000"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="vllm-model" value="{{ env_vars.get('VLLM_MODEL', '') }}" placeholder="Qwen2.5-Coder-32B-Instruct"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Key (optional)</label>
-            <input id="vllm-key" type="password" value="{{ '********' if env_vars.get('VLLM_API_KEY') else '' }}" placeholder="Optional"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- vLLM fields -->
+        <div id="fields-vllm" class="provider-fields atlas-stack {% if active_provider != 'vllm' %}hidden{% endif %}">
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">vLLM Base URL</label>
+              <input id="vllm-url" value="{{ env_vars.get('VLLM_BASE_URL', '') }}" placeholder="http://vllm-server:8000" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="vllm-model" value="{{ env_vars.get('VLLM_MODEL', '') }}" placeholder="Qwen2.5-Coder-32B-Instruct" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">API Key (optional)</label>
+              <input id="vllm-key" type="password" value="{{ '********' if env_vars.get('VLLM_API_KEY') else '' }}" placeholder="Optional" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Router fields -->
-      <div id="fields-router" class="provider-fields space-y-3 {% if active_provider != 'router' %}hidden{% endif %}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Router URL</label>
-            <input id="router-url" value="{{ env_vars.get('LLM_ROUTER_URL', '') }}" placeholder="http://llm-router:8070/v1"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Key</label>
-            <input id="router-key" type="password" value="{{ '********' if env_vars.get('LLM_ROUTER_API_KEY') else '' }}" placeholder="API key"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model</label>
-            <input id="router-model" value="{{ env_vars.get('LLM_ROUTER_MODEL', 'default') }}" placeholder="default"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+        <!-- Router fields -->
+        <div id="fields-router" class="provider-fields atlas-stack {% if active_provider != 'router' %}hidden{% endif %}">
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3);">
+            <div class="atlas-field">
+              <label class="atlas-label">Router URL</label>
+              <input id="router-url" value="{{ env_vars.get('LLM_ROUTER_URL', '') }}" placeholder="http://llm-router:8070/v1" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">API Key</label>
+              <input id="router-key" type="password" value="{{ '********' if env_vars.get('LLM_ROUTER_API_KEY') else '' }}" placeholder="API key" class="atlas-input">
+            </div>
+            <div class="atlas-field">
+              <label class="atlas-label">Model</label>
+              <input id="router-model" value="{{ env_vars.get('LLM_ROUTER_MODEL', 'default') }}" placeholder="default" class="atlas-input">
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- None info -->
-      <div id="fields-none" class="provider-fields {% if active_provider != 'none' %}hidden{% endif %}">
-        <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-600">
-          LLM features are disabled. The scanner, object browser, and dependency graph will still work. LLM-powered features (chain interpretation, migration classification, doc QA) will be unavailable.
+        <!-- None info -->
+        <div id="fields-none" class="provider-fields {% if active_provider != 'none' %}hidden{% endif %}">
+          <div class="atlas-banner atlas-banner--info" style="color:var(--atlas-color-fg-muted);">
+            LLM features are disabled. The scanner, object browser, and dependency graph will still work. LLM-powered features (chain interpretation, migration classification, doc QA) will be unavailable.
+          </div>
         </div>
-      </div>
 
-      <!-- Test + Save buttons -->
-      <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-        <button onclick="testLLM()" id="btn-test-llm"
-                class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">
-          Test Connection
-        </button>
-        <span id="llm-test-result" class="text-sm self-center"></span>
+        <!-- Test + Save buttons -->
+        <div class="atlas-cluster" style="border-top:1px solid var(--atlas-color-border-subtle); padding-top:var(--atlas-space-4);">
+          <button onclick="testLLM()" id="btn-test-llm" class="atlas-btn atlas-btn--secondary">Test Connection</button>
+          <span id="llm-test-result" style="font-size:var(--atlas-text-sm); align-self:center;"></span>
+        </div>
       </div>
     </div>
 
     <!-- LLM Limits -->
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-3">Rate Limits & Concurrency</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Token Budget / Hour</label>
-          <input id="llm-token-budget" type="number" value="{{ env_vars.get('LLM_TOKEN_BUDGET_PER_HOUR', '') }}" placeholder="Unlimited"
-                 class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Max Concurrent LLM Calls</label>
-          <input id="llm-max-concurrent" type="number" value="{{ env_vars.get('LLM_MAX_CONCURRENT', '4') }}" placeholder="4"
-                 class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">SAP API Rate (req/sec)</label>
-          <input id="sap-rate-limit" type="number" value="{{ env_vars.get('SAP_RATE_LIMIT_RPS', '10') }}" placeholder="10"
-                 class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Rate Limits &amp; Concurrency</h3>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:var(--atlas-space-4);">
+          <div class="atlas-field">
+            <label class="atlas-label">Token Budget / Hour</label>
+            <input id="llm-token-budget" type="number" value="{{ env_vars.get('LLM_TOKEN_BUDGET_PER_HOUR', '') }}" placeholder="Unlimited" class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Max Concurrent LLM Calls</label>
+            <input id="llm-max-concurrent" type="number" value="{{ env_vars.get('LLM_MAX_CONCURRENT', '4') }}" placeholder="4" class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">SAP API Rate (req/sec)</label>
+            <input id="sap-rate-limit" type="number" value="{{ env_vars.get('SAP_RATE_LIMIT_RPS', '10') }}" placeholder="10" class="atlas-input">
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ===== Connections Tab ===== -->
-  <div id="tab-connections" class="settings-tab hidden">
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-4">Service Connections</h3>
-      <p class="text-sm text-gray-500 mb-4">These are read from environment variables / Docker Compose. Use the test buttons to verify connectivity.</p>
+  <div id="tab-connections" class="settings-tab atlas-stack hidden">
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Service Connections</h3>
+        <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">These are read from environment variables / Docker Compose. Use the test buttons to verify connectivity.</p>
 
-      <div class="space-y-4">
         <!-- Database -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <div class="flex items-center gap-3">
-            <span id="status-db" class="dot dot-amber"></span>
+        <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+          <div class="atlas-cluster">
+            <span id="status-db" class="atlas-dot atlas-dot--warning"></span>
             <div>
-              <p class="text-sm font-medium text-gray-900">PostgreSQL</p>
-              <p class="text-xs text-gray-500">{{ env_vars.get('DATABASE_URL', 'Not configured') | replace(env_vars.get('_db_password', 'x'), '****') }}</p>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">PostgreSQL</p>
+              <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ env_vars.get('DATABASE_URL', 'Not configured') | replace(env_vars.get('_db_password', 'x'), '****') }}</p>
             </div>
           </div>
-          <button onclick="testConnection('database')" class="px-3 py-1 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Test</button>
+          <button onclick="testConnection('database')" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Test</button>
         </div>
 
         <!-- Redis -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <div class="flex items-center gap-3">
-            <span id="status-redis" class="dot dot-amber"></span>
+        <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+          <div class="atlas-cluster">
+            <span id="status-redis" class="atlas-dot atlas-dot--warning"></span>
             <div>
-              <p class="text-sm font-medium text-gray-900">Redis</p>
-              <p class="text-xs text-gray-500">{{ env_vars.get('REDIS_URL', 'Not configured') }}</p>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">Redis</p>
+              <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ env_vars.get('REDIS_URL', 'Not configured') }}</p>
             </div>
           </div>
-          <button onclick="testConnection('redis')" class="px-3 py-1 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Test</button>
+          <button onclick="testConnection('redis')" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Test</button>
         </div>
 
         <!-- LLM -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <div class="flex items-center gap-3">
-            <span id="status-llm" class="dot dot-amber"></span>
+        <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+          <div class="atlas-cluster">
+            <span id="status-llm" class="atlas-dot atlas-dot--warning"></span>
             <div>
-              <p class="text-sm font-medium text-gray-900">LLM Provider</p>
-              <p class="text-xs text-gray-500">{{ active_provider | capitalize }} — {{ llm_model or 'default' }}</p>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">LLM Provider</p>
+              <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ active_provider | capitalize }} — {{ llm_model or 'default' }}</p>
             </div>
           </div>
-          <button onclick="testConnection('llm')" class="px-3 py-1 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Test</button>
+          <button onclick="testConnection('llm')" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Test</button>
         </div>
 
         <!-- Celery Workers -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <div class="flex items-center gap-3">
-            <span id="status-celery" class="dot dot-amber"></span>
+        <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+          <div class="atlas-cluster">
+            <span id="status-celery" class="atlas-dot atlas-dot--warning"></span>
             <div>
-              <p class="text-sm font-medium text-gray-900">Celery Workers</p>
-              <p class="text-xs text-gray-500">Queues: scan, llm, chrome</p>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">Celery Workers</p>
+              <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Queues: scan, llm, chrome</p>
             </div>
           </div>
-          <button onclick="testConnection('celery')" class="px-3 py-1 border border-petrol text-petrol rounded text-xs font-medium hover:bg-petrol hover:text-white">Test</button>
+          <button onclick="testConnection('celery')" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Test</button>
         </div>
-      </div>
 
-      <div class="mt-4 pt-4 border-t border-gray-100">
-        <button onclick="testAllConnections()" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">
-          Test All Connections
-        </button>
+        <div style="border-top:1px solid var(--atlas-color-border-subtle); padding-top:var(--atlas-space-4);">
+          <button onclick="testAllConnections()" class="atlas-btn atlas-btn--primary">Test All Connections</button>
+        </div>
       </div>
     </div>
 
     <!-- System Environment Classification -->
-    <div class="card mt-4">
-      <h3 class="font-heading text-base text-gray-900 mb-1">System Environment</h3>
-      <p class="text-sm text-gray-500 mb-4">
-        Classify which SAP environment is connected. This is informational — displayed to remind users what system they are working against.
-        Set the environment on the project or connection you are currently using.
-      </p>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <div>
+          <h3 class="atlas-section-title" style="margin-bottom:var(--atlas-space-1);">System Environment</h3>
+          <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">
+            Classify which SAP environment is connected. This is informational — displayed to remind users what system they are working against.
+          </p>
+        </div>
 
-      <div class="space-y-3">
         {% set systems = connections if connections is defined else [] %}
         {% if systems %}
           {% for conn in systems %}
-          <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
-            <div class="flex items-center gap-3">
-              <div>
-                <p class="text-sm font-medium text-gray-900">{{ conn.get('name', conn.get('connection_name', 'Connection')) }}</p>
-                <p class="text-xs text-gray-500">{{ conn.get('host', '') }}{% if conn.get('client') %} · client {{ conn.get('client') }}{% endif %}</p>
-              </div>
+          <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+            <div>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">{{ conn.get('name', conn.get('connection_name', 'Connection')) }}</p>
+              <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ conn.get('host', '') }}{% if conn.get('client') %} · client {{ conn.get('client') }}{% endif %}</p>
             </div>
-            <div class="flex items-center gap-2">
-              <label class="text-xs text-gray-500">Environment</label>
-              <select class="bg-white border border-[#E5E5E5] rounded px-2 py-1 text-xs text-gray-900 focus:outline-none focus:border-petrol"
+            <div class="atlas-cluster">
+              <label style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Environment</label>
+              <select class="atlas-select" style="width:auto; padding-right:var(--atlas-space-6);"
                       onchange="setSystemEnvironment('{{ conn.get('id', loop.index) }}', this.value)"
                       title="System environment — informational only">
                 <option value="dev" {% if conn.get('environment') == 'dev' %}selected{% endif %}>Dev</option>
@@ -316,90 +286,89 @@
                 <option value="prod" {% if conn.get('environment') == 'prod' %}selected{% endif %}>Prod</option>
               </select>
               {% if conn.get('environment') == 'prod' %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">PROD</span>
+              <span class="atlas-badge atlas-badge--destructive">PROD</span>
               {% elif conn.get('environment') == 'qa' %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">QA</span>
+              <span class="atlas-badge atlas-badge--warning">QA</span>
               {% else %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">Dev</span>
+              <span class="atlas-badge atlas-badge--info">Dev</span>
               {% endif %}
             </div>
           </div>
           {% endfor %}
         {% else %}
-          <!-- Fallback: no connection list passed from server — show generic classifier -->
-          <div class="p-3 bg-gray-50 rounded">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-900">Connected SAP System</p>
-                <p class="text-xs text-gray-500" id="conn-host-label">{{ env_vars.get('SAP_HOST', 'Not configured') }}</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-gray-500">Environment</label>
-                <select id="system-env-select"
-                        class="bg-white border border-[#E5E5E5] rounded px-2 py-1 text-xs text-gray-900 focus:outline-none focus:border-petrol"
-                        onchange="setDefaultSystemEnvironment(this.value)"
-                        title="System environment — informational only">
-                  <option value="dev">Dev</option>
-                  <option value="qa">QA</option>
-                  <option value="prod">Prod</option>
-                </select>
-                <span id="system-env-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">Dev</span>
-              </div>
+          <div class="atlas-split" style="padding:var(--atlas-space-3); background-color:var(--atlas-color-elevated); border-radius:var(--atlas-radius-md);">
+            <div>
+              <p style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-medium);">Connected SAP System</p>
+              <p id="conn-host-label" style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ env_vars.get('SAP_HOST', 'Not configured') }}</p>
+            </div>
+            <div class="atlas-cluster">
+              <label style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Environment</label>
+              <select id="system-env-select" class="atlas-select" style="width:auto;"
+                      onchange="setDefaultSystemEnvironment(this.value)"
+                      title="System environment — informational only">
+                <option value="dev">Dev</option>
+                <option value="qa">QA</option>
+                <option value="prod">Prod</option>
+              </select>
+              <span id="system-env-badge" class="atlas-badge atlas-badge--info">Dev</span>
             </div>
           </div>
         {% endif %}
-      </div>
 
-      <p class="text-xs text-gray-400 mt-3">
-        Tip: When connected to a Prod system, the UI will show a Prod indicator as a reminder.
-        No data restrictions are applied automatically — this is a visual classification only.
-      </p>
+        <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">
+          Tip: When connected to a Prod system, the UI will show a Prod indicator as a reminder. No data restrictions are applied automatically.
+        </p>
+      </div>
     </div>
   </div>
 
   <!-- ===== Auth Tab ===== -->
-  <div id="tab-auth" class="settings-tab hidden">
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-3">Change UI Password</h3>
-      <p class="text-sm text-gray-500 mb-4">Update the password used to access this web interface.</p>
-      <form id="password-form" onsubmit="changePassword(event)">
-        <div class="space-y-3 max-w-sm">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">New Password</label>
-            <input type="password" id="new-password" required minlength="6"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+  <div id="tab-auth" class="settings-tab atlas-stack hidden">
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Change UI Password</h3>
+        <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Update the password used to access this web interface.</p>
+        <form id="password-form" onsubmit="changePassword(event)" class="atlas-stack" style="max-width:24rem;">
+          <div class="atlas-field">
+            <label class="atlas-label">New Password</label>
+            <input type="password" id="new-password" required minlength="6" class="atlas-input">
           </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Confirm Password</label>
-            <input type="password" id="confirm-password" required minlength="6"
-                   class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
+          <div class="atlas-field">
+            <label class="atlas-label">Confirm Password</label>
+            <input type="password" id="confirm-password" required minlength="6" class="atlas-input">
           </div>
-          <div id="password-error" class="text-sm text-red-600 hidden"></div>
-          <button type="submit" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">Update Password</button>
-        </div>
-      </form>
+          <div id="password-error" class="hidden" style="font-size:var(--atlas-text-sm); color:var(--atlas-color-destructive);"></div>
+          <div>
+            <button type="submit" class="atlas-btn atlas-btn--primary">Update Password</button>
+          </div>
+        </form>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-3">Session Settings</h3>
-      <div class="text-sm text-gray-500 space-y-2">
-        <p>Session duration: <strong>24 hours</strong></p>
-        <p>Authentication: Password-based session cookie</p>
-        <p class="text-xs text-gray-400 mt-3">For enterprise deployments, configure SAML/OIDC via environment variables. Contact Horvath for SSO integration support.</p>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Session Settings</h3>
+        <div style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">
+          <p>Session duration: <strong>24 hours</strong></p>
+          <p>Authentication: Password-based session cookie</p>
+          <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">For enterprise deployments, configure SAML/OIDC via environment variables. Contact Horvath for SSO integration support.</p>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- ===== Advanced YAML Tab ===== -->
-  <div id="tab-advanced" class="settings-tab hidden">
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-3">Configuration File</h3>
-      <p class="text-sm text-gray-500 mb-3">Edit the YAML configuration directly. Changes take effect after saving and restarting.</p>
-      <div id="config-editor-container" class="border border-gray-200 rounded overflow-hidden mb-3" style="height:400px"></div>
-      <div id="config-errors" class="text-sm text-red-600 mb-3 hidden"></div>
-      <div class="flex gap-2">
-        <button onclick="saveConfig()" class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark">Save Configuration</button>
-        <button onclick="validateConfig()" class="px-4 py-2 border border-petrol text-petrol rounded text-sm font-medium hover:bg-petrol hover:text-white">Validate</button>
+  <div id="tab-advanced" class="settings-tab atlas-stack hidden">
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Configuration File</h3>
+        <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Edit the YAML configuration directly. Changes take effect after saving and restarting.</p>
+        <div id="config-editor-container" style="border:1px solid var(--atlas-color-border); border-radius:var(--atlas-radius-md); overflow:hidden; height:400px;"></div>
+        <div id="config-errors" class="hidden" style="font-size:var(--atlas-text-sm); color:var(--atlas-color-destructive);"></div>
+        <div class="atlas-cluster">
+          <button onclick="saveConfig()" class="atlas-btn atlas-btn--primary">Save Configuration</button>
+          <button onclick="validateConfig()" class="atlas-btn atlas-btn--secondary">Validate</button>
+        </div>
       </div>
     </div>
   </div>
@@ -435,11 +404,10 @@ function _loadSettingsCM(cb) {
 function showSettingsTab(evt, name) {
   document.querySelectorAll('.settings-tab').forEach(t => t.classList.add('hidden'));
   document.getElementById('tab-' + name).classList.remove('hidden');
-  evt.target.parentElement.querySelectorAll('button').forEach(b => {
-    b.className = 'px-4 py-2 text-sm font-medium text-gray-400 hover:text-charcoal whitespace-nowrap';
+  evt.target.closest('.atlas-tab-list').querySelectorAll('.atlas-tab').forEach(b => {
+    b.classList.remove('atlas-tab--active');
   });
-  evt.target.className = 'px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap';
-  // Lazy-load CodeMirror then init editor
+  evt.target.classList.add('atlas-tab--active');
   if (name === 'advanced' && !editor) {
     _loadSettingsCM(_initCodeMirrorEditor);
   }
@@ -457,34 +425,34 @@ async function testLLM() {
   const result = document.getElementById('llm-test-result');
   btn.disabled = true;
   result.textContent = 'Testing...';
-  result.className = 'text-sm self-center text-gray-500';
+  result.style.color = 'var(--atlas-color-fg-muted)';
   try {
     const resp = await fetch('/api/system/test-llm', {method: 'POST'});
     const data = await resp.json();
     if (data.success) {
       result.textContent = 'Connected — ' + (data.model || 'OK') + ' (' + data.latency_ms + 'ms)';
-      result.className = 'text-sm self-center text-green-600';
+      result.style.color = 'var(--atlas-color-success)';
     } else {
       result.textContent = 'Failed: ' + data.error;
-      result.className = 'text-sm self-center text-red-600';
+      result.style.color = 'var(--atlas-color-destructive)';
     }
   } catch (err) {
     result.textContent = 'Error: ' + err.message;
-    result.className = 'text-sm self-center text-red-600';
+    result.style.color = 'var(--atlas-color-destructive)';
   }
   btn.disabled = false;
 }
 
 async function testConnection(service) {
   const dot = document.getElementById('status-' + service);
-  dot.className = 'dot dot-amber';
+  if (dot) dot.className = 'atlas-dot atlas-dot--warning';
   try {
     const resp = await fetch('/api/system/status');
     const data = await resp.json();
     const check = data.checks[service];
-    dot.className = 'dot ' + (check === 'ok' ? 'dot-green' : 'dot-red');
+    if (dot) dot.className = 'atlas-dot ' + (check === 'ok' ? 'atlas-dot--success' : 'atlas-dot--destructive');
   } catch (err) {
-    dot.className = 'dot dot-red';
+    if (dot) dot.className = 'atlas-dot atlas-dot--destructive';
   }
 }
 
@@ -494,11 +462,10 @@ async function testAllConnections() {
     const data = await resp.json();
     for (const [svc, status] of Object.entries(data.checks)) {
       const dot = document.getElementById('status-' + svc);
-      if (dot) dot.className = 'dot ' + (status === 'ok' ? 'dot-green' : 'dot-red');
+      if (dot) dot.className = 'atlas-dot ' + (status === 'ok' ? 'atlas-dot--success' : 'atlas-dot--destructive');
     }
-    // Also update LLM
     const llmDot = document.getElementById('status-llm');
-    if (llmDot) llmDot.className = 'dot ' + (data.checks.llm === 'ok' ? 'dot-green' : 'dot-red');
+    if (llmDot) llmDot.className = 'atlas-dot ' + (data.checks.llm === 'ok' ? 'atlas-dot--success' : 'atlas-dot--destructive');
     showToast('Connection tests complete', data.status === 'ok' ? 'success' : 'info');
   } catch (err) {
     showToast('Test failed: ' + err.message, 'error');
@@ -575,11 +542,12 @@ async function validateConfig() {
 
 // ─── System Environment Classification ───────────────────────────────────────
 
-const ENV_BADGE = {
-  dev:  {cls: 'bg-blue-50 text-blue-700 border-blue-200',   label: 'Dev'},
-  qa:   {cls: 'bg-amber-50 text-amber-700 border-amber-200', label: 'QA'},
-  prod: {cls: 'bg-red-50 text-red-700 border-red-200',       label: 'PROD'},
+const ENV_BADGE_CLASS = {
+  dev:  'atlas-badge--info',
+  qa:   'atlas-badge--warning',
+  prod: 'atlas-badge--destructive',
 };
+const ENV_LABEL = { dev: 'Dev', qa: 'QA', prod: 'PROD' };
 
 async function setSystemEnvironment(connectionId, env) {
   try {
@@ -595,14 +563,11 @@ async function setSystemEnvironment(connectionId, env) {
 }
 
 function setDefaultSystemEnvironment(env) {
-  // Fallback handler for the generic single-connection case (no connections list)
   const badge = document.getElementById('system-env-badge');
-  if (badge && ENV_BADGE[env]) {
-    const {cls, label} = ENV_BADGE[env];
-    badge.className = `inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`;
-    badge.textContent = label;
+  if (badge && ENV_BADGE_CLASS[env]) {
+    badge.className = 'atlas-badge ' + ENV_BADGE_CLASS[env];
+    badge.textContent = ENV_LABEL[env] || env.toUpperCase();
   }
-  // Persist into localStorage so it survives page refreshes
   try { localStorage.setItem('spec2sphere_system_env', env); } catch (_) {}
   showToast('Environment set to ' + (env || 'dev').toUpperCase(), env === 'prod' ? 'info' : 'success');
 }

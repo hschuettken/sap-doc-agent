@@ -3,197 +3,187 @@
 {% block page_title %}Admin{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="atlas-center-page atlas-stack-lg">
 
   <!-- Header -->
-  <div class="card border-l-4 border-petrol">
-    <h2 class="font-heading text-xl text-gray-900 mb-1">Platform Administration</h2>
-    <p class="text-sm text-gray-500">Manage tenants, customers, and projects. Changes take effect immediately.</p>
+  <div class="atlas-card atlas-border-primary">
+    <div class="atlas-card-content">
+      <h2 class="atlas-section-title" style="font-size:var(--atlas-text-xl); margin-bottom:var(--atlas-space-1);">Platform Administration</h2>
+      <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Manage tenants, customers, and projects. Changes take effect immediately.</p>
+    </div>
   </div>
 
   <!-- Tabs -->
-  <div class="flex border-b border-gray-200 gap-1">
-    <button id="tab-btn-tenants"
-      class="px-4 py-2 text-sm font-medium border-b-2 border-petrol text-petrol whitespace-nowrap"
-      onclick="showAdminTab('tenants')">Tenants</button>
-    <button id="tab-btn-customers"
-      class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-charcoal whitespace-nowrap"
-      onclick="showAdminTab('customers')">Customers</button>
-    <button id="tab-btn-projects"
-      class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-charcoal whitespace-nowrap"
-      onclick="showAdminTab('projects')">Projects</button>
+  <div class="atlas-tab-list" id="admin-tab-list">
+    <button id="tab-btn-tenants"   class="atlas-tab atlas-tab--active" onclick="showAdminTab('tenants')">Tenants</button>
+    <button id="tab-btn-customers" class="atlas-tab"                   onclick="showAdminTab('customers')">Customers</button>
+    <button id="tab-btn-projects"  class="atlas-tab"                   onclick="showAdminTab('projects')">Projects</button>
   </div>
 
   <!-- ===== Tenants Tab ===== -->
-  <div id="tab-tenants" class="admin-tab space-y-4">
-    <div class="card">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-gray-900">Tenants</h3>
+  <div id="tab-tenants" class="admin-tab atlas-stack">
+    <div class="atlas-card" style="overflow:hidden;">
+      <div class="atlas-card-header">
+        <h3 class="atlas-section-title" style="margin:0;">Tenants</h3>
       </div>
-      <table class="w-full text-left">
-        <thead>
-          <tr class="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            <th class="px-4 pb-2">Name</th>
-            <th class="px-4 pb-2">Slug</th>
-            <th class="px-4 pb-2">Created</th>
-          </tr>
-        </thead>
-        <tbody id="tenants-table-body"
-          hx-get="/ui/admin/tenants-table"
-          hx-trigger="load"
-          hx-swap="innerHTML">
-          <tr><td colspan="3" class="px-4 py-3 text-sm text-gray-400">Loading...</td></tr>
-        </tbody>
-      </table>
+      <div class="atlas-table-wrapper" style="border:none; border-radius:0;">
+        <table class="atlas-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="tenants-table-body"
+            hx-get="/ui/admin/tenants-table"
+            hx-trigger="load"
+            hx-swap="innerHTML">
+            <tr><td colspan="3" style="padding:var(--atlas-space-3) var(--atlas-space-4); font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Create Tenant -->
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-4">Create Tenant</h3>
-      <form class="flex flex-col sm:flex-row gap-3 items-end"
-        hx-post="/api/admin/tenants"
-        hx-target="#tenants-table-body"
-        hx-swap="innerHTML"
-        hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Tenant created', 'success'); htmx.trigger('#tenants-table-body', 'load'); }">
-        <div class="flex-1">
-          <label class="block text-xs text-gray-500 mb-1">Name</label>
-          <input type="text" name="name" placeholder="Acme Corp" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div class="flex-1">
-          <label class="block text-xs text-gray-500 mb-1">Slug</label>
-          <input type="text" name="slug" placeholder="acme-corp" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <button type="submit"
-          class="px-4 py-2 bg-petrol text-white text-sm font-medium rounded hover:bg-petrol-dark flex-shrink-0">
-          Create
-        </button>
-      </form>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Create Tenant</h3>
+        <form style="display:flex; flex-wrap:wrap; gap:var(--atlas-space-3); align-items:flex-end;"
+          hx-post="/api/admin/tenants"
+          hx-target="#tenants-table-body"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Tenant created', 'success'); htmx.trigger('#tenants-table-body', 'load'); }">
+          <div class="atlas-field" style="flex:1; min-width:10rem;">
+            <label class="atlas-label">Name</label>
+            <input type="text" name="name" placeholder="Acme Corp" required class="atlas-input">
+          </div>
+          <div class="atlas-field" style="flex:1; min-width:10rem;">
+            <label class="atlas-label">Slug</label>
+            <input type="text" name="slug" placeholder="acme-corp" required class="atlas-input">
+          </div>
+          <button type="submit" class="atlas-btn atlas-btn--primary" style="flex-shrink:0;">Create</button>
+        </form>
+      </div>
     </div>
   </div>
 
   <!-- ===== Customers Tab ===== -->
-  <div id="tab-customers" class="admin-tab space-y-4 hidden">
-    <div class="card">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-gray-900">Customers</h3>
+  <div id="tab-customers" class="admin-tab atlas-stack hidden">
+    <div class="atlas-card" style="overflow:hidden;">
+      <div class="atlas-card-header">
+        <h3 class="atlas-section-title" style="margin:0;">Customers</h3>
       </div>
-      <table class="w-full text-left">
-        <thead>
-          <tr class="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            <th class="px-4 pb-2">Tenant</th>
-            <th class="px-4 pb-2">Name</th>
-            <th class="px-4 pb-2">Slug</th>
-            <th class="px-4 pb-2">Created</th>
-          </tr>
-        </thead>
-        <tbody id="customers-table-body"
-          hx-get="/ui/admin/customers-table"
-          hx-trigger="revealed"
-          hx-swap="innerHTML">
-          <tr><td colspan="4" class="px-4 py-3 text-sm text-gray-400">Loading...</td></tr>
-        </tbody>
-      </table>
+      <div class="atlas-table-wrapper" style="border:none; border-radius:0;">
+        <table class="atlas-table">
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="customers-table-body"
+            hx-get="/ui/admin/customers-table"
+            hx-trigger="revealed"
+            hx-swap="innerHTML">
+            <tr><td colspan="4" style="padding:var(--atlas-space-3) var(--atlas-space-4); font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Create Customer -->
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-4">Create Customer</h3>
-      <form class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
-        hx-post="/api/admin/customers"
-        hx-target="#customers-table-body"
-        hx-swap="innerHTML"
-        hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Customer created', 'success'); htmx.trigger('#customers-table-body', 'load'); }">
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Tenant ID</label>
-          <input type="text" name="tenant_id" placeholder="UUID of tenant" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Name</label>
-          <input type="text" name="name" placeholder="Customer GmbH" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Slug</label>
-          <input type="text" name="slug" placeholder="customer-gmbh" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div class="sm:col-span-3 flex justify-end">
-          <button type="submit"
-            class="px-4 py-2 bg-petrol text-white text-sm font-medium rounded hover:bg-petrol-dark">
-            Create
-          </button>
-        </div>
-      </form>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Create Customer</h3>
+        <form style="display:grid; grid-template-columns:repeat(3,1fr); gap:var(--atlas-space-3); align-items:flex-end;"
+          hx-post="/api/admin/customers"
+          hx-target="#customers-table-body"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Customer created', 'success'); htmx.trigger('#customers-table-body', 'load'); }">
+          <div class="atlas-field">
+            <label class="atlas-label">Tenant ID</label>
+            <input type="text" name="tenant_id" placeholder="UUID of tenant" required class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Name</label>
+            <input type="text" name="name" placeholder="Customer GmbH" required class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Slug</label>
+            <input type="text" name="slug" placeholder="customer-gmbh" required class="atlas-input">
+          </div>
+          <div style="grid-column:span 3; display:flex; justify-content:flex-end;">
+            <button type="submit" class="atlas-btn atlas-btn--primary">Create</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
   <!-- ===== Projects Tab ===== -->
-  <div id="tab-projects" class="admin-tab space-y-4 hidden">
-    <div class="card">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-heading text-base text-gray-900">Projects</h3>
+  <div id="tab-projects" class="admin-tab atlas-stack hidden">
+    <div class="atlas-card" style="overflow:hidden;">
+      <div class="atlas-card-header">
+        <h3 class="atlas-section-title" style="margin:0;">Projects</h3>
       </div>
-      <table class="w-full text-left">
-        <thead>
-          <tr class="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            <th class="px-4 pb-2">Customer</th>
-            <th class="px-4 pb-2">Name</th>
-            <th class="px-4 pb-2">Slug</th>
-            <th class="px-4 pb-2">Environment</th>
-            <th class="px-4 pb-2">Status</th>
-          </tr>
-        </thead>
-        <tbody id="projects-table-body"
-          hx-get="/ui/admin/projects-table"
-          hx-trigger="revealed"
-          hx-swap="innerHTML">
-          <tr><td colspan="5" class="px-4 py-3 text-sm text-gray-400">Loading...</td></tr>
-        </tbody>
-      </table>
+      <div class="atlas-table-wrapper" style="border:none; border-radius:0;">
+        <table class="atlas-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Environment</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="projects-table-body"
+            hx-get="/ui/admin/projects-table"
+            hx-trigger="revealed"
+            hx-swap="innerHTML">
+            <tr><td colspan="5" style="padding:var(--atlas-space-3) var(--atlas-space-4); font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Create Project -->
-    <div class="card">
-      <h3 class="font-heading text-base text-gray-900 mb-4">Create Project</h3>
-      <form class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end"
-        hx-post="/api/admin/projects"
-        hx-target="#projects-table-body"
-        hx-swap="innerHTML"
-        hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Project created', 'success'); htmx.trigger('#projects-table-body', 'load'); }">
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Customer ID</label>
-          <input type="text" name="customer_id" placeholder="UUID of customer" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Name</label>
-          <input type="text" name="name" placeholder="Q1 Migration" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Slug</label>
-          <input type="text" name="slug" placeholder="q1-migration" required
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Environment</label>
-          <select name="environment"
-            class="w-full bg-gray-50 border border-[#E5E5E5] rounded px-3 py-2 text-sm focus:outline-none focus:border-petrol">
-            <option value="sandbox">Sandbox</option>
-            <option value="test">Test</option>
-            <option value="production">Production</option>
-          </select>
-        </div>
-        <div class="sm:col-span-2 flex justify-end">
-          <button type="submit"
-            class="px-4 py-2 bg-petrol text-white text-sm font-medium rounded hover:bg-petrol-dark">
-            Create
-          </button>
-        </div>
-      </form>
+    <div class="atlas-card">
+      <div class="atlas-card-content atlas-stack">
+        <h3 class="atlas-section-title" style="margin-bottom:0;">Create Project</h3>
+        <form style="display:grid; grid-template-columns:repeat(2,1fr); gap:var(--atlas-space-3); align-items:flex-end;"
+          hx-post="/api/admin/projects"
+          hx-target="#projects-table-body"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful){ this.reset(); showToast('Project created', 'success'); htmx.trigger('#projects-table-body', 'load'); }">
+          <div class="atlas-field">
+            <label class="atlas-label">Customer ID</label>
+            <input type="text" name="customer_id" placeholder="UUID of customer" required class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Name</label>
+            <input type="text" name="name" placeholder="Q1 Migration" required class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Slug</label>
+            <input type="text" name="slug" placeholder="q1-migration" required class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Environment</label>
+            <select name="environment" class="atlas-select">
+              <option value="sandbox">Sandbox</option>
+              <option value="test">Test</option>
+              <option value="production">Production</option>
+            </select>
+          </div>
+          <div style="grid-column:span 2; display:flex; justify-content:flex-end;">
+            <button type="submit" class="atlas-btn atlas-btn--primary">Create</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -202,17 +192,13 @@
 <script>
 function showAdminTab(name) {
   document.querySelectorAll('.admin-tab').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
-    btn.classList.remove('border-petrol', 'text-petrol');
-    btn.classList.add('border-transparent', 'text-gray-400');
+  document.querySelectorAll('#admin-tab-list .atlas-tab').forEach(btn => {
+    btn.classList.remove('atlas-tab--active');
   });
   const tab = document.getElementById('tab-' + name);
   if (tab) tab.classList.remove('hidden');
   const btn = document.getElementById('tab-btn-' + name);
-  if (btn) {
-    btn.classList.add('border-petrol', 'text-petrol');
-    btn.classList.remove('border-transparent', 'text-gray-400');
-  }
+  if (btn) btn.classList.add('atlas-tab--active');
 }
 </script>
 {% endblock %}

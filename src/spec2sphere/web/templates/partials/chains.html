@@ -3,73 +3,78 @@
 {% block page_title %}Data Flow Chains{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex items-center justify-between">
-    <p class="text-sm text-gray-500">
+<div class="atlas-split" style="margin-bottom:var(--atlas-space-6);">
+    <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">
         {{ chains|length }} chain{{ 's' if chains|length != 1 else '' }} discovered from scan
     </p>
     <form method="post" action="/api/chains/build">
-        <button type="submit" class="btn btn-primary text-sm">
+        <button type="submit" class="atlas-btn atlas-btn--primary atlas-btn--sm">
             Rebuild Chains
         </button>
     </form>
 </div>
 
 {% if chains|length == 0 %}
-<div class="card text-center py-12">
-    <p class="text-gray-400 text-lg mb-2">No chains found</p>
-    <p class="text-sm text-gray-500">Run a scan first, then chains will be built automatically.</p>
+<div class="atlas-empty">
+    <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+    </svg>
+    <p class="atlas-empty-title">No chains found</p>
+    <p class="atlas-empty-body">Run a scan first, then chains will be built automatically.</p>
 </div>
 {% else %}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+<div class="atlas-grid-2">
     {% for chain in chains %}
-    <div class="card hover:shadow-md transition-shadow">
-        <div class="flex items-start justify-between mb-3">
-            <div>
-                <h3 class="text-lg font-semibold text-gray-900">
-                    <a href="/ui/chains/{{ chain.chain_id }}" class="hover:text-blue-600">
-                        {{ chain.name or chain.chain_id }}
-                    </a>
-                </h3>
-                <p class="text-xs text-gray-500 mt-1">{{ chain.chain_id }}</p>
+    <div class="atlas-card">
+        <div class="atlas-card-content">
+            <div class="atlas-split" style="margin-bottom:var(--atlas-space-3);">
+                <div style="min-width:0;">
+                    <h3 style="font-size:var(--atlas-text-lg); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg); margin:0 0 var(--atlas-space-1) 0;">
+                        <a href="/ui/chains/{{ chain.chain_id }}">
+                            {{ chain.name or chain.chain_id }}
+                        </a>
+                    </h3>
+                    <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">{{ chain.chain_id }}</p>
+                </div>
+                {% if chain.confidence > 0 %}
+                <span class="atlas-badge atlas-badge--{{ 'info' if chain.confidence >= 0.8 else 'success' if chain.confidence >= 0.5 else 'neutral' }}" style="flex-shrink:0;">
+                    {{ (chain.confidence * 100)|round(0)|int }}% confidence
+                </span>
+                {% endif %}
             </div>
-            {% if chain.confidence > 0 %}
-            <span class="badge {% if chain.confidence >= 0.8 %}badge-view{% elif chain.confidence >= 0.5 %}badge-adso{% else %}badge-other{% endif %}">
-                {{ (chain.confidence * 100)|round(0)|int }}% confidence
-            </span>
+
+            {% if chain.summary %}
+            <p style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted); margin-bottom:var(--atlas-space-3);">{{ chain.summary[:200] }}{% if chain.summary|length > 200 %}…{% endif %}</p>
+            {% endif %}
+
+            <div class="atlas-cluster" style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">
+                <span>{{ chain.step_count }} step{{ 's' if chain.step_count != 1 else '' }}</span>
+                <span>{{ chain.all_object_ids|length }} objects</span>
+                <span>Terminal: <code style="font-family:var(--atlas-font-mono); font-size:0.875em; background:var(--atlas-color-elevated); padding:1px 4px; border-radius:var(--atlas-radius-sm);">{{ chain.terminal_object_id }}</code></span>
+            </div>
+
+            {% if chain.steps %}
+            <div style="margin-top:var(--atlas-space-3); border-top:1px solid var(--atlas-color-border-subtle); padding-top:var(--atlas-space-3);">
+                <div class="atlas-cluster" style="font-size:var(--atlas-text-xs); overflow-x:auto;">
+                    {% for source_id in chain.source_object_ids %}
+                    <span style="padding:2px var(--atlas-space-2); background-color:var(--atlas-color-success-subtle); color:var(--atlas-color-success); border-radius:var(--atlas-radius-sm);">{{ source_id }}</span>
+                    {% endfor %}
+                    {% for step in chain.steps %}
+                    <span style="color:var(--atlas-color-fg-subtle);">&rarr;</span>
+                    <span style="padding:2px var(--atlas-space-2); background-color:var(--atlas-color-info-subtle); color:var(--atlas-color-info); border-radius:var(--atlas-radius-sm);" title="{{ step.step_summary or step.name }}">{{ step.name }}</span>
+                    {% endfor %}
+                    <span style="color:var(--atlas-color-fg-subtle);">&rarr;</span>
+                    <span style="padding:2px var(--atlas-space-2); background-color:var(--atlas-color-primary-subtle); color:var(--atlas-color-primary); border-radius:var(--atlas-radius-sm);">{{ chain.terminal_object_id }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if chain.shared_dependency_ids %}
+            <p style="margin-top:var(--atlas-space-2); font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-subtle);">
+                Shared: {{ chain.shared_dependency_ids|join(', ') }}
+            </p>
             {% endif %}
         </div>
-
-        {% if chain.summary %}
-        <p class="text-sm text-gray-600 mb-3">{{ chain.summary[:200] }}{% if chain.summary|length > 200 %}...{% endif %}</p>
-        {% endif %}
-
-        <div class="flex flex-wrap gap-3 text-xs text-gray-500">
-            <span>{{ chain.step_count }} step{{ 's' if chain.step_count != 1 else '' }}</span>
-            <span>{{ chain.all_object_ids|length }} objects</span>
-            <span>Terminal: <code class="text-xs">{{ chain.terminal_object_id }}</code></span>
-        </div>
-
-        {% if chain.steps %}
-        <div class="mt-3 border-t pt-3">
-            <div class="flex items-center gap-1 text-xs overflow-x-auto">
-                {% for source_id in chain.source_object_ids %}
-                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded">{{ source_id }}</span>
-                {% endfor %}
-                {% for step in chain.steps %}
-                <span class="text-gray-400">&rarr;</span>
-                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded" title="{{ step.step_summary or step.name }}">{{ step.name }}</span>
-                {% endfor %}
-                <span class="text-gray-400">&rarr;</span>
-                <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">{{ chain.terminal_object_id }}</span>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if chain.shared_dependency_ids %}
-        <div class="mt-2 text-xs text-gray-400">
-            Shared: {{ chain.shared_dependency_ids|join(', ') }}
-        </div>
-        {% endif %}
     </div>
     {% endfor %}
 </div>

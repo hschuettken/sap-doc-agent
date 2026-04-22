@@ -5,176 +5,167 @@
 {% block head %}{% endblock %}
 
 {% block content %}
-<div id="content-inner" class="p-6 space-y-6">
+<div id="content-inner" class="atlas-stack-lg">
 
   <!-- Tab bar -->
-  <div class="bg-white rounded-lg shadow-sm">
-    <div class="flex border-b border-gray-200 px-4">
-      <button onclick="switchTab('inventory')" id="tab-inventory"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-petrol text-petrol -mb-px">
-        Inventory
-      </button>
-      <button onclick="switchTab('dependencies')" id="tab-dependencies"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-charcoal -mb-px">
-        Dependencies
-      </button>
-      <button onclick="switchTab('audit-tab')" id="tab-audit-tab"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-charcoal -mb-px">
-        Audit
-      </button>
-      <button onclick="switchTab('waves')" id="tab-waves"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-charcoal -mb-px">
-        Waves
-      </button>
-    </div>
+  <div class="atlas-tab-list" id="landscape-tab-list">
+    <button onclick="switchTab('inventory')" id="tab-inventory" class="atlas-tab atlas-tab--active">Inventory</button>
+    <button onclick="switchTab('dependencies')" id="tab-dependencies" class="atlas-tab">Dependencies</button>
+    <button onclick="switchTab('audit-tab')" id="tab-audit-tab" class="atlas-tab">Audit</button>
+    <button onclick="switchTab('waves')" id="tab-waves" class="atlas-tab">Waves</button>
   </div>
 
   <!-- ── INVENTORY TAB ─────────────────────────────────────── -->
-  <div id="pane-inventory" class="space-y-4">
+  <div id="pane-inventory" class="atlas-stack">
 
     <!-- Filter bar -->
-    <div class="bg-white rounded-lg shadow-sm p-4">
-      <form hx-get="/ui/landscape"
-            hx-target="#landscape-table-body"
-            hx-select="#landscape-table-body"
-            hx-push-url="true"
-            class="flex flex-wrap gap-3 items-end">
-        <div class="flex-1 min-w-40">
-          <label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
-          <input type="text" name="q" value="{{ q }}"
-                 placeholder="Object name or technical name..."
-                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-petrol focus:border-petrol">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Platform</label>
-          <select name="platform" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="">All Platforms</option>
-            <option value="dsp"  {{ 'selected' if platform == 'dsp' }}>DSP</option>
-            <option value="sac"  {{ 'selected' if platform == 'sac' }}>SAC</option>
-            <option value="bw"   {{ 'selected' if platform == 'bw' }}>BW</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-          <select name="object_type" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="">All Types</option>
-            {% for t in object_types %}
-            <option value="{{ t }}" {{ 'selected' if object_type == t }}>{{ t }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Layer</label>
-          <select name="layer" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="">All Layers</option>
-            {% for l in layers %}
-            <option value="{{ l }}" {{ 'selected' if layer == l }}>{{ l }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1">Scan Status</label>
-          <select id="scan-status-filter" onchange="filterByScanStatus(this.value)"
-                  class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option value="">All</option>
-            <option value="scanned">Scanned</option>
-            <option value="unscanned">Unscanned</option>
-            <option value="stale">Stale (&gt;7d)</option>
-          </select>
-        </div>
-        <button type="submit"
-                class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
-          Filter
-        </button>
-        <button type="button"
-                hx-post="/api/landscape/scan"
-                hx-swap="none"
-                hx-on::after-request="showToast('Scan triggered', 'success')"
-                class="px-4 py-2 bg-accent text-white rounded-md text-sm font-medium hover:bg-accent/90">
-          Trigger Scan
-        </button>
-      </form>
+    <div class="atlas-card">
+      <div class="atlas-card-content">
+        <form hx-get="/ui/landscape"
+              hx-target="#landscape-table-body"
+              hx-select="#landscape-table-body"
+              hx-push-url="true"
+              class="atlas-cluster">
+          <div class="atlas-field" style="flex:1; min-width:160px;">
+            <label class="atlas-label">Search</label>
+            <input type="text" name="q" value="{{ q }}"
+                   placeholder="Object name or technical name..."
+                   class="atlas-input">
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Platform</label>
+            <select name="platform" class="atlas-select">
+              <option value="">All Platforms</option>
+              <option value="dsp"  {{ 'selected' if platform == 'dsp' }}>DSP</option>
+              <option value="sac"  {{ 'selected' if platform == 'sac' }}>SAC</option>
+              <option value="bw"   {{ 'selected' if platform == 'bw' }}>BW</option>
+            </select>
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Type</label>
+            <select name="object_type" class="atlas-select">
+              <option value="">All Types</option>
+              {% for t in object_types %}
+              <option value="{{ t }}" {{ 'selected' if object_type == t }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Layer</label>
+            <select name="layer" class="atlas-select">
+              <option value="">All Layers</option>
+              {% for l in layers %}
+              <option value="{{ l }}" {{ 'selected' if layer == l }}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="atlas-field">
+            <label class="atlas-label">Scan Status</label>
+            <select id="scan-status-filter" onchange="filterByScanStatus(this.value)" class="atlas-select">
+              <option value="">All</option>
+              <option value="scanned">Scanned</option>
+              <option value="unscanned">Unscanned</option>
+              <option value="stale">Stale (&gt;7d)</option>
+            </select>
+          </div>
+          <div class="atlas-cluster" style="align-self:flex-end;">
+            <button type="submit" class="atlas-btn atlas-btn--primary">Filter</button>
+            <button type="button"
+                    hx-post="/api/landscape/scan"
+                    hx-swap="none"
+                    hx-on::after-request="showToast('Scan triggered', 'success')"
+                    class="atlas-btn atlas-btn--secondary">
+              Trigger Scan
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Stats bar -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div class="bg-white rounded-lg shadow-sm p-3 flex items-center gap-3">
-        <div class="w-2 h-8 rounded-full bg-blue-400"></div>
-        <div>
-          <p class="text-xs text-gray-500">DSP</p>
-          <p class="text-lg font-semibold text-charcoal">{{ stats.by_platform.get('dsp', 0) if stats else 0 }}</p>
+    <div class="atlas-grid-4">
+      <div class="atlas-card">
+        <div class="atlas-kpi" style="display:flex; align-items:center; gap:var(--atlas-space-3); padding:var(--atlas-space-3);">
+          <div style="width:8px; height:32px; border-radius:var(--atlas-radius-full); background-color:var(--atlas-color-info); flex-shrink:0;"></div>
+          <div>
+            <p class="atlas-kpi-label">DSP</p>
+            <p style="font-size:var(--atlas-text-lg); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">{{ stats.by_platform.get('dsp', 0) if stats else 0 }}</p>
+          </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow-sm p-3 flex items-center gap-3">
-        <div class="w-2 h-8 rounded-full bg-accent"></div>
-        <div>
-          <p class="text-xs text-gray-500">SAC</p>
-          <p class="text-lg font-semibold text-charcoal">{{ stats.by_platform.get('sac', 0) if stats else 0 }}</p>
+      <div class="atlas-card">
+        <div class="atlas-kpi" style="display:flex; align-items:center; gap:var(--atlas-space-3); padding:var(--atlas-space-3);">
+          <div style="width:8px; height:32px; border-radius:var(--atlas-radius-full); background-color:var(--atlas-color-info); flex-shrink:0;"></div>
+          <div>
+            <p class="atlas-kpi-label">SAC</p>
+            <p style="font-size:var(--atlas-text-lg); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">{{ stats.by_platform.get('sac', 0) if stats else 0 }}</p>
+          </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow-sm p-3 flex items-center gap-3">
-        <div class="w-2 h-8 rounded-full bg-petrol"></div>
-        <div>
-          <p class="text-xs text-gray-500">BW</p>
-          <p class="text-lg font-semibold text-charcoal">{{ stats.by_platform.get('bw', 0) if stats else 0 }}</p>
+      <div class="atlas-card">
+        <div class="atlas-kpi" style="display:flex; align-items:center; gap:var(--atlas-space-3); padding:var(--atlas-space-3);">
+          <div style="width:8px; height:32px; border-radius:var(--atlas-radius-full); background-color:var(--atlas-color-primary); flex-shrink:0;"></div>
+          <div>
+            <p class="atlas-kpi-label">BW</p>
+            <p style="font-size:var(--atlas-text-lg); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">{{ stats.by_platform.get('bw', 0) if stats else 0 }}</p>
+          </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow-sm p-3">
-        <p class="text-xs text-gray-500">Total Objects</p>
-        <p class="text-lg font-semibold text-charcoal">{{ stats.total if stats else 0 }}</p>
+      <div class="atlas-card">
+        <div class="atlas-kpi" style="padding:var(--atlas-space-3);">
+          <p class="atlas-kpi-label">Total Objects</p>
+          <p style="font-size:var(--atlas-text-lg); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg);">{{ stats.total if stats else 0 }}</p>
+        </div>
       </div>
     </div>
 
     <!-- Object table + detail split -->
-    <div class="flex gap-4">
+    <div style="display:flex; gap:var(--atlas-space-4);">
 
       <!-- Table -->
-      <div class="flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 border-b border-gray-200">
+      <div class="atlas-table-wrapper" style="flex:1;">
+        <table class="atlas-table">
+          <thead>
             <tr>
-              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
-              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
-              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Platform</th>
-              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Layer</th>
-              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Scanned</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Platform</th>
+              <th>Layer</th>
+              <th>Last Scanned</th>
             </tr>
           </thead>
-          <tbody id="landscape-table-body" class="divide-y divide-gray-100">
+          <tbody id="landscape-table-body">
             {% if objects %}
             {% for obj in objects %}
-            <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
-                data-last-scanned="{{ obj.last_scanned or '' }}"
+            <tr data-last-scanned="{{ obj.last_scanned or '' }}"
+                style="cursor:pointer;"
                 hx-get="/ui/landscape/{{ obj.id }}"
                 hx-target="#object-detail-panel"
                 hx-swap="innerHTML"
                 onclick="showDetailPanel()">
-              <td class="px-4 py-2.5">
-                <div class="font-medium text-gray-900 truncate max-w-48">{{ obj.object_name }}</div>
+              <td>
+                <div style="font-weight:var(--atlas-font-weight-medium); color:var(--atlas-color-fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:12rem;">{{ obj.object_name }}</div>
                 {% if obj.technical_name and obj.technical_name != obj.object_name %}
-                <div class="text-xs text-gray-400 font-mono truncate max-w-48">{{ obj.technical_name }}</div>
+                <div style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted); font-family:var(--atlas-font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:12rem;">{{ obj.technical_name }}</div>
                 {% endif %}
               </td>
-              <td class="px-4 py-2.5">
-                <span class="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{{ obj.object_type }}</span>
+              <td>
+                <span class="atlas-badge atlas-badge--neutral">{{ obj.object_type }}</span>
               </td>
-              <td class="px-4 py-2.5">
-                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
-                  {%- if obj.platform == 'dsp' %} bg-blue-50 text-blue-700
-                  {%- elif obj.platform == 'sac' %} bg-accent/10 text-accent
-                  {%- else %} bg-petrol/10 text-petrol{% endif %}">
+              <td>
+                <span class="atlas-badge atlas-badge--{{ 'info' if obj.platform == 'dsp' else 'warning' if obj.platform == 'sac' else 'primary' }}">
                   {{ obj.platform | upper }}
                 </span>
               </td>
-              <td class="px-4 py-2.5 text-xs text-gray-500">{{ obj.layer or '—' }}</td>
-              <td class="px-4 py-2.5 text-xs text-gray-400">
+              <td style="color:var(--atlas-color-fg-muted);">{{ obj.layer or '—' }}</td>
+              <td style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">
                 {{ obj.last_scanned[:10] if obj.last_scanned else '—' }}
               </td>
             </tr>
             {% endfor %}
             {% else %}
             <tr>
-              <td colspan="5" class="px-4 py-8 text-center text-gray-400 text-sm">
+              <td colspan="5" style="text-align:center; padding:var(--atlas-space-8); color:var(--atlas-color-fg-subtle);">
                 No objects found — run a scan to populate the landscape
               </td>
             </tr>
@@ -183,20 +174,23 @@
         </table>
       </div>
 
-      <!-- Detail panel (hidden until row clicked) -->
-      <div id="object-detail-panel-wrapper"
-           class="w-80 flex-shrink-0 hidden">
-        <div class="bg-white rounded-lg shadow-sm p-4 sticky top-20">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="font-semibold text-sm text-gray-800">Object Detail</h3>
-            <button onclick="hideDetailPanel()" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
+      <!-- Detail panel -->
+      <div id="object-detail-panel-wrapper" class="hidden" style="width:320px; flex-shrink:0;">
+        <div class="atlas-card" style="position:sticky; top:76px;">
+          <div class="atlas-card-header">
+            <div class="atlas-split">
+              <h3 style="font-size:var(--atlas-text-sm); font-weight:var(--atlas-font-weight-semibold); margin:0;">Object Detail</h3>
+              <button onclick="hideDetailPanel()" class="atlas-btn atlas-btn--ghost atlas-btn--icon-only atlas-btn--sm" aria-label="Close">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div id="object-detail-panel" class="text-sm text-gray-600 space-y-2">
-            <p class="text-gray-400 italic">Select an object to view details</p>
+          <div class="atlas-card-content">
+            <div id="object-detail-panel" style="font-size:var(--atlas-text-sm); color:var(--atlas-color-fg-muted);">
+              <p style="font-style:italic;">Select an object to view details</p>
+            </div>
           </div>
         </div>
       </div>
@@ -205,114 +199,122 @@
   </div>
 
   <!-- ── DEPENDENCIES TAB ───────────────────────────────────── -->
-  <div id="pane-dependencies" class="hidden space-y-4">
-    <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-sm text-gray-800">Dependency Graph</h3>
-        <button onclick="loadGraph()"
-                class="px-3 py-1.5 bg-petrol text-white rounded text-xs font-medium hover:bg-petrol-light">
-          Load Graph
-        </button>
+  <div id="pane-dependencies" class="hidden atlas-stack">
+    <div class="atlas-card">
+      <div class="atlas-card-header">
+        <div class="atlas-split">
+          <div>
+            <h3 class="atlas-section-title" style="margin:0;">Dependency Graph</h3>
+          </div>
+          <button onclick="loadGraph()" class="atlas-btn atlas-btn--primary atlas-btn--sm">Load Graph</button>
+        </div>
       </div>
-      <div id="graph-loading" class="hidden text-center py-4">
-        <div class="inline-block w-6 h-6 border-2 border-petrol border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-gray-400 mt-2">Loading dependency graph...</p>
-      </div>
-      <div id="graph-container"
-           style="height: 520px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa;"
-           class="w-full">
-        <div class="flex items-center justify-center h-full text-gray-400 text-sm">
-          Click "Load Graph" to visualise object dependencies
+      <div class="atlas-card-content atlas-stack">
+        <div id="graph-loading" class="hidden atlas-empty">
+          <div style="width:24px; height:24px; border:2px solid var(--atlas-color-primary); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Loading dependency graph…</p>
+        </div>
+        <div id="graph-container"
+             style="height:520px; border:1px solid var(--atlas-color-border); border-radius:var(--atlas-radius-md); background-color:var(--atlas-color-elevated);">
+          <div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--atlas-color-fg-muted); font-size:var(--atlas-text-sm);">
+            Click "Load Graph" to visualise object dependencies
+          </div>
         </div>
       </div>
     </div>
-    <div id="graph-legend" class="hidden bg-white rounded-lg shadow-sm p-4">
-      <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Legend</h4>
-      <div class="flex flex-wrap gap-4 text-xs text-gray-600">
-        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-400 inline-block"></span>DSP</span>
-        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span>SAC</span>
-        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-petrol inline-block"></span>BW</span>
-        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-gray-300 inline-block"></span>Unknown</span>
+    <div id="graph-legend" class="hidden atlas-card">
+      <div class="atlas-card-content">
+        <p style="font-size:var(--atlas-text-xs); font-weight:var(--atlas-font-weight-semibold); color:var(--atlas-color-fg-muted); text-transform:uppercase; letter-spacing:var(--atlas-tracking-wider); margin-bottom:var(--atlas-space-2);">Legend</p>
+        <div class="atlas-cluster" style="font-size:var(--atlas-text-xs);">
+          <span class="atlas-cluster" style="gap:var(--atlas-space-1);"><span style="width:12px; height:12px; border-radius:50%; background-color:var(--atlas-color-info); display:inline-block;"></span>DSP</span>
+          <span class="atlas-cluster" style="gap:var(--atlas-space-1);"><span style="width:12px; height:12px; border-radius:50%; background-color:var(--atlas-color-warning); display:inline-block;"></span>SAC</span>
+          <span class="atlas-cluster" style="gap:var(--atlas-space-1);"><span style="width:12px; height:12px; border-radius:50%; background-color:var(--atlas-color-primary); display:inline-block;"></span>BW</span>
+          <span class="atlas-cluster" style="gap:var(--atlas-space-1);"><span style="width:12px; height:12px; border-radius:50%; background-color:var(--atlas-color-border); display:inline-block;"></span>Unknown</span>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- ── AUDIT TAB ──────────────────────────────────────────── -->
-  <div id="pane-audit-tab" class="hidden space-y-4">
-    <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="font-semibold text-sm text-gray-800">Documentation Audit</h3>
-          <p class="text-xs text-gray-500 mt-0.5">4-dimension scoring: fields, naming, description quality, cross-references</p>
+  <div id="pane-audit-tab" class="hidden atlas-stack">
+    <div class="atlas-card">
+      <div class="atlas-card-header">
+        <div class="atlas-split">
+          <div>
+            <h3 class="atlas-section-title" style="margin-bottom:var(--atlas-space-1);">Documentation Audit</h3>
+            <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">4-dimension scoring: fields, naming, description quality, cross-references</p>
+          </div>
+          <button onclick="runLandscapeAudit()" class="atlas-btn atlas-btn--primary atlas-btn--sm">Run Audit</button>
         </div>
-        <button onclick="runLandscapeAudit()"
-                class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
-          Run Audit
-        </button>
       </div>
-      <div id="audit-loading" class="hidden text-center py-6">
-        <div class="inline-block w-6 h-6 border-2 border-petrol border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-gray-400 mt-2">Running audit...</p>
-      </div>
-      <div id="audit-results-panel" class="hidden">
-        <div id="audit-summary" class="mb-4"></div>
-        <div id="audit-details"></div>
-      </div>
-      <div id="audit-empty" class="text-center py-6 text-gray-400">
-        <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-        </svg>
-        <p class="text-sm">Click "Run Audit" to check documentation coverage</p>
+      <div class="atlas-card-content atlas-stack">
+        <div id="audit-loading" class="hidden atlas-empty">
+          <div style="width:24px; height:24px; border:2px solid var(--atlas-color-primary); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Running audit…</p>
+        </div>
+        <div id="audit-results-panel" class="hidden atlas-stack">
+          <div id="audit-summary"></div>
+          <div id="audit-details"></div>
+        </div>
+        <div id="audit-empty" class="atlas-empty">
+          <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <p class="atlas-empty-title">Click "Run Audit" to check documentation coverage</p>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- ── WAVES TAB ─────────────────────────────────────────── -->
-  <div id="pane-waves" class="hidden space-y-4">
-    <div class="bg-white rounded-lg shadow-sm p-4">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="font-semibold text-sm text-gray-800">Migration Wave Grouping</h3>
-          <p class="text-xs text-gray-500 mt-0.5">Objects grouped by dependency order — Wave 1 has no upstream dependencies</p>
+  <div id="pane-waves" class="hidden atlas-stack">
+    <div class="atlas-card">
+      <div class="atlas-card-header">
+        <div class="atlas-split">
+          <div>
+            <h3 class="atlas-section-title" style="margin-bottom:var(--atlas-space-1);">Migration Wave Grouping</h3>
+            <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Objects grouped by dependency order — Wave 1 has no upstream dependencies</p>
+          </div>
+          <button onclick="loadWaves()" class="atlas-btn atlas-btn--primary atlas-btn--sm">Compute Waves</button>
         </div>
-        <button onclick="loadWaves()"
-                class="px-4 py-2 bg-petrol text-white rounded-md text-sm font-medium hover:bg-petrol-light">
-          Compute Waves
-        </button>
       </div>
-      <div id="waves-loading" class="hidden text-center py-6">
-        <div class="inline-block w-6 h-6 border-2 border-petrol border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs text-gray-400 mt-2">Computing migration waves...</p>
-      </div>
-      <div id="waves-empty" class="text-center py-6 text-gray-400">
-        <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
-        </svg>
-        <p class="text-sm">Click "Compute Waves" to group objects by dependency order</p>
-      </div>
-      <div id="waves-results" class="hidden space-y-4">
-        <div id="waves-stats" class="flex flex-wrap gap-3 mb-2"></div>
-        <div id="waves-content"></div>
+      <div class="atlas-card-content atlas-stack">
+        <div id="waves-loading" class="hidden atlas-empty">
+          <div style="width:24px; height:24px; border:2px solid var(--atlas-color-primary); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          <p style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">Computing migration waves…</p>
+        </div>
+        <div id="waves-empty" class="atlas-empty">
+          <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+          </svg>
+          <p class="atlas-empty-title">Click "Compute Waves" to group objects by dependency order</p>
+        </div>
+        <div id="waves-results" class="hidden atlas-stack">
+          <div id="waves-stats" class="atlas-cluster"></div>
+          <div id="waves-content"></div>
+        </div>
       </div>
     </div>
   </div>
 
 </div>
 
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
 <script>
 // ── Tab switching ─────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('[id^="pane-"]').forEach(p => p.classList.add('hidden'));
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    b.classList.remove('border-petrol', 'text-petrol');
-    b.classList.add('border-transparent', 'text-gray-500');
+  document.querySelectorAll('#landscape-tab-list .atlas-tab').forEach(b => {
+    b.classList.remove('atlas-tab--active');
   });
   document.getElementById('pane-' + name).classList.remove('hidden');
   const btn = document.getElementById('tab-' + name);
-  btn.classList.remove('border-transparent', 'text-gray-500');
-  btn.classList.add('border-petrol', 'text-petrol');
+  if (btn) btn.classList.add('atlas-tab--active');
 }
 
 // ── Detail panel ──────────────────────────────────────────────
@@ -336,15 +338,9 @@ async function _doLoadGraph() {
 
     const container = document.getElementById('graph-container');
     const options = {
-      nodes: {
-        shape: 'dot',
-        size: 14,
-        font: { size: 11, color: '#353434' },
-        borderWidth: 2,
-      },
+      nodes: { shape: 'dot', size: 14, font: { size: 11 }, borderWidth: 2 },
       edges: {
         arrows: { to: { enabled: true, scaleFactor: 0.6 } },
-        color: { color: '#9ca3af', opacity: 0.7 },
         smooth: { type: 'curvedCW', roundness: 0.15 },
         width: 1.2,
       },
@@ -365,7 +361,7 @@ async function _doLoadGraph() {
     document.getElementById('graph-legend').classList.remove('hidden');
   } catch (err) {
     document.getElementById('graph-container').innerHTML =
-      '<div class="flex items-center justify-center h-full text-red-400 text-sm">Failed to load graph: ' + err.message + '</div>';
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--atlas-color-destructive);font-size:var(--atlas-text-sm);">Failed to load graph: ' + err.message + '</div>';
   } finally {
     document.getElementById('graph-loading').classList.add('hidden');
   }
@@ -412,37 +408,38 @@ async function runLandscapeAudit() {
     document.getElementById('audit-loading').classList.add('hidden');
     document.getElementById('audit-results-panel').classList.remove('hidden');
 
-    const total  = data.total_objects || 0;
-    const avg    = data.average_score || 0;
-    const sum    = data.summary || {};
-    const color  = avg >= 80 ? 'text-green-600' : avg >= 50 ? 'text-amber-500' : 'text-red-500';
-    const barCls = avg >= 80 ? 'bg-green-500' : avg >= 50 ? 'bg-amber-400' : 'bg-red-400';
+    const total = data.total_objects || 0;
+    const avg   = data.average_score || 0;
+    const sum   = data.summary || {};
+
+    const scoreColor = avg >= 80 ? 'var(--atlas-color-success)' : avg >= 50 ? 'var(--atlas-color-warning)' : 'var(--atlas-color-destructive)';
+    const barBg      = avg >= 80 ? 'var(--atlas-color-success)' : avg >= 50 ? 'var(--atlas-color-warning)' : 'var(--atlas-color-destructive)';
 
     const buckets = [
-      { label: 'Excellent ≥85', count: sum.excellent || 0, cls: 'bg-green-100 text-green-700' },
-      { label: 'Good ≥65',      count: sum.good      || 0, cls: 'bg-blue-100 text-blue-700' },
-      { label: 'Needs Work ≥40',count: sum.needs_work || 0, cls: 'bg-amber-100 text-amber-700' },
-      { label: 'Poor <40',      count: sum.poor      || 0, cls: 'bg-red-100 text-red-700' },
+      { label: 'Excellent ≥85', count: sum.excellent || 0, cls: 'atlas-badge--success' },
+      { label: 'Good ≥65',      count: sum.good      || 0, cls: 'atlas-badge--info' },
+      { label: 'Needs Work ≥40',count: sum.needs_work || 0, cls: 'atlas-badge--warning' },
+      { label: 'Poor <40',      count: sum.poor      || 0, cls: 'atlas-badge--destructive' },
     ];
     const bucketHtml = buckets.map(b =>
-      `<span class="inline-block px-2 py-1 rounded text-xs font-medium ${b.cls}">${b.label}: ${b.count}</span>`
+      `<span class="atlas-badge ${b.cls}">${b.label}: ${b.count}</span>`
     ).join('');
 
     const recHtml = (data.recommendations || []).length > 0
-      ? `<div class="mt-3"><p class="text-xs font-semibold text-gray-500 uppercase mb-1">Top Recommendations</p><ul class="list-disc list-inside space-y-0.5">${
-          (data.recommendations || []).map(r => `<li class="text-xs text-gray-600">${r}</li>`).join('')
+      ? `<div><p style="font-size:var(--atlas-text-xs);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg-muted);text-transform:uppercase;letter-spacing:var(--atlas-tracking-wider);margin-bottom:var(--atlas-space-1);">Top Recommendations</p><ul style="list-style:disc;padding-left:1.25rem;">${
+          (data.recommendations || []).map(r => `<li style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg-muted);">${r}</li>`).join('')
         }</ul></div>`
       : '';
 
     document.getElementById('audit-summary').innerHTML = `
-      <div class="flex items-end gap-3 mb-3">
-        <span class="text-3xl font-bold ${color}">${avg}</span>
-        <span class="text-sm text-gray-500 pb-1">avg score across ${total} objects</span>
+      <div style="display:flex;align-items:flex-end;gap:var(--atlas-space-3);margin-bottom:var(--atlas-space-3);">
+        <span style="font-size:var(--atlas-text-3xl);font-weight:var(--atlas-font-weight-bold);color:${scoreColor};">${avg}</span>
+        <span style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-muted);padding-bottom:4px;">avg score across ${total} objects</span>
       </div>
-      <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
-        <div class="h-2 rounded-full ${barCls}" style="width: ${Math.min(avg, 100)}%"></div>
+      <div style="width:100%;background-color:var(--atlas-color-border);border-radius:var(--atlas-radius-full);height:6px;margin-bottom:var(--atlas-space-3);">
+        <div style="height:6px;border-radius:var(--atlas-radius-full);background-color:${barBg};width:${Math.min(avg, 100)}%;"></div>
       </div>
-      <div class="flex flex-wrap gap-2 mb-2">${bucketHtml}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--atlas-space-2);margin-bottom:var(--atlas-space-2);">${bucketHtml}</div>
       ${recHtml}
     `;
 
@@ -450,38 +447,30 @@ async function runLandscapeAudit() {
     if (scorecards.length > 0) {
       let rows = '';
       scorecards.forEach(sc => {
-        const scoreColor = sc.total_score >= 80 ? 'text-green-600' : sc.total_score >= 50 ? 'text-amber-500' : 'text-red-500';
-        const platCls = sc.platform === 'dsp' ? 'text-blue-600' : sc.platform === 'sac' ? 'text-amber-600' : 'text-petrol';
-        rows += `<tr class="border-b border-gray-100 last:border-0">
-          <td class="py-2 pr-3 text-sm text-gray-800">${sc.object_name}</td>
-          <td class="py-2 pr-3 text-xs font-medium ${platCls}">${(sc.platform || '').toUpperCase()}</td>
-          <td class="py-2 pr-3 text-xs font-bold ${scoreColor}">${sc.total_score}</td>
-          <td class="py-2 pr-3 text-xs text-gray-500">${sc.documented_fields}</td>
-          <td class="py-2 pr-3 text-xs text-gray-500">${sc.naming_compliance}</td>
-          <td class="py-2 pr-3 text-xs text-gray-500">${sc.description_quality}</td>
-          <td class="py-2 text-xs text-gray-500">${sc.cross_references}</td>
+        const sc_color = sc.total_score >= 80 ? 'var(--atlas-color-success)' : sc.total_score >= 50 ? 'var(--atlas-color-warning)' : 'var(--atlas-color-destructive)';
+        const platBadge = sc.platform === 'dsp' ? 'atlas-badge--info' : sc.platform === 'sac' ? 'atlas-badge--warning' : 'atlas-badge--primary';
+        rows += `<tr>
+          <td style="font-size:var(--atlas-text-sm);">${sc.object_name}</td>
+          <td><span class="atlas-badge ${platBadge}">${(sc.platform || '').toUpperCase()}</span></td>
+          <td style="font-weight:var(--atlas-font-weight-bold);color:${sc_color};">${sc.total_score}</td>
+          <td style="color:var(--atlas-color-fg-muted);">${sc.documented_fields}</td>
+          <td style="color:var(--atlas-color-fg-muted);">${sc.naming_compliance}</td>
+          <td style="color:var(--atlas-color-fg-muted);">${sc.description_quality}</td>
+          <td style="color:var(--atlas-color-fg-muted);">${sc.cross_references}</td>
         </tr>`;
       });
       document.getElementById('audit-details').innerHTML = `
-        <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2 mt-4">Scorecards (top 50)</h4>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left">
-            <thead><tr class="text-xs text-gray-400 border-b border-gray-200">
-              <th class="pb-1 font-medium pr-3">Name</th>
-              <th class="pb-1 font-medium pr-3">Platform</th>
-              <th class="pb-1 font-medium pr-3">Score</th>
-              <th class="pb-1 font-medium pr-3">Fields</th>
-              <th class="pb-1 font-medium pr-3">Naming</th>
-              <th class="pb-1 font-medium pr-3">Desc</th>
-              <th class="pb-1 font-medium">XRefs</th>
-            </tr></thead>
+        <p style="font-size:var(--atlas-text-xs);font-weight:var(--atlas-font-weight-semibold);color:var(--atlas-color-fg-muted);text-transform:uppercase;letter-spacing:var(--atlas-tracking-wider);margin-bottom:var(--atlas-space-2);">Scorecards (top 50)</p>
+        <div class="atlas-table-wrapper">
+          <table class="atlas-table">
+            <thead><tr><th>Name</th><th>Platform</th><th>Score</th><th>Fields</th><th>Naming</th><th>Desc</th><th>XRefs</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
       `;
     } else {
       document.getElementById('audit-details').innerHTML =
-        '<p class="text-sm text-green-600 mt-4">No objects to score — run a scan first.</p>';
+        '<p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-success);">No objects to score — run a scan first.</p>';
     }
   } catch (err) {
     document.getElementById('audit-loading').classList.add('hidden');
@@ -500,7 +489,6 @@ async function loadWaves() {
     const resp = await fetch('/api/landscape/graph');
     const graph = await resp.json();
 
-    // Compute waves: BFS from leaves (nodes with no incoming edges first)
     const inDegree = {};
     graph.nodes.forEach(n => { inDegree[n.id] = 0; });
     graph.edges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; });
@@ -516,12 +504,9 @@ async function loadWaves() {
       const waveNodes = [];
       remaining.forEach(id => {
         const deps = graph.edges.filter(e => e.to === id).map(e => e.from);
-        if (deps.every(d => !remaining.has(d))) {
-          waveNodes.push(id);
-        }
+        if (deps.every(d => !remaining.has(d))) waveNodes.push(id);
       });
       if (waveNodes.length === 0) {
-        // Circular deps — dump remaining into current wave
         remaining.forEach(id => { waves[id] = currentWave; });
         break;
       }
@@ -530,64 +515,49 @@ async function loadWaves() {
     }
 
     const totalWaves = Math.max(...Object.values(waves), 0);
-    const waveColors = ['bg-green-100 text-green-800 border-green-200',
-                        'bg-blue-100 text-blue-800 border-blue-200',
-                        'bg-amber-100 text-amber-800 border-amber-200'];
 
-    // Stats bar
     document.getElementById('waves-stats').innerHTML = `
-      <div class="px-3 py-1.5 rounded bg-gray-100 text-xs text-gray-600 font-medium">
-        ${graph.nodes.length} objects across <strong>${totalWaves}</strong> wave${totalWaves !== 1 ? 's' : ''}
-      </div>
+      <span class="atlas-badge atlas-badge--neutral">${graph.nodes.length} objects across <strong>${totalWaves}</strong> wave${totalWaves !== 1 ? 's' : ''}</span>
     `;
 
-    // Group nodes by wave
     const byWave = {};
     Object.entries(waves).forEach(([id, w]) => {
       if (!byWave[w]) byWave[w] = [];
       byWave[w].push(id);
     });
 
+    const waveIntent = (w) => w === 1 ? 'success' : w === 2 ? 'info' : w === 3 ? 'warning' : 'destructive';
+
     let html = '';
     Object.keys(byWave).sort((a, b) => Number(a) - Number(b)).forEach(w => {
-      const wNum = Number(w);
-      const colorCls = wNum === 1 ? 'border-green-300 bg-green-50'
-                      : wNum === 2 ? 'border-blue-300 bg-blue-50'
-                      : wNum === 3 ? 'border-amber-300 bg-amber-50'
-                      : 'border-red-300 bg-red-50';
-      const headerCls = wNum === 1 ? 'text-green-700' : wNum === 2 ? 'text-blue-700'
-                        : wNum === 3 ? 'text-amber-700' : 'text-red-700';
-      const badgeCls = wNum === 1 ? 'bg-green-200 text-green-800'
-                      : wNum === 2 ? 'bg-blue-200 text-blue-800'
-                      : wNum === 3 ? 'bg-amber-200 text-amber-800'
-                      : 'bg-red-200 text-red-800';
+      const intent = waveIntent(Number(w));
       const ids = byWave[w];
       const items = ids.map(id => {
         const n = nodeMap[id] || { label: id, title: '' };
         const parts = (n.title || '').split('|');
         const type = (parts[0] || '').trim();
         const platform = (parts[1] || '').trim();
-        const platCls = platform === 'DSP' ? 'bg-blue-50 text-blue-700'
-                       : platform === 'SAC' ? 'bg-amber-50 text-amber-700'
-                       : 'bg-gray-100 text-gray-600';
-        return `<div class="flex items-center gap-2 py-1">
-          <span class="text-xs text-gray-800 flex-1 truncate">${n.label || id}</span>
-          ${type ? `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">${type}</span>` : ''}
-          ${platform ? `<span class="text-xs px-1.5 py-0.5 rounded ${platCls}">${platform}</span>` : ''}
+        const platIntent = platform === 'DSP' ? 'info' : platform === 'SAC' ? 'warning' : 'neutral';
+        return `<div style="display:flex;align-items:center;gap:var(--atlas-space-2);padding:var(--atlas-space-1) 0;">
+          <span style="font-size:var(--atlas-text-xs);color:var(--atlas-color-fg);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.label || id}</span>
+          ${type ? `<span class="atlas-badge atlas-badge--neutral" style="font-size:10px;">${type}</span>` : ''}
+          ${platform ? `<span class="atlas-badge atlas-badge--${platIntent}" style="font-size:10px;">${platform}</span>` : ''}
         </div>`;
       }).join('');
 
-      html += `<div class="rounded-lg border ${colorCls} overflow-hidden mb-3">
-        <div class="px-4 py-2 flex items-center gap-3 border-b ${colorCls}">
-          <span class="font-semibold text-sm ${headerCls}">Wave ${w}</span>
-          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${badgeCls}">${ids.length} object${ids.length !== 1 ? 's' : ''}</span>
+      html += `<div class="atlas-card" style="border-left:4px solid var(--atlas-color-${intent});margin-bottom:var(--atlas-space-3);">
+        <div class="atlas-card-header" style="padding:var(--atlas-space-2) var(--atlas-space-4);">
+          <div style="display:flex;align-items:center;gap:var(--atlas-space-2);">
+            <span style="font-weight:var(--atlas-font-weight-semibold);font-size:var(--atlas-text-sm);color:var(--atlas-color-fg);">Wave ${w}</span>
+            <span class="atlas-badge atlas-badge--${intent}">${ids.length} object${ids.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
-        <div class="px-4 py-2 divide-y divide-gray-100">${items}</div>
+        <div class="atlas-card-content atlas-list-divided" style="padding:var(--atlas-space-2) var(--atlas-space-4);">${items}</div>
       </div>`;
     });
 
     if (!html) {
-      html = '<p class="text-sm text-gray-400">No dependency data — run a scan to populate the landscape.</p>';
+      html = '<p style="font-size:var(--atlas-text-sm);color:var(--atlas-color-fg-subtle);">No dependency data — run a scan to populate the landscape.</p>';
     }
 
     document.getElementById('waves-content').innerHTML = html;

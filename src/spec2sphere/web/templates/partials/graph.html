@@ -4,33 +4,56 @@
 
 {% block content %}
 <style>
-#graph-container { height: calc(100vh - 180px); background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-#node-panel { position: absolute; right: 1.5rem; top: 8rem; width: 300px; z-index: 20; display: none; }
+#graph-container {
+    height: calc(100vh - 180px);
+    background: var(--atlas-color-elevated);
+    border-radius: var(--atlas-radius-lg);
+    border: 1px solid var(--atlas-color-border);
+}
+#node-panel {
+    position: absolute;
+    right: var(--atlas-space-6);
+    top: 5rem;
+    width: 300px;
+    z-index: var(--atlas-z-dropdown);
+    display: none;
+}
 </style>
+
 <!-- Filters -->
-<div class="card mb-4 flex flex-wrap items-center gap-3">
-    <input type="text" id="graph-search" placeholder="Search nodes..."
-           class="flex-1 min-w-[200px] px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-petrol">
-    <select id="graph-type-filter" class="px-3 py-2 border border-gray-200 rounded text-sm">
-        <option value="">All Types</option>
-    </select>
-    <select id="graph-layer-filter" class="px-3 py-2 border border-gray-200 rounded text-sm">
-        <option value="">All Layers</option>
-    </select>
-    <button onclick="resetGraph()" class="px-3 py-2 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">Reset</button>
+<div class="atlas-card" style="margin-bottom:var(--atlas-space-4);">
+    <div class="atlas-card-content">
+        <div class="atlas-cluster">
+            <input type="text" id="graph-search" placeholder="Search nodes…"
+                   class="atlas-input" style="flex:1; min-width:200px;">
+            <select id="graph-type-filter" class="atlas-select">
+                <option value="">All Types</option>
+            </select>
+            <select id="graph-layer-filter" class="atlas-select">
+                <option value="">All Layers</option>
+            </select>
+            <button onclick="resetGraph()" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Reset</button>
+        </div>
+    </div>
 </div>
 
 <div id="graph-container"></div>
 
 <!-- Node info panel -->
-<div id="node-panel" class="card">
-    <div class="flex justify-between items-start mb-2">
-        <h3 id="panel-name" class="font-heading text-sm text-gray-900"></h3>
-        <button onclick="document.getElementById('node-panel').style.display='none'" class="text-gray-400 hover:text-charcoal">&times;</button>
+<div id="node-panel" class="atlas-card">
+    <div class="atlas-card-header">
+        <div class="atlas-split">
+            <h3 id="panel-name" class="atlas-section-title" style="margin:0;"></h3>
+            <button onclick="document.getElementById('node-panel').style.display='none'"
+                    class="atlas-btn atlas-btn--ghost atlas-btn--icon-only atlas-btn--sm"
+                    aria-label="Close">&times;</button>
+        </div>
     </div>
-    <p id="panel-id" class="text-xs text-gray-400 font-mono mb-2"></p>
-    <div id="panel-details" class="text-sm space-y-1"></div>
-    <a id="panel-link" href="#" class="mt-3 inline-block text-sm text-petrol hover:underline">View Detail &rarr;</a>
+    <div class="atlas-card-content atlas-stack-sm">
+        <p id="panel-id" style="font-family:var(--atlas-font-mono); font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);"></p>
+        <div id="panel-details" style="font-size:var(--atlas-text-sm);"></div>
+        <a id="panel-link" href="#" style="font-size:var(--atlas-text-sm);">View Detail &rarr;</a>
+    </div>
 </div>
 
 <script>

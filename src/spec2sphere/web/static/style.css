@@ -7,6 +7,43 @@
 /* ── Legacy aliases (used in 50+ partials — keep until templates are fully
    migrated to atlas-* class names) ───────────────────────────────────────── */
 
+/* Button aliases */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--atlas-space-2);
+  font-family: var(--atlas-font-sans);
+  font-weight: var(--atlas-font-weight-medium);
+  font-size: var(--atlas-text-sm);
+  border-radius: var(--atlas-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: var(--atlas-transition-fast);
+  padding: var(--atlas-space-2) var(--atlas-space-4);
+  background-color: var(--atlas-color-elevated);
+  color: var(--atlas-color-fg);
+  border-color: var(--atlas-color-border);
+}
+.btn:hover { background-color: var(--atlas-color-border); }
+.btn-primary, .btn.primary {
+  background-color: var(--atlas-color-primary);
+  color: var(--atlas-color-primary-fg);
+  border-color: var(--atlas-color-primary);
+}
+.btn-primary:hover, .btn.primary:hover {
+  background-color: var(--atlas-color-primary-hover);
+  border-color: var(--atlas-color-primary-hover);
+}
+.btn.ghost {
+  background-color: transparent;
+  color: var(--atlas-color-fg);
+  border-color: transparent;
+}
+.btn.ghost:hover { background-color: var(--atlas-color-elevated); }
+
 .card {
   background-color: var(--atlas-color-surface);
   border: 1px solid var(--atlas-color-border);
@@ -152,6 +189,19 @@ input::placeholder, textarea::placeholder { color: var(--atlas-color-fg-subtle);
 .hover\:bg-gray-50:hover  { background-color: var(--atlas-color-elevated); }
 .hover\:bg-gray-100:hover { background-color: var(--atlas-color-elevated); }
 
+.text-gray-900 { color: var(--atlas-color-fg); }
+
+.bg-purple-100    { background-color: var(--atlas-color-primary-subtle); }
+.text-purple-700  { color: var(--atlas-color-primary); }
+
+.hover\:shadow-md:hover   { box-shadow: var(--atlas-shadow-2); }
+.transition-shadow { transition: box-shadow var(--atlas-duration-fast) var(--atlas-ease-standard); }
+
+.border-gray-300  { border-color: var(--atlas-color-border); }
+.focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--atlas-color-primary-subtle); }
+.focus\:ring-petrol:focus { box-shadow: 0 0 0 2px var(--atlas-color-primary-subtle); }
+.-mb-px           { margin-bottom: -1px; }
+
 /* ── Semantic color aliases (green/amber/red/blue/teal) ──────────────────── */
 
 .bg-green-50, .bg-green-100 { background-color: var(--atlas-color-success-subtle); }
@@ -211,9 +261,16 @@ input::placeholder, textarea::placeholder { color: var(--atlas-color-fg-subtle);
   .md\:grid-cols-4  { grid-template-columns: repeat(4, 1fr); }
   .md\:col-span-2   { grid-column: span 2; }
 }
+@media (min-width: 768px) {
+  .sm\:flex-row  { flex-direction: row; }
+  .sm\:col-span-2 { grid-column: span 2; }
+  .sm\:col-span-3 { grid-column: span 3; }
+}
 @media (min-width: 1024px) {
   .lg\:grid-cols-2  { grid-template-columns: repeat(2, 1fr); }
   .lg\:grid-cols-4  { grid-template-columns: repeat(4, 1fr); }
+  .lg\:col-span-2   { grid-column: span 2; }
+  .min-w-40         { min-width: 160px; }
 }
 
 /* ── Gap utilities ───────────────────────────────────────────────────────── */

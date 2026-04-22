@@ -247,6 +247,157 @@ def test_style_css_global_form_reset(client):
     assert "input[type" in css
 
 
+# ── Settings template ────────────────────────────────────────────────────────
+
+
+def test_settings_uses_atlas_tab_list(client):
+    resp = client.get("/ui/settings")
+    assert resp.status_code == 200
+    assert "atlas-tab-list" in resp.text
+
+
+def test_settings_uses_atlas_input(client):
+    resp = client.get("/ui/settings")
+    assert "atlas-input" in resp.text
+
+
+def test_settings_uses_atlas_btn(client):
+    resp = client.get("/ui/settings")
+    assert "atlas-btn--primary" in resp.text
+
+
+def test_settings_uses_atlas_dot(client):
+    resp = client.get("/ui/settings")
+    assert "atlas-dot" in resp.text
+
+
+# ── Chains template ───────────────────────────────────────────────────────────
+
+
+def test_chains_uses_atlas_btn(client):
+    resp = client.get("/ui/chains")
+    assert resp.status_code == 200
+    assert "atlas-btn--primary" in resp.text
+
+
+def test_chains_uses_atlas_empty_state(client):
+    resp = client.get("/ui/chains")
+    assert "atlas-empty" in resp.text
+
+
+def test_chains_uses_atlas_split(client):
+    resp = client.get("/ui/chains")
+    assert "atlas-split" in resp.text
+
+
+# ── Landscape template ────────────────────────────────────────────────────────
+
+
+def test_landscape_uses_atlas_tab_list(client):
+    resp = client.get("/ui/landscape")
+    assert resp.status_code == 200
+    assert "atlas-tab-list" in resp.text
+
+
+def test_landscape_uses_atlas_table(client):
+    resp = client.get("/ui/landscape")
+    assert "atlas-table" in resp.text
+
+
+def test_landscape_uses_atlas_select(client):
+    resp = client.get("/ui/landscape")
+    assert "atlas-select" in resp.text
+
+
+# ── Admin template ────────────────────────────────────────────────────────────
+
+
+def test_admin_uses_atlas_tab_list(client):
+    resp = client.get("/ui/admin")
+    assert resp.status_code == 200
+    assert "atlas-tab-list" in resp.text
+
+
+def test_admin_uses_atlas_table(client):
+    resp = client.get("/ui/admin")
+    assert "atlas-table" in resp.text
+
+
+def test_admin_uses_atlas_input(client):
+    resp = client.get("/ui/admin")
+    assert "atlas-input" in resp.text
+
+
+# ── Audit log template ────────────────────────────────────────────────────────
+
+
+def test_audit_log_uses_atlas_card(client):
+    resp = client.get("/ui/audit-log")
+    assert resp.status_code == 200
+    assert "atlas-card" in resp.text
+
+
+def test_audit_log_uses_atlas_input(client):
+    resp = client.get("/ui/audit-log")
+    assert "atlas-input" in resp.text
+
+
+def test_audit_log_uses_atlas_btn(client):
+    resp = client.get("/ui/audit-log")
+    assert "atlas-btn--primary" in resp.text
+
+
+# ── Object detail template ────────────────────────────────────────────────────
+
+
+def test_object_detail_uses_atlas_card(client):
+    resp = client.get("/ui/objects/SPC.VIEW1")
+    assert resp.status_code == 200
+    assert "atlas-card" in resp.text
+
+
+def test_object_detail_uses_atlas_badge(client):
+    resp = client.get("/ui/objects/SPC.VIEW1")
+    assert "atlas-badge" in resp.text
+
+
+def test_object_detail_no_old_badge_class(client):
+    """Migrated object_detail must not use old bare .badge class."""
+    resp = client.get("/ui/objects/SPC.VIEW1")
+    html = resp.text
+    assert 'class="badge' not in html
+
+
+# ── Graph template ────────────────────────────────────────────────────────────
+
+
+def test_graph_uses_atlas_card(client):
+    resp = client.get("/ui/graph")
+    assert resp.status_code == 200
+    assert "atlas-card" in resp.text
+
+
+def test_graph_uses_atlas_input(client):
+    resp = client.get("/ui/graph")
+    assert "atlas-input" in resp.text
+
+
+def test_graph_uses_atlas_select(client):
+    resp = client.get("/ui/graph")
+    assert "atlas-select" in resp.text
+
+
+# ── Bridge CSS aliases ────────────────────────────────────────────────────────
+
+
+def test_style_css_has_btn_alias(client):
+    """style.css bridge must define .btn and .btn-primary for any legacy markup."""
+    resp = client.get("/static/style.css")
+    css = resp.text
+    assert ".btn " in css or ".btn{" in css or ".btn\n" in css or ".btn," in css
+    assert "btn-primary" in css
+
+
 # ── Light/dark theme ──────────────────────────────────────────────────────────
 
 

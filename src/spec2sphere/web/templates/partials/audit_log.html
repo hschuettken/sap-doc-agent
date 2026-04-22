@@ -3,62 +3,74 @@
 {% block page_title %}Audit Log{% endblock %}
 
 {% block content %}
+<div class="atlas-stack-lg">
 
 {% if error %}
-<div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-    {{ error }}
-</div>
+<div class="atlas-banner atlas-banner--destructive">{{ error }}</div>
 {% endif %}
 
 <!-- Filter Form -->
-<div class="card mb-6">
-    <form method="GET" action="/ui/audit-log" class="flex flex-wrap gap-3 items-end">
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">User</label>
-            <input type="text" name="user" value="{{ filter_user }}"
-                   placeholder="User ID fragment"
-                   class="border border-gray-200 rounded px-3 py-2 text-sm w-40 focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">Action</label>
-            <input type="text" name="action" value="{{ filter_action }}"
-                   placeholder="e.g. POST /api/..."
-                   class="border border-gray-200 rounded px-3 py-2 text-sm w-48 focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">Resource Type</label>
-            <input type="text" name="resource_type" value="{{ filter_resource }}"
-                   placeholder="e.g. project"
-                   class="border border-gray-200 rounded px-3 py-2 text-sm w-36 focus:outline-none focus:border-petrol">
-        </div>
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">Trace ID</label>
-            <input type="text" name="trace_id" value="{{ filter_trace }}"
-                   placeholder="UUID"
-                   class="border border-gray-200 rounded px-3 py-2 text-sm w-40 focus:outline-none focus:border-petrol">
-        </div>
-        <div class="flex gap-2">
-            <button type="submit"
-                    class="px-4 py-2 bg-petrol text-white rounded text-sm font-medium hover:bg-petrol-dark transition-colors">
-                Filter
-            </button>
-            <a href="/ui/audit-log"
-               class="px-4 py-2 border border-gray-300 text-gray-600 rounded text-sm font-medium hover:bg-gray-50 transition-colors">
-                Clear
-            </a>
-        </div>
+<div class="atlas-card">
+  <div class="atlas-card-content">
+    <form method="GET" action="/ui/audit-log" class="atlas-cluster">
+      <div class="atlas-field">
+        <label class="atlas-label">User</label>
+        <input type="text" name="user" value="{{ filter_user }}"
+               placeholder="User ID fragment"
+               class="atlas-input" style="width:10rem;">
+      </div>
+      <div class="atlas-field">
+        <label class="atlas-label">Action</label>
+        <input type="text" name="action" value="{{ filter_action }}"
+               placeholder="e.g. POST /api/…"
+               class="atlas-input" style="width:12rem;">
+      </div>
+      <div class="atlas-field">
+        <label class="atlas-label">Resource Type</label>
+        <input type="text" name="resource_type" value="{{ filter_resource }}"
+               placeholder="e.g. project"
+               class="atlas-input" style="width:9rem;">
+      </div>
+      <div class="atlas-field">
+        <label class="atlas-label">Trace ID</label>
+        <input type="text" name="trace_id" value="{{ filter_trace }}"
+               placeholder="UUID"
+               class="atlas-input" style="width:10rem;">
+      </div>
+      <div class="atlas-cluster" style="align-self:flex-end;">
+        <button type="submit" class="atlas-btn atlas-btn--primary atlas-btn--sm">Filter</button>
+        <a href="/ui/audit-log" class="atlas-btn atlas-btn--secondary atlas-btn--sm">Clear</a>
+      </div>
     </form>
+  </div>
 </div>
 
 <!-- Compliance Summary Bar -->
-<div id="compliance-bar" class="card mb-4 hidden">
-    <div class="flex gap-6 items-center flex-wrap">
-        <div class="text-center"><div id="comp-total" class="text-xl font-bold text-petrol">-</div><div class="text-xs text-gray-400">Total</div></div>
-        <div class="text-center"><div id="comp-approved" class="text-xl font-bold text-green-600">-</div><div class="text-xs text-gray-400">Approved</div></div>
-        <div class="text-center"><div id="comp-pending" class="text-xl font-bold text-amber-600">-</div><div class="text-xs text-gray-400">Pending</div></div>
-        <div class="text-center"><div id="comp-rejected" class="text-xl font-bold text-red-600">-</div><div class="text-xs text-gray-400">Rejected</div></div>
-        <div class="text-center"><div id="comp-rework" class="text-xl font-bold text-gray-600">-</div><div class="text-xs text-gray-400">Rework</div></div>
+<div id="compliance-bar" class="atlas-card hidden">
+  <div class="atlas-card-content">
+    <div class="atlas-cluster">
+      <div style="text-align:center;">
+        <div id="comp-total"    class="atlas-kpi-value" style="font-size:var(--atlas-text-xl); color:var(--atlas-color-primary);">-</div>
+        <div class="atlas-kpi-label">Total</div>
+      </div>
+      <div style="text-align:center;">
+        <div id="comp-approved" class="atlas-kpi-value" style="font-size:var(--atlas-text-xl); color:var(--atlas-color-success);">-</div>
+        <div class="atlas-kpi-label">Approved</div>
+      </div>
+      <div style="text-align:center;">
+        <div id="comp-pending"  class="atlas-kpi-value" style="font-size:var(--atlas-text-xl); color:var(--atlas-color-warning);">-</div>
+        <div class="atlas-kpi-label">Pending</div>
+      </div>
+      <div style="text-align:center;">
+        <div id="comp-rejected" class="atlas-kpi-value" style="font-size:var(--atlas-text-xl); color:var(--atlas-color-destructive);">-</div>
+        <div class="atlas-kpi-label">Rejected</div>
+      </div>
+      <div style="text-align:center;">
+        <div id="comp-rework"   class="atlas-kpi-value" style="font-size:var(--atlas-text-xl); color:var(--atlas-color-fg-muted);">-</div>
+        <div class="atlas-kpi-label">Rework</div>
+      </div>
     </div>
+  </div>
 </div>
 <script>
 fetch('/api/audit/compliance-summary').then(r=>r.json()).then(d=>{
@@ -73,56 +85,60 @@ fetch('/api/audit/compliance-summary').then(r=>r.json()).then(d=>{
 
 <!-- Entries Table -->
 {% if entries %}
-<div class="card p-0 overflow-hidden">
-    <table class="w-full text-sm">
-        <thead class="bg-petrol text-white">
-            <tr>
-                <th class="px-4 py-3 text-left font-medium text-xs">Time</th>
-                <th class="px-4 py-3 text-left font-medium text-xs">Action</th>
-                <th class="px-4 py-3 text-left font-medium text-xs">Resource</th>
-                <th class="px-4 py-3 text-left font-medium text-xs">User</th>
-                <th class="px-4 py-3 text-left font-medium text-xs">Details</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-            {% for entry in entries %}
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                    {{ entry.created_at|string|truncate(19, True, '') if entry.created_at else '—' }}
-                </td>
-                <td class="px-4 py-3">
-                    <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs text-gray-700">{{ entry.action or '—' }}</code>
-                </td>
-                <td class="px-4 py-3 text-gray-600 text-xs">
-                    {% if entry.resource_type %}
-                    <span class="font-medium">{{ entry.resource_type }}</span>
-                    {% if entry.resource_id %}
-                    <span class="text-gray-400">:{{ entry.resource_id[:8] if entry.resource_id|length > 8 else entry.resource_id }}</span>
-                    {% endif %}
-                    {% else %}
-                    —
-                    {% endif %}
-                </td>
-                <td class="px-4 py-3 text-gray-400 font-mono text-xs">
-                    {{ entry.user_id[:8] if entry.user_id and entry.user_id|length > 8 else (entry.user_id or '—') }}…
-                </td>
-                <td class="px-4 py-3 text-xs text-gray-500 max-w-xs truncate" title="{{ entry.details or '' }}">
-                    {{ (entry.details or '—')[:80] }}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="atlas-table-wrapper">
+  <table class="atlas-table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Action</th>
+        <th>Resource</th>
+        <th>User</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted); white-space:nowrap;">
+          {{ entry.created_at|string|truncate(19, True, '') if entry.created_at else '—' }}
+        </td>
+        <td>
+          <code class="atlas-code">{{ entry.action or '—' }}</code>
+        </td>
+        <td style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">
+          {% if entry.resource_type %}
+          <span style="font-weight:var(--atlas-font-weight-medium);">{{ entry.resource_type }}</span>
+          {% if entry.resource_id %}
+          <span style="color:var(--atlas-color-fg-subtle);">:{{ entry.resource_id[:8] if entry.resource_id|length > 8 else entry.resource_id }}</span>
+          {% endif %}
+          {% else %}
+          —
+          {% endif %}
+        </td>
+        <td style="font-family:var(--atlas-font-mono); font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted);">
+          {{ entry.user_id[:8] if entry.user_id and entry.user_id|length > 8 else (entry.user_id or '—') }}…
+        </td>
+        <td style="font-size:var(--atlas-text-xs); color:var(--atlas-color-fg-muted); max-width:16rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ entry.details or '' }}">
+          {{ (entry.details or '—')[:80] }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% else %}
-<div class="card text-center py-12">
-    {% if filter_user or filter_action or filter_resource or filter_trace %}
-    <p class="text-gray-400 mb-2">No entries match your filters.</p>
-    <a href="/ui/audit-log" class="text-sm text-petrol hover:underline">Clear filters</a>
-    {% else %}
-    <p class="text-gray-400">No audit log entries yet.</p>
-    {% endif %}
+<div class="atlas-empty">
+  <svg class="atlas-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+  </svg>
+  {% if filter_user or filter_action or filter_resource or filter_trace %}
+  <p class="atlas-empty-title">No entries match your filters.</p>
+  <a href="/ui/audit-log" style="font-size:var(--atlas-text-sm); color:var(--atlas-color-primary);">Clear filters</a>
+  {% else %}
+  <p class="atlas-empty-title">No audit log entries yet.</p>
+  {% endif %}
 </div>
 {% endif %}
 
+</div>
 {% endblock %}
