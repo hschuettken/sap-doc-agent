@@ -149,6 +149,56 @@ def create_migration_api_router(output_dir: Path) -> APIRouter:
         await migration_db.review_intent_card(card_id, req.decision, req.reviewer, req.notes)
         return {"status": req.decision}
 
+    # --- BRS Reconciliation (Phase 4) ---
+
+    @router.post("/projects/{project_id}/reconcile")
+    async def trigger_reconcile(project_id: str):
+        """Trigger BRS reconciliation for all interpreted chains in a project."""
+        from spec2sphere.migration import db as migration_db
+
+        project = await migration_db.get_project(project_id)
+        if not project:
+            raise HTTPException(404, "Project not found")
+
+        brs_folder = project.get("brs_folder", "")
+        if not brs_folder:
+            raise HTTPException(400, "Project has no brs_folder configured — set it on project creation")
+
+        chains_dir = output_dir / "chains"
+        if not chains_dir.exists():
+            raise HTTPException(400, "No chains found — run chain builder first")
+
+        intent_files = sorted(chains_dir.glob("*_intent.json"))
+        if not intent_files:
+            raise HTTPException(400, "No intent cards found — run interpret step first")
+
+        dispatched = []
+        for intent_file in intent_files:
+            chain_id = intent_file.stem.replace("_intent", "")
+            try:
+                from spec2sphere.tasks.migration_tasks import reconcile_brs_task
+
+                reconcile_brs_task.apply_async(
+                    kwargs={
+                        "chain_id": chain_id,
+                        "intent_json_path": str(intent_file),
+                        "brs_folder": brs_folder,
+                        "project_id": project_id,
+                    }
+                )
+                dispatched.append(chain_id)
+            except Exception as e:
+                logger.warning("Failed to dispatch reconcile for %s: %s", chain_id, e)
+                dispatched.append(chain_id)
+
+        await migration_db.update_project_status(project_id, "reconciling")
+        return {"status": "reconciling", "chains_dispatched": len(dispatched), "chain_ids": dispatched}
+
+    @router.get("/projects/{project_id}/brs-deltas")
+    async def list_brs_deltas(project_id: str):
+        """List BRS reconciliation results (deltas) for a project."""
+        return _read_brs_recon_files(output_dir)
+
     # --- Classification ---
 
     @router.post("/projects/{project_id}/classify")
@@ -505,6 +555,20 @@ def create_migration_ui_router(output_dir: Path) -> APIRouter:
             },
         )
 
+    @router.get("/reconcile", response_class=HTMLResponse)
+    async def reconcile_page(request: Request):
+        project_id = request.query_params.get("project_id", "")
+        deltas = _read_brs_recon_files(output_dir) if project_id else []
+        return _render(
+            request,
+            "partials/migration_reconcile.html",
+            {
+                "active_page": "migration/projects",
+                "deltas": deltas,
+                "project_id": project_id,
+            },
+        )
+
     @router.get("/report", response_class=HTMLResponse)
     async def report_page(request: Request):
         project_id = request.query_params.get("project_id", "")
@@ -584,6 +648,24 @@ def _read_target_files(output_dir: Path) -> list[dict]:
         except (json.JSONDecodeError, OSError):
             continue
     return views
+
+
+def _read_brs_recon_files(output_dir: Path) -> list[dict]:
+    """Fallback: read BRS reconciliation JSON files."""
+    chains_dir = output_dir / "chains"
+    if not chains_dir.exists():
+        return []
+    results = []
+    for f in sorted(chains_dir.glob("*_brs_recon.json")):
+        try:
+            data = json.loads(f.read_text())
+            if isinstance(data, list):
+                results.extend(data)
+            else:
+                results.append(data)
+        except (json.JSONDecodeError, OSError):
+            continue
+    return results
 
 
 def _read_generated_sql_files(output_dir: Path) -> list[dict]:

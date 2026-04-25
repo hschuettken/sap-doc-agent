@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}BRS Reconciliation — Spec2Sphere{% endblock %}
+{% block page_title %}BRS Reconciliation{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="font-heading text-2xl text-gray-900">BRS Reconciliation</h1>
+        {% if project_id %}
+        <button
+            hx-post="/api/migration/projects/{{ project_id }}/reconcile"
+            hx-swap="none"
+            class="bg-petrol text-white px-4 py-2 rounded text-sm font-medium hover:bg-petrol-dark transition">
+            Run Reconciliation
+        </button>
+        {% endif %}
+    </div>
+
+    {% if not project_id %}
+    <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-5">
+        <p class="text-amber-700">Select a project first to view BRS reconciliation results.</p>
+    </div>
+    {% elif deltas %}
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-[#E5E5E5]">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Chain</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">BRS Document</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Delta Type</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Confidence</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Delta</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-[#E5E5E5]">
+                {% for delta in deltas %}
+                {% set d = delta.get('deltas', []) %}
+                {% for item in d %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ delta.get('chain_id', '') }}</td>
+                    <td class="px-4 py-3 text-gray-700">{{ delta.get('brs_document', '') }}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                            {{ item.get('delta_type', '') }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-700">{{ (delta.get('confidence', 0) * 100)|round(0)|int }}%</td>
+                    <td class="px-4 py-3 text-gray-600 text-xs">{{ item.get('notes', '') }}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-[#E5E5E5] p-8 text-center">
+        <p class="text-gray-500 text-sm">No BRS reconciliation results yet. Run the reconciliation step above.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
