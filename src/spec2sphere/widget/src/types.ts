@@ -11,6 +11,7 @@ export interface Provenance {
   model?: string;
   cached?: boolean;
   generated_at?: string;
+  latency_ms?: number;
 }
 
 export interface EnhanceResponse {
@@ -18,4 +19,8 @@ export interface EnhanceResponse {
   render_hint: RenderHint;
   content: Record<string, unknown>;
   provenance?: Provenance;
+  generation_id?: string;
+  quality_warnings?: string[];
+  _cached?: boolean;
+  error_kind?: string;
 }

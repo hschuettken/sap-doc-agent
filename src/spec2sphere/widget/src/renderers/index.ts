@@ -46,7 +46,17 @@ export function widgetStyle(): string {
     .s2s-chart { overflow: hidden; }
     .s2s-chart-empty { color: #9ca3af; font-size: 12px; }
     .s2s-btn:hover { opacity: 0.85; }
+    .s2s-admin-chip { font: 11px monospace; color: #6b7280; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 2px 6px; border-radius: 3px; margin-top: 6px; cursor: pointer; display: inline-block; user-select: none; }
+    .s2s-admin-chip:hover { background: #e5e7eb; }
   </style>`;
+}
+
+export function renderAdminChip(data: EnhanceResponse, apiBase: string): string {
+  const genShort = data.generation_id ? escapeHtml(data.generation_id.slice(0, 8)) : '—';
+  const latency = data.provenance?.latency_ms != null ? String(data.provenance.latency_ms) : '—';
+  const cacheStatus = data._cached ? 'hit' : 'miss';
+  const logUrl = escapeHtml(`${apiBase}/ai-studio/log/${data.generation_id ?? ''}`);
+  return `<div class="s2s-admin-chip" role="button" tabindex="0" title="Open generation log" onclick="window.open('${logUrl}','_blank')">gen=${genShort} · ${latency}ms · ${cacheStatus}</div>`;
 }
 
 // ---------------------------------------------------------------------------

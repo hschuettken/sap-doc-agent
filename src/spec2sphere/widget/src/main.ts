@@ -2,7 +2,7 @@ import { fetchEnhancement, runAction, openStream } from './api';
 import type { WidgetContext } from './api';
 import { postTelemetry } from './telemetry';
 import { resolveContext } from './sac_context';
-import { renderByHint } from './renderers/index';
+import { renderByHint, renderAdminChip } from './renderers/index';
 import type { EnhanceResponse } from './types';
 
 class Spec2SphereAiWidget extends HTMLElement {
@@ -70,12 +70,17 @@ class Spec2SphereAiWidget extends HTMLElement {
 
   private _render(data: EnhanceResponse): void {
     if (!this.shadowRoot) return;
-    this.shadowRoot.innerHTML = renderByHint(data);
+    const apiBase = this.getAttribute('apibase') ?? '';
+    const authmode = this.getAttribute('authmode') ?? '';
+    let html = renderByHint(data);
+    if (authmode === 'author' && data.generation_id) {
+      html += renderAdminChip(data, apiBase);
+    }
+    this.shadowRoot.innerHTML = html;
 
     // Wire button action handler
     const btn = this.shadowRoot.querySelector<HTMLButtonElement>('[data-action="run"]');
     if (btn && this._ctx) {
-      const apiBase = this.getAttribute('apibase') ?? '';
       const id = this.getAttribute('enhancementid') ?? '';
       const ctx = this._ctx;
       btn.addEventListener('click', () => {

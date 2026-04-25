@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderByHint, escapeHtml, applyMarkdown } from '../src/renderers/index';
+import { renderByHint, escapeHtml, applyMarkdown, renderAdminChip } from '../src/renderers/index';
 import type { EnhanceResponse } from '../src/types';
 
 function make(hint: string, content: Record<string, unknown>): EnhanceResponse {
@@ -192,5 +192,69 @@ describe('unknown hint', () => {
   it('returns error message for unknown hint', () => {
     const out = renderByHint(make('unknown_type', {}));
     expect(out).toContain('Unknown render hint');
+  });
+});
+
+describe('renderAdminChip', () => {
+  it('renders gen id (first 8 chars) and latency', () => {
+    const data: EnhanceResponse = {
+      enhancement_id: 'test-1',
+      render_hint: 'narrative',
+      content: {},
+      generation_id: 'abcdef12-0000-0000-0000-000000000000',
+      provenance: { latency_ms: 123 },
+      _cached: false,
+    };
+    const chip = renderAdminChip(data, 'http://example.com');
+    expect(chip).toContain('gen=abcdef12');
+    expect(chip).toContain('123ms');
+    expect(chip).toContain('miss');
+    expect(chip).toContain('s2s-admin-chip');
+  });
+
+  it('shows "hit" when _cached is true', () => {
+    const data: EnhanceResponse = {
+      enhancement_id: 'test-1',
+      render_hint: 'narrative',
+      content: {},
+      generation_id: 'aabbccdd-0000-0000-0000-000000000000',
+      _cached: true,
+    };
+    const chip = renderAdminChip(data, 'http://example.com');
+    expect(chip).toContain('hit');
+    expect(chip).not.toContain('miss');
+  });
+
+  it('shows em-dash when generation_id is absent', () => {
+    const data: EnhanceResponse = {
+      enhancement_id: 'test-1',
+      render_hint: 'narrative',
+      content: {},
+    };
+    const chip = renderAdminChip(data, '');
+    expect(chip).toContain('gen=—');
+  });
+
+  it('escapes XSS in generation_id', () => {
+    const data: EnhanceResponse = {
+      enhancement_id: 'test-1',
+      render_hint: 'narrative',
+      content: {},
+      generation_id: '<script>evil</script>',
+    };
+    const chip = renderAdminChip(data, '');
+    expect(chip).not.toContain('<script>');
+    expect(chip).toContain('&lt;script&gt;');
+  });
+
+  it('links to generation log URL', () => {
+    const data: EnhanceResponse = {
+      enhancement_id: 'test-1',
+      render_hint: 'narrative',
+      content: {},
+      generation_id: 'abc00000-0000-0000-0000-000000000000',
+    };
+    const chip = renderAdminChip(data, 'http://myhost');
+    expect(chip).toContain('http://myhost/ai-studio/log/abc00000-0000-0000-0000-000000000000');
   });
 });
