@@ -337,7 +337,7 @@ def write_scan_output(result: ScanResult, output_dir: Path) -> None:
         md_content = render_object_markdown(obj, dependencies=obj_deps)
         md_file.write_text(md_content)
 
-    # Write dependency graph
+    # Build the dependency graph in memory.
     graph_data = {
         "source_system": result.source_system,
         "scanned_at": result.scanned_at.isoformat(),
@@ -361,31 +361,30 @@ def write_scan_output(result: ScanResult, output_dir: Path) -> None:
             for dep in result.dependencies
         ],
     }
-    graph_file = output_dir / "graph.json"
-    graph_file.write_text(json.dumps(graph_data, indent=2))
+
+    # Session C: Brain is the primary destination. graph.json only written when
+    # BRAIN_WRITE_BOTH=true (backward-compat mode for chain_tasks and legacy reads).
+    import os as _os
+
+    if _os.environ.get("BRAIN_WRITE_BOTH", "false").lower() == "true":
+        graph_file = output_dir / "graph.json"
+        graph_file.write_text(json.dumps(graph_data, indent=2))
+        try:
+            _emit_scan_completed(str(result.source_system), str(graph_file))
+        except Exception:  # pragma: no cover — NOTIFY is fire-and-forget
+            pass
 
     # Write README.md summary
     readme_content = _render_readme(result)
     (output_dir / "README.md").write_text(readme_content)
 
-    # Best-effort NOTIFY so dsp-ai's schema_semantic feeder picks up the new graph.
-    # Import lazily so the scanner has no hard dependency on dsp_ai at import time.
+    # Feed Brain directly from in-memory graph data (no file required).
     try:
-        _emit_scan_completed(str(result.source_system), str(graph_file))
-    except Exception:  # pragma: no cover — NOTIFY is fire-and-forget
-        pass
+        _feed_brain_from_data(graph_data, customer=str(result.source_system))
+    except Exception:  # pragma: no cover — never break the scan on Brain errors
+        import logging as _log
 
-    # Session B cutover bridge: also feed the Corporate Brain when BRAIN_WRITE_BOTH=true.
-    # File remains the source of truth; Brain is a mirror this session.
-    import os as _os
-
-    if _os.environ.get("BRAIN_WRITE_BOTH", "false").lower() == "true":
-        try:
-            _feed_brain_from_graph(graph_file, customer=str(result.source_system))
-        except Exception:  # pragma: no cover — never break the scan on Brain errors
-            import logging as _log
-
-            _log.getLogger(__name__).exception("Brain write-both failed (file write succeeded)")
+        _log.getLogger(__name__).exception("Brain feed failed (scan still recorded)")
 
 
 def _emit_scan_completed(customer: str, graph_path: str) -> None:
@@ -407,12 +406,40 @@ def _emit_scan_completed(customer: str, graph_path: str) -> None:
         loop.create_task(emit("scan_completed", payload))
 
 
-def _feed_brain_from_graph(graph_file: Path, *, customer: str) -> None:
-    """Best-effort mirror of graph.json to the Corporate Brain.
+def _feed_brain_from_data(graph_data: dict, *, customer: str) -> None:
+    """Feed the Corporate Brain from an in-memory graph dict (Session C default path).
 
-    Calls the Session A schema_semantic feeder (feed_from_graph_json) which
-    accepts a file path.  Runs synchronously if outside an event loop
-    (scanner CLI), or schedules a task if inside one (FastAPI/Celery).
+    Runs synchronously if outside an event loop (scanner CLI), or schedules a
+    task if inside one (FastAPI/Celery). Never raises — Brain errors must not
+    break the scan.
+    """
+    import asyncio
+
+    from spec2sphere.dsp_ai.brain.feeders.schema_semantic import (  # noqa: E402
+        feed_from_graph_data,
+    )
+
+    async def _run() -> None:
+        try:
+            await feed_from_graph_data(customer, graph_data)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Brain feed failed (scan still recorded)")
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_run())
+    else:
+        loop.create_task(_run())
+
+
+def _feed_brain_from_graph(graph_file: Path, *, customer: str) -> None:
+    """Mirror graph.json to the Corporate Brain (legacy BRAIN_WRITE_BOTH path).
+
+    Calls the schema_semantic feeder with a file path. Used only when
+    BRAIN_WRITE_BOTH=true and graph.json was written to disk.
     """
     import asyncio
 
@@ -426,7 +453,7 @@ def _feed_brain_from_graph(graph_file: Path, *, customer: str) -> None:
         except Exception:
             import logging
 
-            logging.getLogger(__name__).exception("Brain write-both failed (graph.json still authoritative)")
+            logging.getLogger(__name__).exception("Brain write-both failed")
 
     try:
         loop = asyncio.get_running_loop()

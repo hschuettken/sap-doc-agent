@@ -1,12 +1,10 @@
-"""Dual-read graph access for the Session B Neo4j cutover.
+"""Dual-read graph access — Brain by default, file as legacy fallback.
 
-Read the DSP object graph from either the legacy ``output/graph.json`` file
-(default) or the Corporate Brain (Neo4j), controlled by
-``GRAPH_READ_FROM_BRAIN=true``.
-
-Only new code paths (e.g. ContentHub in Task 9) call these helpers —
-``chain_builder`` and the scan Web routes still consume the file directly
-to keep Session B changes minimal.
+Session C: Brain (Neo4j) is the primary source of truth.
+Set ``GRAPH_LEGACY_FILE_FALLBACK=true`` to fall back to ``output/graph.json``
+(required when ``BRAIN_WRITE_BOTH=true`` and the file is present, or for
+migration testing). ``GRAPH_READ_FROM_BRAIN`` is still accepted for backward
+compatibility but is no longer needed.
 """
 
 from __future__ import annotations
@@ -18,7 +16,10 @@ from typing import Any
 
 
 def read_from_brain() -> bool:
-    return os.environ.get("GRAPH_READ_FROM_BRAIN", "false").lower() == "true"
+    # Session C: Brain is the default. Opt into file reads with GRAPH_LEGACY_FILE_FALLBACK=true.
+    if os.environ.get("GRAPH_LEGACY_FILE_FALLBACK", "false").lower() == "true":
+        return False
+    return True
 
 
 def _graph_file(output_dir: str | Path = "output") -> Path:

@@ -510,32 +510,33 @@ def create_app(
             "serviceName": "Spec2Sphere",
             "serviceUrl": "http://localhost:8260",
             "version": "2.0.0",
+            "color": "#f59e0b",
             "routes": [
-                {"id": "dashboard",        "label": "Dashboard",        "path": "/ui/dashboard",          "group": "Main",     "keywords": ["overview", "status"]},
-                {"id": "pipeline",         "label": "Pipeline",         "path": "/ui/pipeline",           "group": "Main",     "keywords": ["delivery", "stages", "approvals"]},
-                {"id": "factory",          "label": "Factory",          "path": "/ui/factory",            "group": "Main",     "keywords": ["deploy", "dsp", "sac"]},
-                {"id": "reports",          "label": "Reports",          "path": "/ui/reports",            "group": "Main",     "keywords": ["documentation", "browser"]},
-                {"id": "landscape",        "label": "Landscape",        "path": "/ui/landscape",          "group": "Discover", "keywords": ["sap", "systems", "graph"]},
-                {"id": "scanner",          "label": "Scanner",          "path": "/ui/scanner",            "group": "Discover", "keywords": ["scan", "crawl", "discovery"]},
-                {"id": "objects",          "label": "Objects",          "path": "/ui/objects",            "group": "Discover", "keywords": ["cdp", "dsp", "artifacts"]},
-                {"id": "graph",            "label": "Dependencies",     "path": "/ui/graph",              "group": "Discover", "keywords": ["dependencies", "relations"]},
-                {"id": "knowledge",        "label": "Knowledge",        "path": "/ui/knowledge",          "group": "Discover", "keywords": ["knowledge base", "standards"]},
-                {"id": "quality",          "label": "Quality",          "path": "/ui/quality",            "group": "Quality",  "keywords": ["rules", "assessment"]},
-                {"id": "reconciliation",   "label": "Reconciliation",   "path": "/ui/reconciliation",     "group": "Quality",  "keywords": ["validate", "data"]},
-                {"id": "visual-qa",        "label": "Visual QA",        "path": "/ui/visual-qa",          "group": "Quality",  "keywords": ["screenshot", "visual testing"]},
-                {"id": "audit",            "label": "Audit",            "path": "/ui/audit",              "group": "Quality",  "keywords": ["audit", "review"]},
-                {"id": "audit-log",        "label": "Audit Log",        "path": "/ui/audit-log",          "group": "Quality",  "keywords": ["log", "history"]},
-                {"id": "lab",              "label": "Lab",              "path": "/ui/lab",                "group": "Learning", "keywords": ["learning", "templates"]},
-                {"id": "lab-fitness",      "label": "Route Fitness",    "path": "/ui/lab/fitness",        "group": "Learning", "keywords": ["fitness", "metrics"]},
-                {"id": "design-tokens",    "label": "Design Tokens",    "path": "/ui/design-tokens",      "group": "Learning", "keywords": ["design", "tokens"]},
-                {"id": "agent-terminal",   "label": "Agent Terminal",   "path": "/ui/agent-terminal",     "group": "System",   "keywords": ["terminal", "tmux", "sessions"]},
-                {"id": "migration",        "label": "Migration",        "path": "/ui/migration/projects", "group": "System",   "keywords": ["legacy", "migration", "projects"]},
-                {"id": "llm-routing",      "label": "LLM Routing",      "path": "/ui/llm-routing",        "group": "System",   "keywords": ["llm", "provider", "routing"]},
-                {"id": "notifications",    "label": "Notifications",    "path": "/ui/notifications",      "group": "System",   "keywords": ["alerts", "notifications"]},
-                {"id": "settings",         "label": "Settings",         "path": "/ui/settings",           "group": "System",   "keywords": ["config", "settings"]},
-                {"id": "admin",            "label": "Admin",            "path": "/ui/admin",              "group": "System",   "keywords": ["admin", "management"]},
-                {"id": "ai-studio",        "label": "AI Studio",        "path": "/ai-studio/",            "group": "Tools",    "keywords": ["ai", "prompts", "authoring"]},
-                {"id": "copilot",          "label": "Copilot Hub",      "path": "/copilot",               "group": "Tools",    "keywords": ["copilot", "knowledge", "m365"]},
+                {"id": "dashboard",        "label": "Dashboard",        "path": "/ui/dashboard",          "group": "Main",     "description": "Overview, stats, and getting started",              "keywords": ["overview", "status"]},
+                {"id": "pipeline",         "label": "Pipeline",         "path": "/ui/pipeline",           "group": "Main",     "description": "Deployment pipeline stages and approvals",          "keywords": ["delivery", "stages", "approvals"]},
+                {"id": "factory",          "label": "Factory",          "path": "/ui/factory",            "group": "Main",     "description": "DSP/SAC factory deployments",                       "keywords": ["deploy", "dsp", "sac"]},
+                {"id": "reports",          "label": "Reports",          "path": "/ui/reports",            "group": "Main",     "description": "Documentation reports browser",                     "keywords": ["documentation", "browser"]},
+                {"id": "landscape",        "label": "Landscape",        "path": "/ui/landscape",          "group": "Discover", "description": "SAP system landscape graph",                        "keywords": ["sap", "systems", "graph"]},
+                {"id": "scanner",          "label": "Scanner",          "path": "/ui/scanner",            "group": "Discover", "description": "Discovery scanner — crawl SAP objects",             "keywords": ["scan", "crawl", "discovery"]},
+                {"id": "objects",          "label": "Objects",          "path": "/ui/objects",            "group": "Discover", "description": "Browse CDP/DSP artifacts and objects",              "keywords": ["cdp", "dsp", "artifacts"]},
+                {"id": "graph",            "label": "Dependencies",     "path": "/ui/graph",              "group": "Discover", "description": "Object dependency graph and relations",             "keywords": ["dependencies", "relations"]},
+                {"id": "knowledge",        "label": "Knowledge",        "path": "/ui/knowledge",          "group": "Discover", "description": "Knowledge base and standards library",              "keywords": ["knowledge base", "standards"]},
+                {"id": "quality",          "label": "Quality",          "path": "/ui/quality",            "group": "Quality",  "description": "Quality rules and assessment results",              "keywords": ["rules", "assessment"]},
+                {"id": "reconciliation",   "label": "Reconciliation",   "path": "/ui/reconciliation",     "group": "Quality",  "description": "Data validation and reconciliation",               "keywords": ["validate", "data"]},
+                {"id": "visual-qa",        "label": "Visual QA",        "path": "/ui/visual-qa",          "group": "Quality",  "description": "Screenshot-based visual testing",                  "keywords": ["screenshot", "visual testing"]},
+                {"id": "audit",            "label": "Audit",            "path": "/ui/audit",              "group": "Quality",  "description": "Audit trail and review log",                       "keywords": ["audit", "review"]},
+                {"id": "audit-log",        "label": "Audit Log",        "path": "/ui/audit-log",          "group": "Quality",  "description": "Full event history log",                           "keywords": ["log", "history"]},
+                {"id": "lab",              "label": "Lab",              "path": "/ui/lab",                "group": "Learning", "description": "Experimentation lab and learning templates",        "keywords": ["learning", "templates"]},
+                {"id": "lab-fitness",      "label": "Route Fitness",    "path": "/ui/lab/fitness",        "group": "Learning", "description": "Route fitness metrics and coverage",               "keywords": ["fitness", "metrics"]},
+                {"id": "design-tokens",    "label": "Design Tokens",    "path": "/ui/design-tokens",      "group": "Learning", "description": "Atlas design token browser and reference",         "keywords": ["design", "tokens"]},
+                {"id": "agent-terminal",   "label": "Agent Terminal",   "path": "/ui/agent-terminal",     "group": "System",   "description": "Interactive terminal and tmux session manager",    "keywords": ["terminal", "tmux", "sessions"]},
+                {"id": "migration",        "label": "Migration",        "path": "/ui/migration/projects", "group": "System",   "description": "Legacy migration projects tracker",                "keywords": ["legacy", "migration", "projects"]},
+                {"id": "llm-routing",      "label": "LLM Routing",      "path": "/ui/llm-routing",        "group": "System",   "description": "LLM provider routing configuration",               "keywords": ["llm", "provider", "routing"]},
+                {"id": "notifications",    "label": "Notifications",    "path": "/ui/notifications",      "group": "System",   "description": "Alerts and notification center",                   "keywords": ["alerts", "notifications"]},
+                {"id": "settings",         "label": "Settings",         "path": "/ui/settings",           "group": "System",   "description": "Service configuration and settings",               "keywords": ["config", "settings"]},
+                {"id": "admin",            "label": "Admin",            "path": "/ui/admin",              "group": "System",   "description": "Administration and management panel",              "keywords": ["admin", "management"]},
+                {"id": "ai-studio",        "label": "AI Studio",        "path": "/ai-studio/",            "group": "Tools",    "description": "AI prompt authoring and studio workspace",         "keywords": ["ai", "prompts", "authoring"]},
+                {"id": "copilot",          "label": "Copilot Hub",      "path": "/copilot",               "group": "Tools",    "description": "Copilot knowledge base and M365 integration hub",  "keywords": ["copilot", "knowledge", "m365"]},
             ],
             "shortcuts": [
                 {"key": "g d", "description": "Go to Dashboard",   "action": "dashboard"},
@@ -622,6 +623,8 @@ def create_app(
     @app.get("/health")
     async def health():
         """Health check."""
+        from spec2sphere.scanner import graph_repo
+
         objects_count = 0
         graph_loaded = False
         try:
@@ -630,10 +633,16 @@ def create_app(
             objects_count = await get_object_count()
             graph_loaded = objects_count > 0
         except Exception:
-            graph_loaded = (output_path / "graph.json").exists()
-            objects_count = (
-                sum(1 for _ in (output_path / "objects").rglob("*.md")) if (output_path / "objects").exists() else 0
-            )
+            try:
+                objs = await graph_repo.list_objects(output_dir=output_path)
+                graph_loaded = len(objs) > 0
+                objects_count = len(objs)
+            except Exception:
+                objects_count = (
+                    sum(1 for _ in (output_path / "objects").rglob("*.md"))
+                    if (output_path / "objects").exists()
+                    else 0
+                )
         return {"status": "ok", "objects": objects_count, "graph_loaded": graph_loaded}
 
     # --- API endpoints for M365 Copilot Actions ---
@@ -684,19 +693,21 @@ def create_app(
     )
     async def api_list_objects():
         """List all objects from the dependency graph."""
-        graph_path = output_path / "graph.json"
-        if not graph_path.exists():
+        from spec2sphere.scanner import graph_repo
+
+        try:
+            nodes = await graph_repo.list_objects(output_dir=output_path)
+        except Exception:
             return {"objects": [], "count": 0}
-        graph = json.loads(graph_path.read_text())
         objects = [
             ObjectSummary(
-                id=n["id"],
-                name=n["name"],
-                type=n["type"],
+                id=n.get("id", ""),
+                name=n.get("name", n.get("id", "")),
+                type=n.get("type") or n.get("kind", ""),
                 layer=n.get("layer", ""),
                 source_system=n.get("source_system", ""),
             )
-            for n in graph.get("nodes", [])
+            for n in nodes
         ]
         return {"objects": objects, "count": len(objects)}
 
@@ -783,16 +794,20 @@ def create_app(
     )
     async def api_dependencies(object_id: str):
         """Get dependencies for an object."""
-        graph_path = output_path / "graph.json"
-        if not graph_path.exists():
+        from spec2sphere.scanner import graph_repo
+
+        try:
+            edges = await graph_repo.list_edges(output_dir=output_path)
+        except Exception:
             raise HTTPException(404, "No dependency graph available")
-        graph = json.loads(graph_path.read_text())
-        upstream = [e for e in graph.get("edges", []) if e["target"] == object_id]
-        downstream = [e for e in graph.get("edges", []) if e["source"] == object_id]
+        if not edges:
+            raise HTTPException(404, "No dependency graph available")
+        upstream = [e for e in edges if e.get("target") == object_id]
+        downstream = [e for e in edges if e.get("source") == object_id]
         return {
             "object_id": object_id,
-            "upstream": [{"source": e["source"], "type": e["type"]} for e in upstream],
-            "downstream": [{"target": e["target"], "type": e["type"]} for e in downstream],
+            "upstream": [{"source": e["source"], "type": e.get("type", "")} for e in upstream],
+            "downstream": [{"target": e["target"], "type": e.get("type", "")} for e in downstream],
         }
 
     # --- New API endpoints for Web UI ---
@@ -800,16 +815,16 @@ def create_app(
     @app.get("/api/dashboard/stats", summary="Dashboard statistics", operation_id="getDashboardStats")
     async def api_dashboard_stats():
         """Aggregated stats for the dashboard."""
-        graph_path = output_path / "graph.json"
-        objects = []
-        edges = []
-        if graph_path.exists():
-            graph = json.loads(graph_path.read_text())
-            objects = graph.get("nodes", [])
-            edges = graph.get("edges", [])
-        type_counts = {}
+        from spec2sphere.scanner import graph_repo
+
+        try:
+            objects = await graph_repo.list_objects(output_dir=output_path)
+            edges = await graph_repo.list_edges(output_dir=output_path)
+        except Exception:
+            objects, edges = [], []
+        type_counts: dict[str, int] = {}
         for obj in objects:
-            t = obj.get("type", "other")
+            t = obj.get("type") or obj.get("kind", "other")
             type_counts[t] = type_counts.get(t, 0) + 1
         return {
             "object_count": len(objects),

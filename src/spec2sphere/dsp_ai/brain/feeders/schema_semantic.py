@@ -8,6 +8,9 @@ use the more expressive ``{objects: [{columns: [...]}]}`` shape.
 Triggers:
   - Celery on ``pg_notify('scan_completed', {customer, graph_path})``
   - cron ``BRAIN_FEEDER_CRON`` (default 0 */4 * * *)
+
+Session C: use ``feed_from_graph_data`` when feeding from in-memory scan results
+(graph.json may not be written to disk when BRAIN_WRITE_BOTH is not set).
 """
 
 from __future__ import annotations
@@ -36,13 +39,58 @@ def _normalise_graph(raw: dict[str, Any]) -> list[dict[str, Any]]:
     return objs
 
 
+async def feed_from_graph_data(customer: str, data: dict[str, Any]) -> dict[str, int]:
+    """MERGE DspObject + Column + HAS_COLUMN edges from an in-memory graph dict.
+
+    Preferred in Session C where graph.json may not be written to disk.
+    Returns counts of objects + columns written.
+    """
+    counts = {"objects": 0, "columns": 0}
+    for obj in _normalise_graph(data):
+        oid = obj.get("id")
+        if not oid:
+            continue
+        await run(
+            """
+            MERGE (o:DspObject {id: $id})
+            SET o.kind = $kind, o.customer = $customer
+            """,
+            id=oid,
+            kind=obj.get("kind", "Unknown"),
+            customer=customer,
+        )
+        counts["objects"] += 1
+        for col in obj.get("columns") or []:
+            col_name = col.get("name")
+            if not col_name:
+                continue
+            col_id = f"{oid}.{col_name}"
+            await run(
+                """
+                MATCH (o:DspObject {id: $oid})
+                MERGE (c:Column {id: $cid})
+                SET c.dtype = $dtype, c.nullable = $nullable
+                MERGE (o)-[:HAS_COLUMN]->(c)
+                """,
+                oid=oid,
+                cid=col_id,
+                dtype=col.get("dtype", "?"),
+                nullable=col.get("nullable", True),
+            )
+            counts["columns"] += 1
+    return counts
+
+
 async def feed_from_graph_json(customer: str, graph_path: Path) -> dict[str, int]:
     """Read ``graph_path``, MERGE DspObject + Column + HAS_COLUMN edges.
 
     Returns counts of objects + columns written so callers can log the
     feeder's effect.
     """
-    data = json.loads(Path(graph_path).read_text())
+    path = Path(graph_path)
+    if not path.exists():
+        return {"objects": 0, "columns": 0}
+    data = json.loads(path.read_text())
     counts = {"objects": 0, "columns": 0}
     for obj in _normalise_graph(data):
         oid = obj.get("id")
