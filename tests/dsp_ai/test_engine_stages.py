@@ -587,6 +587,9 @@ class TestEngineOrchestration:
         async def fake_dispatch(_enh: Any, _shaped: Any, **_kw: Any) -> dict:
             return shaped
 
+        async def fake_check_and_account(_eid: str, _projected: float) -> None:
+            pass  # no DB needed in unit test
+
         monkeypatch.setattr(engine_mod, "resolve", fake_resolve)
         monkeypatch.setattr(engine_mod, "gather", fake_gather)
         monkeypatch.setattr(engine_mod, "apply_rules", fake_apply_rules)
@@ -594,6 +597,7 @@ class TestEngineOrchestration:
         monkeypatch.setattr(engine_mod, "run_llm", fake_run_llm)
         monkeypatch.setattr(engine_mod, "shape", fake_shape)
         monkeypatch.setattr(engine_mod, "dispatch", fake_dispatch)
+        monkeypatch.setattr(engine_mod, "check_and_account", fake_check_and_account)
 
         result = await engine_mod.run_engine(enh.id, user_id="alice", context_key="morning")
 
@@ -650,3 +654,44 @@ class TestEngineOrchestration:
         assert result["content"] is None
         assert "llm_timeout" in result["quality_warnings"]
         assert captured_shaped["error_kind"] == "llm_timeout"
+
+    @pytest.mark.asyncio
+    async def test_run_engine_returns_cost_cap_on_exceeded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Session C cost guard: engine short-circuits with error_kind=cost_cap when cap exceeded.
+
+        No DB required — CostExceeded is raised by a mock so the engine's
+        exception handler is exercised in pure unit-test context.
+        """
+        import spec2sphere.dsp_ai.engine as engine_mod
+        from spec2sphere.dsp_ai.cost_guard import CostExceeded
+
+        enh = _make_enhancement()
+        ctx = _make_context(dsp_data=[{"x": 1}])
+
+        async def fake_resolve(_eid: str) -> Enhancement:
+            return enh
+
+        async def fake_gather(_enh: Any, _uid: Any, _hints: Any) -> GatheredContext:
+            return ctx
+
+        def fake_apply_rules(_enh: Any, _ctx: Any, _uid: Any, _now: Any) -> GatheredContext:
+            return ctx
+
+        def fake_compose(_enh: Any, _ctx: Any, _uid: Any) -> str:
+            return "My rendered prompt"
+
+        async def exceeded_check(_eid: str, _projected: float) -> None:
+            raise CostExceeded(f"enhancement {_eid}: 30.0000 USD would exceed cap 25.00 USD")
+
+        monkeypatch.setattr(engine_mod, "resolve", fake_resolve)
+        monkeypatch.setattr(engine_mod, "gather", fake_gather)
+        monkeypatch.setattr(engine_mod, "apply_rules", fake_apply_rules)
+        monkeypatch.setattr(engine_mod, "compose", fake_compose)
+        monkeypatch.setattr(engine_mod, "check_and_account", exceeded_check)
+
+        result = await engine_mod.run_engine(enh.id, user_id="alice", context_key="morning")
+
+        assert result["error_kind"] == "cost_cap"
+        assert result["content"] is None
+        assert "cost_cap" in result["quality_warnings"]
+        assert result["enhancement_id"] == enh.id
